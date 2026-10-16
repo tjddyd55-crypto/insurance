@@ -28,6 +28,18 @@ export const AUTOSYNC_TITLES = Object.freeze({
   insurance_age_date: 'ONE FC 상령일 알림',
   special_date: 'ONE FC 고객 알림',
 })
+/** t327(사용자 결정): 유형 라벨 + 이름. 일정 관리와 같은 이름을 쓴다. 주민번호·연락처·계좌·병력·메모 본문·링크는 넣지 않는다. */
+export const AUTOSYNC_LABELS = Object.freeze({ todo: '할 일', car_expiry: '자동차 만기', insurance_age_date: '상령일', special_date: '알림일' })
+export function autoSyncTitle(item) {
+  const name = String(item.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 200) || (item.kind === 'todo' ? '할 일' : '고객')
+  const done = item.kind === 'todo' && item.completed ? ' (완료)' : ''
+  return `[${AUTOSYNC_LABELS[item.kind] ?? item.kind}] ${name}${done}`
+}
+function specialName(ev) {
+  const t = String(ev.sourceTitle ?? '').trim()
+  // 제목이 비어 기본 라벨이 들어간 경우는 고객 이름
+  return t && t !== '알림일' ? t : String(ev.customerName ?? '')
+}
 const KIND_COLUMN = { todo: 'todo_enabled', car_expiry: 'car_expiry_enabled', insurance_age_date: 'insurance_age_enabled', special_date: 'special_date_enabled' }
 const KIND_ORIGINAL_SETTING = { car_expiry: 'carExpiry', insurance_age_date: 'insuranceAge', special_date: 'specialDate' }
 const TAG_APP = 'onefcAutoSync'
@@ -81,6 +93,9 @@ export async function ensureGoogleAutoSyncSchema(pool) {
       CONSTRAINT google_calendar_sync_map_status_chk CHECK (status IN ('pending','active','pending_delete','deleted','retained','conflict','failed'))
     )
   `)
+  // t327: 백그라운드 동기화 상태(idle|queued|running|done|error). 추가 컬럼만(호환).
+  await pool.query(`ALTER TABLE google_calendar_autosync_settings ADD COLUMN IF NOT EXISTS sync_status TEXT NOT NULL DEFAULT 'idle'`)
+  await pool.query(`ALTER TABLE google_calendar_autosync_settings ADD COLUMN IF NOT EXISTS sync_started_at TIMESTAMPTZ NULL`)
   await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_gcal_sync_map_key ON google_calendar_sync_map (user_id, google_account_id, calendar_id, source_key)`)
   await pool.query(`CREATE INDEX IF NOT EXISTS ix_gcal_sync_map_user_status ON google_calendar_sync_map (user_id, status)`)
 }
@@ -88,7 +103,7 @@ export async function ensureGoogleAutoSyncSchema(pool) {
 const DEFAULT_SETTINGS = { enabled: false, kinds: { todo: true, car_expiry: true, insurance_age_date: true, special_date: true }, calendarId: 'primary', generation: 0 }
 
 function mapSettingsRow(row) {
-  if (!row) return { ...DEFAULT_SETTINGS, kinds: { ...DEFAULT_SETTINGS.kinds }, lastSyncAt: null, lastSyncError: null, gaId: null }
+  if (!row) return { ...DEFAULT_SETTINGS, kinds: { ...DEFAULT_SETTINGS.kinds }, lastSyncAt: null, lastSyncError: null, syncStatus: 'idle', syncStartedAt: null, gaId: null }
   return {
     enabled: row.enabled === true,
     kinds: Object.fromEntries(AUTOSYNC_KINDS.map((k) => [k, row[KIND_COLUMN[k]] !== false])),
@@ -96,6 +111,8 @@ function mapSettingsRow(row) {
     generation: Number(row.generation ?? 0),
     lastSyncAt: row.last_sync_at ?? null,
     lastSyncError: row.last_sync_error ?? null,
+    syncStatus: String(row.sync_status ?? 'idle'),
+    syncStartedAt: row.sync_started_at ?? null,
     gaId: row.ga_id == null ? null : Number(row.ga_id),
   }
 }
@@ -118,7 +135,7 @@ export function autoSyncEventId(userId, accountId, calendarId, sourceKey) {
 /** Google 에 보낼 본문. 일반 제목·날짜만. 원문·고객 정보·링크는 넣지 않는다. */
 export function buildAutoSyncEventPayload(item, ctx) {
   const completed = item.kind === 'todo' && item.completed
-  const title = `${AUTOSYNC_TITLES[item.kind]}${completed ? ' (완료)' : ''}`
+  const title = autoSyncTitle(item)
   return {
     summary: title,
     description: 'ONE FC 앱에서 자동으로 만든 일정입니다. 자세한 내용은 ONE FC에서 확인하세요.',
@@ -132,7 +149,8 @@ export function buildAutoSyncEventPayload(item, ctx) {
 }
 
 function contentHash(item) {
-  return `${item.date}|${item.kind}|${item.completed ? 1 : 0}`
+  // 제목 포함(t327): 제목 규칙·이름이 바뀌면 기존 사본을 같은 id 로 갱신한다(중복 생성 없음).
+  return `${item.date}|${item.kind}|${item.completed ? 1 : 0}|${crypto.createHash('sha256').update(autoSyncTitle(item)).digest('hex').slice(0, 16)}`
 }
 
 /** 이 이벤트가 이 사용자의 ONE FC 자동 사본인지(태그로만 판단). */
@@ -156,7 +174,7 @@ export async function loadDesiredItems(pool, scope) {
   const out = new Map()
   if (kinds.todo) {
     const r = await pool.query(
-      `SELECT id, due_date::text AS due, status FROM todos
+      `SELECT id, title, due_date::text AS due, status FROM todos
        WHERE ga_id = $1 AND (owner_user_id = $2 OR assignee_user_id = $2)
          AND status IN ('pending','completed') AND due_date IS NOT NULL
          AND due_date >= $3::date AND due_date <= $4::date`,
@@ -164,7 +182,7 @@ export async function loadDesiredItems(pool, scope) {
     )
     for (const row of r.rows) {
       const key = `todo:${row.id}`
-      out.set(key, { key, kind: 'todo', sourceType: 'todo', sourceId: String(row.id), date: String(row.due).slice(0, 10), completed: row.status === 'completed' })
+      out.set(key, { key, kind: 'todo', sourceType: 'todo', sourceId: String(row.id), date: String(row.due).slice(0, 10), completed: row.status === 'completed', name: String(row.title ?? '') })
     }
   }
   const reminderKinds = ['car_expiry', 'insurance_age_date', 'special_date'].filter((k) => kinds[k])
@@ -176,7 +194,8 @@ export async function loadDesiredItems(pool, scope) {
       for (const ev of assembleReminderEvents({ ...rows, fromYmd, toYmd })) {
         if (!allowed.includes(ev.type)) continue
         const key = `reminder:${ev.id}`
-        out.set(key, { key, kind: ev.type, sourceType: String(ev.source), sourceId: String(ev.id), date: ev.startDate, completed: false })
+        out.set(key, { key, kind: ev.type, sourceType: String(ev.source), sourceId: String(ev.id), date: ev.startDate, completed: false,
+          name: ev.type === 'special_date' ? (specialName(ev)) : String(ev.customerName ?? '') })
       }
     }
   }
@@ -324,6 +343,62 @@ export async function saveAutoSyncSettings(pool, userId, gaId, patch, offYmd = s
 
 const running = new Map()
 
+/** t327: Google 쓰기 속도 제한(사용자당 초당 약 4건) + 429/속도 제한 지수 백오프. */
+export const AUTOSYNC_MIN_INTERVAL_MS = 250
+export const AUTOSYNC_MAX_OPS_PER_RUN = 400
+const RETRYABLE = new Set(['google_rate_limited', 'google_unavailable'])
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+function makeThrottle(options) {
+  const minGap = options.minIntervalMs ?? AUTOSYNC_MIN_INTERVAL_MS
+  const wait = options.sleepImpl ?? sleep
+  let last = 0
+  let ops = 0
+  const maxOps = options.maxOpsPerRun ?? AUTOSYNC_MAX_OPS_PER_RUN
+  return {
+    get exhausted() { return ops >= maxOps },
+    async run(fn) {
+      for (let attempt = 0; ; attempt += 1) {
+        const gap = last + minGap - Date.now()
+        if (gap > 0) await wait(gap)
+        last = Date.now()
+        try {
+          const out = await fn()
+          ops += 1
+          return out
+        } catch (error) {
+          if (!RETRYABLE.has(error?.code) || attempt >= 4) { ops += 1; throw error }
+          await wait(Math.min(30000, 1000 * 2 ** attempt) + Math.floor(Math.random() * 250))
+        }
+      }
+    },
+  }
+}
+
+export function isAutoSyncRunning(userId) {
+  return running.has(String(userId))
+}
+
+async function setSyncStatus(db, userId, status) {
+  await db.query(
+    `UPDATE google_calendar_autosync_settings SET sync_status = $2::text,
+       sync_started_at = CASE WHEN $2::text IN ('queued','running') THEN COALESCE(CASE WHEN sync_status IN ('queued','running') THEN sync_started_at END, NOW()) ELSE sync_started_at END
+     WHERE user_id = $1`,
+    [String(userId), status],
+  )
+}
+
+/**
+ * t327: 백그라운드 실행(응답을 막지 않음). 상태를 queued 로 표시하고 즉시 반환.
+ * 결과는 sync_status / last_sync_* 로 조회한다.
+ */
+export async function queueAutoSync(pool, userId, options = {}) {
+  await setSyncStatus(pool, userId, 'queued').catch(() => {})
+  const p = requestAutoSync(pool, userId, options)
+  p.catch((error) => console.warn('[gcal-autosync] background sync failed', { code: String(error?.code ?? 'error') }))
+  return { queued: true }
+}
+
 /** 사용자 단위 직렬화 + DB advisory lock(다중 인스턴스). */
 export function requestAutoSync(pool, userId, options = {}) {
   const id = String(userId)
@@ -349,16 +424,18 @@ export async function reconcileUser(pool, userId, options = {}) {
     const lk = await client.query('SELECT pg_try_advisory_lock(hashtext($1)) AS ok', [`gcal-autosync:${userId}`])
     locked = lk.rows[0]?.ok === true
     if (!locked) { result.skipped = 'busy'; return result }
+    await setSyncStatus(client, userId, 'running')
+    const throttle = makeThrottle(options)
     const settings = await readAutoSyncSettings(client, userId)
     const pendingDeletes = (await client.query(`SELECT * FROM google_calendar_sync_map WHERE user_id = $1 AND status = 'pending_delete'`, [userId])).rows
     const active = settings.enabled && settings.gaId != null && isAutoSyncEnabledFor(userId, env)
-    if (!active && !pendingDeletes.length) { result.skipped = 'off'; return result }
+    if (!active && !pendingDeletes.length) { result.skipped = 'off'; await setSyncStatus(client, userId, 'done'); return result }
 
     const row = await readUserIntegration(client, userId, GOOGLE_ACCOUNT_PROVIDER_KEY)
     if (!row || row.status !== 'connected') { result.skipped = 'not_connected'; await noteSync(client, userId, 'not_connected'); return result }
     if (!hasCalendarWriteScope(row.credential?.scope)) { result.skipped = 'write_scope_missing'; await noteSync(client, userId, 'write_scope_missing'); return result }
     const accountId = String(row.credential?.sub ?? '').trim()
-    if (!accountId) { result.skipped = 'account_unknown'; return result }
+    if (!accountId) { result.skipped = 'account_unknown'; await noteSync(client, userId, 'account_unknown'); return result }
     const config = options.config ?? readGoogleOAuthConfig(env)
     const token = await getGoogleAccessToken(client, config, { userId, fetchImpl })
     const access = { accessToken: token.accessToken, fetchImpl }
@@ -369,7 +446,8 @@ export async function reconcileUser(pool, userId, options = {}) {
     for (const m of pendingDeletes) {
       if (m.google_account_id !== accountId) continue
       try {
-        await deleteOwnedEvent(access, m.calendar_id, m.google_event_id, ctx, m.source_key)
+        if (throttle.exhausted) { result.skipped = 'continue_next_run'; break }
+        await throttle.run(() => deleteOwnedEvent(access, m.calendar_id, m.google_event_id, ctx, m.source_key))
         await setMap(client, m.id, 'deleted')
         result.deleted += 1
       } catch (error) {
@@ -396,6 +474,7 @@ export async function reconcileUser(pool, userId, options = {}) {
     }
 
     for (const item of desired.values()) {
+      if (throttle.exhausted) { result.skipped = 'continue_next_run'; break }
       if (!(await stillCurrent())) { result.skipped = 'settings_changed'; break }
       const hash = contentHash(item)
       let m = byKey.get(item.key)
@@ -415,10 +494,10 @@ export async function reconcileUser(pool, userId, options = {}) {
       const payload = buildAutoSyncEventPayload(item, ctx)
       try {
         if (m.status === 'active') {
-          await patchEvent(access, calendarId, eventId, payload, ctx, item.key)
+          await throttle.run(() => patchEvent(access, calendarId, eventId, payload, ctx, item.key))
           result.updated += 1
         } else {
-          await upsertEvent(access, calendarId, eventId, payload, ctx, item.key)
+          await throttle.run(() => upsertEvent(access, calendarId, eventId, payload, ctx, item.key))
           result.created += 1
         }
         await setMap(client, m.id, 'active', { hash, date: item.date })
@@ -429,7 +508,7 @@ export async function reconcileUser(pool, userId, options = {}) {
     }
 
     // 3) 원본이 사라졌거나 대상에서 빠진(완료 외 취소·삭제·날짜 변경) 사본: 오늘 이후(>= 오늘)만 삭제, 과거는 보존
-    if (result.skipped !== 'settings_changed') {
+    if (result.skipped !== 'settings_changed' && result.skipped !== 'continue_next_run') {
       // 원본 할 일이 DB 에서 삭제된 사본은 날짜 무관 삭제(삭제 = 어디서든 제거). 보존(retained) 사본 포함.
       const todoIds = maps.filter((m) => m.source_type === 'todo' && !desired.has(m.source_key) && TODO_DELETE_MAP_STATUSES.includes(m.status))
         .map((m) => String(m.source_id)).filter((v) => /^\d+$/.test(v))
@@ -442,7 +521,7 @@ export async function reconcileUser(pool, userId, options = {}) {
       for (const m of maps) {
         if (!gone.has(m.source_key) || !TODO_DELETE_MAP_STATUSES.includes(m.status)) continue
         try {
-          await deleteOwnedEvent(access, m.calendar_id, m.google_event_id, ctx, m.source_key)
+          await throttle.run(() => deleteOwnedEvent(access, m.calendar_id, m.google_event_id, ctx, m.source_key))
           await setMap(client, m.id, 'deleted')
           m.status = 'deleted'
           result.deleted += 1
@@ -460,7 +539,7 @@ export async function reconcileUser(pool, userId, options = {}) {
         if (date < today) { await setMap(client, m.id, 'retained'); result.retained += 1; continue }
         if (date > toYmd) continue
         try {
-          await deleteOwnedEvent(access, m.calendar_id, m.google_event_id, ctx, m.source_key)
+          await throttle.run(() => deleteOwnedEvent(access, m.calendar_id, m.google_event_id, ctx, m.source_key))
           await setMap(client, m.id, 'deleted')
           result.deleted += 1
         } catch (error) {
@@ -471,6 +550,10 @@ export async function reconcileUser(pool, userId, options = {}) {
     }
     await noteSync(client, userId, result.failed ? 'partial' : null)
     clearGoogleUserCache(userId)
+    // 한도 도달 시 남은 작업은 곧바로 이어서(백그라운드) 처리한다.
+    if (result.skipped === 'continue_next_run' && !options.noContinue) {
+      setTimeout(() => { void queueAutoSync(pool, userId, options) }, options.continueDelayMs ?? 5000)
+    }
     return result
   } catch (error) {
     await noteSync(client, userId, String(error?.code ?? 'sync_failed')).catch(() => {})
@@ -482,7 +565,11 @@ export async function reconcileUser(pool, userId, options = {}) {
 }
 
 async function noteSync(db, userId, error) {
-  await db.query('UPDATE google_calendar_autosync_settings SET last_sync_at = NOW(), last_sync_error = $2 WHERE user_id = $1', [userId, error])
+  await db.query(
+    `UPDATE google_calendar_autosync_settings SET last_sync_at = NOW(), last_sync_error = $2::text,
+       sync_status = CASE WHEN $2::text IS NULL OR $2::text = 'partial' THEN 'done' ELSE 'error' END WHERE user_id = $1`,
+    [userId, error],
+  )
 }
 
 /** 주기 보정: 켜진 사용자 + 삭제 대기 남은 사용자. 오류는 code 만 기록. */

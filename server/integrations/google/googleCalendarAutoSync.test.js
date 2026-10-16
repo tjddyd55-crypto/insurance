@@ -20,16 +20,17 @@ test('event id is deterministic, base32hex-safe and scoped by user/account/calen
   assert.notEqual(a, autoSyncEventId('u1', 'sub2', 'primary', 'todo:1'))
 })
 
-test('payload carries only generic title/date, never customer data', () => {
-  const p = buildAutoSyncEventPayload({ key: 'reminder:car_expiry:7:9:2026-10-20', kind: 'car_expiry', date: '2026-10-20', completed: false }, { ownerTag: 'o' })
-  assert.equal(p.summary, AUTOSYNC_TITLES.car_expiry)
+test('payload carries [type] name title and date only, never contact/RRN/memo/links', () => {
+  const p = buildAutoSyncEventPayload({ key: 'reminder:car_expiry:7:9:2026-10-20', kind: 'car_expiry', date: '2026-10-20', completed: false, name: '홍길동' }, { ownerTag: 'o' })
+  assert.equal(p.summary, '[자동차 만기] 홍길동')
   assert.deepEqual(p.start, { date: '2026-10-20' })
   assert.deepEqual(p.end, { date: '2026-10-21' })
   const text = JSON.stringify(p)
   assert.doesNotMatch(text, /http|010-|\d{6}-\d{7}/)
   assert.equal(p.extendedProperties.private.app, 'onefcAutoSync')
-  const done = buildAutoSyncEventPayload({ key: 'todo:1', kind: 'todo', date: '2026-10-20', completed: true }, { ownerTag: 'o' })
-  assert.equal(done.summary, 'ONE FC 할 일 (완료)')
+  const done = buildAutoSyncEventPayload({ key: 'todo:1', kind: 'todo', date: '2026-10-20', completed: true, name: '서류 준비' }, { ownerTag: 'o' })
+  assert.equal(done.summary, '[할 일] 서류 준비 (완료)')
+  assert.equal(buildAutoSyncEventPayload({ key: 'r', kind: 'insurance_age_date', date: '2026-10-20', name: '' }, { ownerTag: 'o' }).summary, '[상령일] 고객')
 })
 
 test('ownership is decided by private tags only', () => {

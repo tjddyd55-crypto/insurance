@@ -46,8 +46,9 @@ import { systemQuery } from '../utils/dbSafeQuery.js'
 import {
   AUTOSYNC_WINDOW_DAYS,
   isAutoSyncEnabledFor,
+  isAutoSyncRunning,
+  queueAutoSync,
   readAutoSyncSettings,
-  requestAutoSync,
   saveAutoSyncSettings,
 } from '../integrations/google/googleCalendarAutoSync.js'
 import { parseGaId } from '../lib/parseGaId.js'
@@ -318,6 +319,8 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
       kinds: settings.kinds,
       lastSyncAt: settings.lastSyncAt,
       lastSyncError: settings.lastSyncError,
+      // t327: 'syncing' | 'done' | 'error' | 'idle' — UI 는 저장 후 이 값을 폴링한다(저장은 막지 않음).
+      syncStatus: isAutoSyncRunning(userId) || ['queued', 'running'].includes(settings.syncStatus) ? 'syncing' : settings.syncStatus,
       windowDays: AUTOSYNC_WINDOW_DAYS,
       counts: Object.fromEntries(counts.rows.map((r) => [r.status, r.n])),
     }
@@ -352,12 +355,8 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
       }
       const kinds = b.kinds && typeof b.kinds === 'object' ? b.kinds : {}
       const saved = await saveAutoSyncSettings(pool, userId, gaId, { enabled: typeof b.enabled === 'boolean' ? b.enabled : undefined, kinds })
-      let sync = null
-      try {
-        sync = await requestAutoSync(pool, userId, { fetchImpl })
-      } catch (error) {
-        sync = { error: String(error?.code ?? 'sync_failed') }
-      }
+      // t327: 초기 동기화·OFF 정리는 백그라운드. 설정 저장 직후 바로 응답한다.
+      const sync = await queueAutoSync(pool, userId, { fetchImpl })
       res.json({ success: true, data: { ...(await autoSyncStatus(userId)), marked: saved.marked, sync } })
     } catch (error) {
       sendGoogleError(res, error, req, handleDbError)
@@ -367,7 +366,7 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
     res.setHeader('Cache-Control', 'no-store')
     try {
       const userId = currentUserId(req)
-      const sync = await requestAutoSync(pool, userId, { fetchImpl })
+      const sync = await queueAutoSync(pool, userId, { fetchImpl })
       res.json({ success: true, data: { ...(await autoSyncStatus(userId)), sync } })
     } catch (error) {
       sendGoogleError(res, error, req, handleDbError)
