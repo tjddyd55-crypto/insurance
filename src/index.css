@@ -272,6 +272,23 @@ body:has(.app-root--external-account-vault){
     min-height: 0;
     overflow: visible;
   }
+
+  /* 공개 설계사 명함(/fc, /experts): 인증 PC 셸 flex/overflow 잠금 해제 → 본문 카드 연속 스크롤 */
+  .app-root.app-root--authenticated.app-root--advisor-public {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .app-root.app-root--authenticated.app-root--advisor-public .main-container {
+    display: block;
+    flex: none;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
 }
 
 /* 웹 전용 상단 프로그램 느낌 바 (Electron 은 ElectronTitleBar 사용) */

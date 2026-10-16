@@ -113,10 +113,16 @@
 /* —— FC 모바일 명함 + 미니홈피 —— */
 .pap-page--fc {
   background: #eef0f3;
+  display: block;
+  min-height: 0;
+  flex: none;
 }
 
 .pap-shell--fc {
   box-sizing: border-box;
+  display: block;
+  min-height: 0;
+  flex: none;
   padding-top: 0;
   padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   padding-inline: 0;
@@ -148,10 +154,19 @@
   padding: 10px 0 0;
   display: flex;
   flex-direction: column;
+  align-content: flex-start;
+  align-items: stretch;
   gap: 10px;
   width: 100%;
   max-width: none;
   margin-inline: 0;
+  min-height: 0;
+  flex: 0 0 auto;
+}
+
+.pap-page--fc .pap-home-sections .pap-section {
+  flex: 0 0 auto;
+  min-height: 0;
 }
 
 /* Classic — 큰 인물사진 빌보드 (brand/premium과 분리) */
@@ -1219,9 +1234,8 @@
 .pap-hero--theme-premium .pap-hero-premium__media {
   position: relative;
   width: 100%;
-  aspect-ratio: 3 / 4;
-  min-height: min(58vh, 440px);
-  max-height: min(62vh, 480px);
+  aspect-ratio: 4 / 5;
+  max-height: min(56vh, 440px);
   overflow: hidden;
   background: linear-gradient(165deg, #0f2744 0%, #1e3a5f 100%);
 }
@@ -1305,7 +1319,7 @@
 }
 
 @media (min-width: 768px) {
-  .pap-hero-premium__media {
+  .pap-hero--theme-premium .pap-hero-premium__media {
     border-radius: 16px 16px 0 0;
     max-height: 440px;
   }
@@ -1437,14 +1451,24 @@
   border: 1px solid #e5e7eb;
   background: #eef0f3;
   position: relative;
+  isolation: isolate;
 }
 
 .pap-theme-picker__live-scale {
+  position: absolute;
+  left: 50%;
+  top: 0;
   width: 390px;
-  margin: 0 auto;
+  margin-left: -195px;
   transform: scale(0.54);
   transform-origin: top center;
   pointer-events: none;
+}
+
+.pap-theme-preview-shell {
+  display: block;
+  background: #eef0f3;
+  min-height: 0;
 }
 
 .pap-theme-picker__live-scale .pap-fc-card--hero {

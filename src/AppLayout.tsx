@@ -29,12 +29,14 @@ export function AppLayout() {
     location.pathname === '/terms' ||
     location.pathname === '/privacy-policy'
   const isExternalAccountVaultRoute = location.pathname.startsWith('/share/account-credentials/')
+  const isAdvisorPublicRoute = isAdvisorPublicPath(location.pathname)
 
   const rootClass = [
     'app-root',
     isAuthenticated ? 'app-root--authenticated' : '',
     isPublicLegalRoute ? 'app-root--public-legal' : '',
     isExternalAccountVaultRoute ? 'app-root--external-account-vault' : '',
+    isAdvisorPublicRoute ? 'app-root--advisor-public' : '',
   ]
     .filter(Boolean)
     .join(' ')

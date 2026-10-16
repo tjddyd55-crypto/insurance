@@ -37,7 +37,7 @@ function ThemeLivePreview({ theme, previewSource }: { theme: AdvisorProfileTheme
 
   return (
     <div className="pap-theme-picker__live-preview" aria-hidden>
-      <div className={`pap-theme-picker__live-scale pap-page--fc pap-page-theme--${theme}`}>
+      <div className={`pap-theme-picker__live-scale pap-theme-preview-shell pap-page-theme--${theme}`}>
         <AdvisorProfileHero theme={theme} {...heroProps} />
       </div>
     </div>
@@ -112,7 +112,7 @@ export function AdvisorMobileCardThemePicker({ value, onChange, previewSource, d
                 닫기
               </button>
             </div>
-            <div className={`pap-theme-preview-modal__viewport pap-page--fc pap-page-theme--${modalTheme}`}>
+            <div className={`pap-theme-preview-modal__viewport pap-theme-preview-shell pap-page-theme--${modalTheme}`}>
               <AdvisorProfileHero theme={modalTheme} {...modalProps} />
             </div>
           </div>

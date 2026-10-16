@@ -47,7 +47,9 @@ for (const [file, theme] of [
   await setTheme(theme)
   await page.goto(`${BASE}/fc/${SLUG}`, { waitUntil: 'networkidle' })
   await page.locator(heroSel[theme]).screenshot({ path: join(OUT, file) })
-  console.log('saved', file)
+  const fullName = file.replace('-hero.png', '-full-page.png')
+  await page.screenshot({ path: join(OUT, fullName), fullPage: true })
+  console.log('saved', file, fullName)
 }
 
 await setTheme('classic')
