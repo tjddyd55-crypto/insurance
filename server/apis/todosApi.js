@@ -1,5 +1,5 @@
 import { safeQuery } from '../utils/dbSafeQuery.js'
-import { notifyTodoChanged } from '../integrations/google/googleCalendarAutoSync.js'
+import { notifyTodoChanged, markTodoDeleted } from '../integrations/google/googleCalendarAutoSync.js'
 import { parseGaId } from '../lib/parseGaId.js'
 import { getKstDateString, coerceDateOnlyString } from '../../shared/dateTimeKst.js'
 import {
@@ -785,6 +785,8 @@ export function registerTodosApi(apiRouter, ctx) {
         res.status(404).json({ message: '할 일을 찾을 수 없습니다.' })
         return
       }
+      // 할 일 삭제 = Google 사본도 날짜 무관 삭제(매핑·소유 태그 확인 후). 실패해도 ONE FC 삭제는 유지(주기 보정이 재처리).
+      await markTodoDeleted(pool, userId, todoIdBig).catch((error) => console.warn('[gcal-autosync] mark todo deleted failed', { code: String(error?.code ?? 'error') }))
       notifyTodoChanged(pool, userId)
       res.status(204).end()
     } catch (error) {
