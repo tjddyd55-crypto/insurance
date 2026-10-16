@@ -14,7 +14,15 @@ import {
   assertConsultationRateLimit,
   consultationRateLimitKey,
 } from './publicAdvisorConsultationRateLimit.js'
-import { advisorPublicCdnUrl, createAdvisorPresignedUpload } from './publicAdvisorMedia.js'
+import {
+  ADVISOR_PROFILE_MEDIA_MAX_BYTES,
+  ADVISOR_PUBLIC_MEDIA_MAX_BYTES,
+  advisorPublicCdnUrl,
+  assertAdvisorPublicObjectKeyOwned,
+  createAdvisorPresignedUpload,
+  isAdvisorImageContentType,
+} from './publicAdvisorMedia.js'
+import { consentPutInsurerAttachment, isConsentR2Enabled } from '../lib/consentStorage.js'
 import {
   getAdvisorProfileForOwner,
   getPublishedAdvisorBySlug,
@@ -68,6 +76,22 @@ function requireUserRole(req, res) {
 function clientIp(req) {
   const forwarded = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim()
   return forwarded || String(req.socket?.remoteAddress ?? 'unknown')
+}
+
+async function readRawBodyBuffer(req, maxBytes) {
+  const chunks = []
+  let total = 0
+  for await (const chunk of req) {
+    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+    total += buf.length
+    if (total > maxBytes) {
+      const err = new Error('파일 크기가 허용 범위를 벗어났습니다.')
+      err.httpStatus = 400
+      throw err
+    }
+    chunks.push(buf)
+  }
+  return Buffer.concat(chunks)
 }
 
 /**
@@ -209,8 +233,54 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
         uploadUrl: result.uploadUrl,
         objectKey: result.objectKey,
         contentType: result.contentType,
+        putHeaders: result.putHeaders ?? {},
+        publicUrl: publicMediaUrl(result.objectKey),
       })
     } catch (e) {
+      handleDbError(res, e)
+    }
+  })
+
+  apiRouter.put('/me/public-profile/media/upload-proxy', requireAuth, async (req, res) => {
+    try {
+      if (!requireUserRole(req, res)) return
+      if (!isConsentR2Enabled()) {
+        res.status(503).json({ message: '파일 저장소가 준비되지 않았습니다.' })
+        return
+      }
+      const objectKey = String(req.query.objectKey ?? req.query.object_key ?? '').trim()
+      const kind = String(req.query.kind ?? '').trim() === 'gallery' ? 'gallery' : 'profile'
+      const maxBytes =
+        kind === 'profile' ? ADVISOR_PROFILE_MEDIA_MAX_BYTES : ADVISOR_PUBLIC_MEDIA_MAX_BYTES
+      const contentTypeRaw = String(req.query.contentType ?? req.query.content_type ?? '').trim()
+      const headerType = String(req.headers['content-type'] ?? '').split(';')[0].trim()
+      const contentType = (contentTypeRaw || headerType).toLowerCase()
+      if (!objectKey) {
+        res.status(400).json({ message: 'objectKey가 필요합니다.' })
+        return
+      }
+      if (!assertAdvisorPublicObjectKeyOwned(req.user.id, objectKey)) {
+        res.status(400).json({ message: '허용되지 않은 저장 경로입니다.' })
+        return
+      }
+      if (!isAdvisorImageContentType(contentType)) {
+        res.status(400).json({ message: 'JPG, PNG, WebP 이미지만 업로드할 수 있습니다.' })
+        return
+      }
+      const bodyBuffer = await readRawBodyBuffer(req, maxBytes)
+      if (!bodyBuffer.length) {
+        res.status(400).json({ message: '업로드 본문이 비어 있습니다.' })
+        return
+      }
+      await consentPutInsurerAttachment(objectKey, bodyBuffer, contentType)
+      res.status(204).end()
+    } catch (e) {
+      if (e && typeof e === 'object' && 'httpStatus' in e && typeof e.httpStatus === 'number') {
+        res.status(e.httpStatus).json({
+          message: e instanceof Error ? e.message : '요청을 처리할 수 없습니다.',
+        })
+        return
+      }
       handleDbError(res, e)
     }
   })

@@ -1,3 +1,4 @@
+import { r2StorageObjectExists } from '../lib/consentStorage.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { parseGaId } from '../lib/parseGaId.js'
 import { isGeneralGaCompanyCode } from '../lib/generalGa.js'
@@ -138,6 +139,15 @@ export async function resolveVerificationBadges(pool, user) {
   return badges
 }
 
+/** 공개 페이지·검색 카드에 노출할 인증 배지(고객용 1개만). */
+export function resolvePublicFacingVerificationBadges(badges) {
+  const list = Array.isArray(badges) ? badges : []
+  const oneFc = list.find((b) => b?.id === 'onefc_active')
+  if (!oneFc) return []
+  const label = String(oneFc.label ?? 'ONE FC 확인').trim()
+  return [{ id: oneFc.id, label: label.startsWith('✓') ? label : `✓ ${label}` }]
+}
+
 function buildOfficeLine(profile) {
   const road = String(profile?.office_road_address ?? '').trim()
   const detail = String(profile?.office_address_detail ?? '').trim()
@@ -219,7 +229,9 @@ export async function getPublishedAdvisorBySlug(pool, slug) {
     },
     user: publicUser,
     gallery,
-    verificationBadges: await resolveVerificationBadges(pool, row),
+    verificationBadges: resolvePublicFacingVerificationBadges(
+      await resolveVerificationBadges(pool, row),
+    ),
   }
 }
 
@@ -311,7 +323,9 @@ export async function searchPublishedAdvisors(pool, { q, limit = 24, offset = 0 
 
   const items = []
   for (const row of r.rows) {
-    const verificationBadges = await resolveVerificationBadges(pool, row)
+    const verificationBadges = resolvePublicFacingVerificationBadges(
+      await resolveVerificationBadges(pool, row),
+    )
     items.push({
       slug: row.public_slug,
       displayName: row.display_name,
@@ -359,6 +373,8 @@ export async function patchAdvisorProfileForOwner(pool, userId, patch) {
       values.push(null)
     } else if (!assertAdvisorPublicObjectKeyOwned(userId, photoKey)) {
       return { ok: false, status: 400, message: '대표사진 경로가 올바르지 않습니다.' }
+    } else if (!(await r2StorageObjectExists(photoKey))) {
+      return { ok: false, status: 400, message: '대표사진 업로드가 완료되지 않았습니다. 다시 시도해 주세요.' }
     } else {
       sets.push(`profile_photo_object_key = $${n++}`)
       values.push(photoKey)

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchPublicExperts, type PublicAdvisorCard } from '../api/publicAdvisorApi'
 import { buildAdvisorPublicPath } from '../advisorPublicRoutes'
+import { AdvisorPublicImage } from '../components/AdvisorPublicImage'
+import { PublicAdvisorHeader } from '../components/PublicAdvisorHeader'
 import '../public-advisor.css'
 
 export function ExpertSearchPage() {
@@ -30,6 +32,7 @@ export function ExpertSearchPage() {
 
   return (
     <div className="public-advisor-page">
+      <PublicAdvisorHeader />
       <div className="public-advisor-shell">
         <h1>설계사를 찾아보세요</h1>
         <p className="pap-affiliation">이름, 소속, 지점, 사무실 위치, 해시태그, 소개로 검색할 수 있습니다.</p>
@@ -46,11 +49,11 @@ export function ExpertSearchPage() {
         <div className="pap-card-list">
           {items.map((item) => (
             <Link key={item.slug} to={buildAdvisorPublicPath(item.slug)} className="pap-card">
-              {item.profilePhotoUrl ? (
-                <img className="pap-card__thumb" src={item.profilePhotoUrl} alt="" />
-              ) : (
-                <div className="pap-card__thumb" aria-hidden />
-              )}
+              <AdvisorPublicImage
+                className="pap-card__thumb"
+                src={item.profilePhotoUrl}
+                alt=""
+              />
               <div className="pap-card__body">
                 <strong className="pap-card__name">{item.displayName}</strong>
                 <p className="pap-affiliation">

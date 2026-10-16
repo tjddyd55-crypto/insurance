@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   ADVISOR_PUBLIC_EVENT,
@@ -7,7 +7,11 @@ import {
   trackAdvisorPublicEvent,
   type PublicAdvisorDetail,
 } from '../api/publicAdvisorApi'
+import { AdvisorPublicImage } from '../components/AdvisorPublicImage'
+import { PublicAdvisorHeader } from '../components/PublicAdvisorHeader'
 import '../public-advisor.css'
+
+const MAX_PUBLIC_TAGS = 5
 
 export function PublicAdvisorProfilePage() {
   const { slug = '' } = useParams()
@@ -81,9 +85,27 @@ export function PublicAdvisorProfilePage() {
     }
   }
 
+  const affiliationLine = useMemo(() => {
+    if (!data) return ''
+    return [data.gaName, data.teamName].filter(Boolean).join(' · ')
+  }, [data])
+
+  const publicTags = useMemo(() => (data?.hashtags ?? []).slice(0, MAX_PUBLIC_TAGS), [data?.hashtags])
+
+  const infoBlocks = useMemo(() => {
+    if (!data) return []
+    const blocks: Array<{ label: string; value: string }> = []
+    const affiliation = [data.gaName, data.teamName].filter(Boolean).join(' ')
+    if (affiliation) blocks.push({ label: '소속', value: affiliation })
+    if (data.careerText?.trim()) blocks.push({ label: '경력', value: data.careerText.trim() })
+    if (data.officeLine?.trim()) blocks.push({ label: '사무실', value: data.officeLine.trim() })
+    return blocks
+  }, [data])
+
   if (error && !data) {
     return (
       <div className="public-advisor-page">
+        <PublicAdvisorHeader />
         <div className="public-advisor-shell"><p>{error}</p></div>
       </div>
     )
@@ -91,43 +113,50 @@ export function PublicAdvisorProfilePage() {
   if (!data) {
     return (
       <div className="public-advisor-page">
+        <PublicAdvisorHeader />
         <div className="public-advisor-shell"><p>불러오는 중…</p></div>
       </div>
     )
   }
 
   const titleSuffix = data.titleLabel?.trim() || 'FC'
-  const officeParts = data.officeLine ? data.officeLine.split(/\s+/).length > 0 : false
+  const primaryBadge = data.verificationBadges?.[0]
 
   return (
     <div className="public-advisor-page">
+      <PublicAdvisorHeader />
       <div className="public-advisor-shell">
-        <header className="pap-hero pap-hero--card">
-          {data.profilePhotoUrl ? (
-            <img className="pap-avatar pap-avatar--hero" src={data.profilePhotoUrl} alt={data.displayName} />
-          ) : (
-            <div className="pap-avatar pap-avatar--hero" aria-hidden />
-          )}
-          <h1 className="pap-name">{data.displayName} {titleSuffix}</h1>
-          {data.gaName ? <p className="pap-affiliation pap-affiliation--strong">{data.gaName}</p> : null}
-          {data.teamName ? <p className="pap-affiliation">{data.teamName}</p> : null}
-          {data.officeLine ? <p className="pap-affiliation">{data.officeLine}</p> : null}
-          {data.verificationBadges?.length ? (
-            <div className="pap-badges">
-              {data.verificationBadges.map((b) => (
-                <span key={b.id} className="pap-badge">{b.label}</span>
-              ))}
-            </div>
-          ) : null}
-          {data.hashtags?.length ? (
-            <div className="pap-tags">
-              {data.hashtags.map((tag) => (
+        <header className="pap-hero pap-hero--card pap-hero--mobile">
+          <AdvisorPublicImage
+            className="pap-avatar pap-avatar--hero"
+            src={data.profilePhotoUrl}
+            alt={data.displayName}
+            loading="eager"
+          />
+          <div className="pap-hero__identity">
+            <h1 className="pap-name">
+              {data.displayName} {titleSuffix}
+            </h1>
+            {primaryBadge ? (
+              <p className="pap-verify-line">{primaryBadge.label}</p>
+            ) : null}
+            {affiliationLine ? (
+              <p className="pap-affiliation pap-affiliation--strong">{affiliationLine}</p>
+            ) : null}
+            {data.officeLine ? <p className="pap-affiliation pap-office-line">{data.officeLine}</p> : null}
+          </div>
+
+          {publicTags.length ? (
+            <div className="pap-tags pap-tags--hero">
+              {publicTags.map((tag) => (
                 <span key={tag} className="pap-tag">#{tag}</span>
               ))}
             </div>
           ) : null}
+
           {data.headline ? <p className="pap-headline">{data.headline}</p> : null}
-          <div className="pap-cta-row">
+
+          <div className="pap-cta-row pap-cta-row--hero">
             {data.phoneNumber ? (
               <a
                 className="pap-btn pap-btn--primary"
@@ -136,6 +165,11 @@ export function PublicAdvisorProfilePage() {
               >
                 전화
               </a>
+            ) : null}
+            {data.allowConsultation ? (
+              <button type="button" className="pap-btn pap-btn--secondary" onClick={openConsult}>
+                상담신청
+              </button>
             ) : null}
             {data.kakaoLink ? (
               <a
@@ -148,27 +182,22 @@ export function PublicAdvisorProfilePage() {
                 카카오톡
               </a>
             ) : null}
-            {data.allowConsultation ? (
-              <button type="button" className="pap-btn pap-btn--secondary" onClick={openConsult}>
-                상담신청
-              </button>
-            ) : null}
-            <button type="button" className="pap-btn pap-btn--secondary" onClick={() => void sharePage()}>
+            <button type="button" className="pap-btn pap-btn--ghost" onClick={() => void sharePage()}>
               공유
             </button>
           </div>
         </header>
 
         {data.bio ? (
-          <section className="pap-section">
-            <h2>자기소개</h2>
-            <p className="pap-body">{data.bio}</p>
+          <section className="pap-section pap-section--intro">
+            <h2>소개</h2>
+            <p className="pap-body pap-body--intro">{data.bio}</p>
           </section>
         ) : null}
 
         {data.gallery?.length ? (
           <section className="pap-section pap-section--gallery">
-            <h2>사진으로 보는 활동</h2>
+            <h2>활동 모습</h2>
             <div className="pap-gallery pap-gallery--prominent">
               {data.gallery.map((g) => (
                 <button
@@ -177,9 +206,11 @@ export function PublicAdvisorProfilePage() {
                   className="pap-gallery-tile"
                   onClick={() => g.imageUrl && setLightboxUrl(g.imageUrl)}
                 >
-                  {g.imageUrl ? (
-                    <img src={g.imageUrl} alt={g.caption || '활동 사진'} loading="lazy" decoding="async" />
-                  ) : null}
+                  <AdvisorPublicImage
+                    className="pap-gallery-img"
+                    src={g.imageUrl}
+                    alt={g.caption || '활동 사진'}
+                  />
                   {g.caption ? <span className="pap-gallery-caption">{g.caption}</span> : null}
                 </button>
               ))}
@@ -187,42 +218,22 @@ export function PublicAdvisorProfilePage() {
           </section>
         ) : null}
 
-        {data.careerText ? (
-          <section className="pap-section">
-            <h2>소속 / 경력</h2>
-            <p className="pap-body">{data.careerText}</p>
+        {infoBlocks.length ? (
+          <section className="pap-section pap-section--facts">
+            <h2 className="pap-section__sr-only">소속 및 연락 정보</h2>
+            <dl className="pap-facts">
+              {infoBlocks.map((block) => (
+                <div key={block.label} className="pap-facts__row">
+                  <dt>{block.label}</dt>
+                  <dd>{block.value}</dd>
+                </div>
+              ))}
+            </dl>
           </section>
         ) : null}
 
-        {officeParts ? (
-          <section className="pap-section">
-            <h2>사무실 위치</h2>
-            <p className="pap-affiliation">{data.officeLine}</p>
-          </section>
-        ) : null}
-
-        <section className="pap-section">
-          <h2>상담 / 연락</h2>
-          <div className="pap-cta-row pap-cta-row--left">
-            {data.phoneNumber ? (
-              <a
-                className="pap-btn pap-btn--primary"
-                href={`tel:${data.phoneNumber.replace(/\s/g, '')}`}
-                onClick={() => trackAdvisorPublicEvent(slug, ADVISOR_PUBLIC_EVENT.PHONE_CLICK)}
-              >
-                전화
-              </a>
-            ) : null}
-            {data.allowConsultation ? (
-              <button type="button" className="pap-btn pap-btn--secondary" onClick={openConsult}>
-                상담신청
-              </button>
-            ) : null}
-          </div>
-        </section>
-
-        {submitDone ? <p role="status">상담 신청이 접수되었습니다.</p> : null}
-        {error && data ? <p role="alert">{error}</p> : null}
+        {submitDone ? <p className="pap-status" role="status">상담 신청이 접수되었습니다.</p> : null}
+        {error && data ? <p className="pap-error" role="alert">{error}</p> : null}
       </div>
 
       {(data.phoneNumber || data.allowConsultation) ? (

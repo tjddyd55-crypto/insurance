@@ -65,12 +65,22 @@ async function uploadImage(token, kind, fileName) {
     }),
   })
   if (!presign.res.ok) throw new Error(presign.json?.message ?? 'presign failed')
+  const putHeaders = presign.json.putHeaders && typeof presign.json.putHeaders === 'object'
+    ? presign.json.putHeaders
+    : {}
   const put = await fetch(presign.json.uploadUrl, {
     method: 'PUT',
-    headers: { 'Content-Type': 'image/png' },
+    headers: { 'Content-Type': 'image/png', ...putHeaders },
     body: PNG,
   })
   if (!put.ok) throw new Error(`R2 put ${put.status}`)
+  const cdnUrl =
+    presign.json.publicUrl ??
+    `https://cdn.platform-assets.com/${String(presign.json.objectKey).replace(/^\//, '')}`
+  const cdnHead = await fetch(cdnUrl, { method: 'HEAD' })
+  if (!cdnHead.ok) {
+    throw new Error(`CDN not ready ${cdnHead.status} for ${cdnUrl}`)
+  }
   return presign.json.objectKey
 }
 

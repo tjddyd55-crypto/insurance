@@ -1,3 +1,4 @@
+import { r2StorageObjectExists } from '../lib/consentStorage.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { assertAdvisorPublicObjectKeyOwned } from './publicAdvisorMedia.js'
 import { GALLERY_MAX } from './publicAdvisorProfileService.js'
@@ -14,6 +15,10 @@ export async function countGalleryItems(pool, userId) {
 export async function addGalleryItem(pool, userId, { objectKey, caption }) {
   if (!assertAdvisorPublicObjectKeyOwned(userId, objectKey)) {
     return { ok: false, status: 400, message: '유효하지 않은 이미지 경로입니다.' }
+  }
+  const stored = await r2StorageObjectExists(objectKey)
+  if (!stored) {
+    return { ok: false, status: 400, message: '이미지 업로드가 완료되지 않았습니다. 다시 시도해 주세요.' }
   }
   const count = await countGalleryItems(pool, userId)
   if (count >= GALLERY_MAX) {

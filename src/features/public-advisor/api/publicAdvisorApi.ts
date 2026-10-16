@@ -1,4 +1,4 @@
-import { apiRequest } from '../../../lib/apiClient'
+import { apiRequest, resolveApiUrl } from '../../../lib/apiClient'
 import { putFileToPresignedR2Url } from '../../../lib/presignedR2Put'
 
 export type VerificationBadge = { id: string; label: string }
@@ -76,10 +76,42 @@ export async function presignAdvisorMedia(
   token: string,
   body: { kind: 'profile' | 'gallery'; fileName: string; contentType: string; sizeBytes: number },
 ) {
-  return apiRequest<{ uploadUrl: string; objectKey: string; contentType: string }>(
-    '/api/me/public-profile/media/presign',
-    { method: 'POST', token, body: JSON.stringify(body) },
-  )
+  return apiRequest<{
+    uploadUrl: string
+    objectKey: string
+    contentType: string
+    putHeaders?: Record<string, string>
+    publicUrl?: string
+  }>('/api/me/public-profile/media/presign', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(body),
+  })
+}
+
+async function uploadAdvisorImageViaProxy(
+  token: string,
+  objectKey: string,
+  kind: 'profile' | 'gallery',
+  file: File,
+  contentType: string,
+): Promise<void> {
+  const q = new URLSearchParams({
+    objectKey,
+    kind,
+    contentType,
+  })
+  const res = await fetch(resolveApiUrl(`/api/me/public-profile/media/upload-proxy?${q}`), {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': contentType,
+    },
+    body: file,
+  })
+  if (!res.ok) {
+    throw new Error('이미지 업로드에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+  }
 }
 
 export async function uploadAdvisorImageFile(
@@ -94,7 +126,16 @@ export async function uploadAdvisorImageFile(
     contentType,
     sizeBytes: file.size,
   })
-  await putFileToPresignedR2Url(presign.uploadUrl, file, presign.contentType)
+  try {
+    await putFileToPresignedR2Url(
+      presign.uploadUrl,
+      file,
+      presign.contentType,
+      presign.putHeaders ?? undefined,
+    )
+  } catch {
+    await uploadAdvisorImageViaProxy(token, presign.objectKey, kind, file, presign.contentType)
+  }
   return presign.objectKey
 }
 
