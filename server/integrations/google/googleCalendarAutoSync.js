@@ -240,8 +240,8 @@ async function deleteOwnedEvent(access, calendarId, eventId, ctx, key) {
 async function setMap(pool, id, status, extra = {}) {
   await pool.query(
     `UPDATE google_calendar_sync_map
-     SET status = $2, last_error = $3, content_hash = COALESCE($4, content_hash), event_date = COALESCE($5::date, event_date),
-         attempts = CASE WHEN $3 IS NULL THEN 0 ELSE attempts + 1 END,
+     SET status = $2::text, last_error = $3::text, content_hash = COALESCE($4::text, content_hash), event_date = COALESCE($5::date, event_date),
+         attempts = CASE WHEN $3::text IS NULL THEN 0 ELSE attempts + 1 END,
          history = (history || jsonb_build_array(jsonb_build_object('at', NOW(), 'status', $2::text, 'error', $3::text)))
                    - CASE WHEN jsonb_array_length(history) >= 20 THEN 0 ELSE 1000 END,
          updated_at = NOW()
