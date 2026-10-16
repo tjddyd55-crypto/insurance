@@ -209,7 +209,7 @@ async function main() {
       [consultJson.id],
     )
     record('Advisor notification', notif.rowCount >= 1)
-    const cust = await pool.query(`SELECT id FROM customers WHERE phone_number LIKE '%99998877%' LIMIT 1`)
+    const cust = await pool.query(`SELECT id FROM customers WHERE phone LIKE '%99998877%' LIMIT 1`)
     record('No auto customer', cust.rowCount === 0)
   }
 

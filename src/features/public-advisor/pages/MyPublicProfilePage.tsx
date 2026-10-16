@@ -113,7 +113,7 @@ export function MyPublicProfilePage() {
   }, [load])
 
   if (!isAuthenticated || !user) return <Navigate to="/login" replace />
-  if (!canAccessSelfProfilePage(user)) return <Navigate to="/dashboard" replace />
+  if (!canAccessSelfProfilePage(user.role)) return <Navigate to="/dashboard" replace />
 
   const addTag = (raw: string) => {
     const next = parseHashtags([...hashtags, raw].join(' '))
