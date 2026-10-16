@@ -17,11 +17,16 @@ import {
 import {
   ADVISOR_PROFILE_MEDIA_MAX_BYTES,
   ADVISOR_PUBLIC_MEDIA_MAX_BYTES,
-  advisorPublicCdnUrl,
   assertAdvisorPublicObjectKeyOwned,
   createAdvisorPresignedUpload,
   isAdvisorImageContentType,
 } from './publicAdvisorMedia.js'
+import {
+  advisorPublicMediaUrl,
+  assertAdvisorPublicMediaIsPublished,
+  guessAdvisorPublicMediaContentType,
+  readAdvisorPublicMediaBuffer,
+} from './publicAdvisorMediaDelivery.js'
 import { consentPutInsurerAttachment, isConsentR2Enabled } from '../lib/consentStorage.js'
 import {
   getAdvisorProfileForOwner,
@@ -33,11 +38,12 @@ import {
 
 const PUBLIC_EVENT_WHITELIST = new Set(Object.values(ADVISOR_PUBLIC_EVENT_TYPES))
 
-function publicMediaUrl(objectKey) {
-  return advisorPublicCdnUrl(objectKey)
+function publicMediaUrl(objectKey, req) {
+  const origin = req ? `${req.protocol}://${req.get('host')}` : ''
+  return advisorPublicMediaUrl(objectKey, origin)
 }
 
-function mapPublicProfilePayload(resolved) {
+function mapPublicProfilePayload(resolved, req) {
   const { profile, user, gallery, verificationBadges } = resolved
   return {
     slug: profile.slug,
@@ -53,12 +59,12 @@ function mapPublicProfilePayload(resolved) {
     phoneNumber: user.phoneNumber,
     kakaoLink: user.kakaoLink,
     allowConsultation: profile.allowConsultation,
-    profilePhotoUrl: publicMediaUrl(profile.profilePhotoObjectKey),
+    profilePhotoUrl: publicMediaUrl(profile.profilePhotoObjectKey, req),
     gallery: gallery.map((g) => ({
       id: g.id,
       caption: g.caption,
       sortOrder: g.sort_order,
-      imageUrl: publicMediaUrl(g.object_key),
+      imageUrl: publicMediaUrl(g.object_key, req),
     })),
     verificationBadges,
   }
@@ -101,13 +107,35 @@ async function readRawBodyBuffer(req, maxBytes) {
 export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
   const { pool, requireAuth, handleDbError } = ctx
 
+  apiRouter.get('/public/advisor-media', async (req, res) => {
+    try {
+      const objectKey = String(req.query?.key ?? '').trim()
+      if (!objectKey) {
+        res.status(400).json({ message: 'key가 필요합니다.' })
+        return
+      }
+      const allowed = await assertAdvisorPublicMediaIsPublished(pool, objectKey)
+      if (!allowed) {
+        res.status(404).end()
+        return
+      }
+      const body = await readAdvisorPublicMediaBuffer(objectKey)
+      const contentType = guessAdvisorPublicMediaContentType(objectKey)
+      res.setHeader('Content-Type', contentType)
+      res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800')
+      res.send(body)
+    } catch (e) {
+      res.status(404).end()
+    }
+  })
+
   apiRouter.get('/public/experts', async (req, res) => {
     try {
       const q = String(req.query?.q ?? '')
       const rows = await searchPublishedAdvisors(pool, { q })
       const items = rows.map((item) => ({
         ...item,
-        profilePhotoUrl: publicMediaUrl(item.profilePhotoObjectKey),
+        profilePhotoUrl: publicMediaUrl(item.profilePhotoObjectKey, req),
         profilePhotoObjectKey: undefined,
       }))
       res.json({ items })
@@ -129,12 +157,15 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
         source: 'public',
       }).catch(() => {})
       res.json(
-        mapPublicProfilePayload({
-          profile: resolved.profile,
-          user: resolved.user,
-          gallery: resolved.gallery,
-          verificationBadges: resolved.verificationBadges,
-        }),
+        mapPublicProfilePayload(
+          {
+            profile: resolved.profile,
+            user: resolved.user,
+            gallery: resolved.gallery,
+            verificationBadges: resolved.verificationBadges,
+          },
+          req,
+        ),
       )
     } catch (e) {
       handleDbError(res, e)
@@ -187,11 +218,11 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
           caption: g.caption,
           sortOrder: g.sort_order,
           objectKey: g.object_key,
-          imageUrl: publicMediaUrl(g.object_key),
+          imageUrl: publicMediaUrl(g.object_key, req),
         })),
         verificationBadges: data.verificationBadges,
         publicUrl: `${baseUrl}/fc/${data.profile.public_slug}`,
-        profilePhotoUrl: publicMediaUrl(data.profile.profile_photo_object_key),
+        profilePhotoUrl: publicMediaUrl(data.profile.profile_photo_object_key, req),
       })
     } catch (e) {
       handleDbError(res, e)
@@ -234,7 +265,7 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
         objectKey: result.objectKey,
         contentType: result.contentType,
         putHeaders: result.putHeaders ?? {},
-        publicUrl: publicMediaUrl(result.objectKey),
+        publicUrl: publicMediaUrl(result.objectKey, req),
       })
     } catch (e) {
       handleDbError(res, e)
@@ -301,7 +332,7 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
           caption: result.item.caption,
           sortOrder: result.item.sort_order,
           objectKey: result.item.object_key,
-          imageUrl: publicMediaUrl(result.item.object_key),
+          imageUrl: publicMediaUrl(result.item.object_key, req),
         },
       })
     } catch (e) {
@@ -338,7 +369,7 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
           caption: result.item.caption,
           sortOrder: result.item.sort_order,
           objectKey: result.item.object_key,
-          imageUrl: publicMediaUrl(result.item.object_key),
+          imageUrl: publicMediaUrl(result.item.object_key, req),
         },
       })
     } catch (e) {

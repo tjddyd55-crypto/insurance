@@ -169,7 +169,7 @@ import {
   defaultAdvisorOgImageUrl,
   injectPublicAdvisorProfileMeta,
 } from './lib/publicAdvisorPublicMeta.js'
-import { advisorPublicCdnUrl } from './public-advisor-profile/publicAdvisorMedia.js'
+import { advisorPublicMediaUrl } from './public-advisor-profile/publicAdvisorMediaDelivery.js'
 import { getAdvisorPublicMetaBySlug } from './public-advisor-profile/publicAdvisorProfileService.js'
 import {
   getPublicCoverageShareByToken,
@@ -8454,7 +8454,10 @@ if (fs.existsSync(DIST_PATH)) {
         const raw = fs.readFileSync(htmlPath, 'utf8')
         const meta = slug ? await getAdvisorPublicMetaBySlug(pool, slug) : { indexable: false, slug: '' }
         const pathSuffix = `/fc/${meta.slug || slug || 'profile'}`
-        const imageFromPhoto = meta.profilePhotoObjectKey ? advisorPublicCdnUrl(meta.profilePhotoObjectKey) : null
+        const origin = `${req.protocol}://${req.get('host')}`
+        const imageFromPhoto = meta.profilePhotoObjectKey
+          ? advisorPublicMediaUrl(meta.profilePhotoObjectKey, origin)
+          : null
         const imageUrl = imageFromPhoto || defaultAdvisorOgImageUrl(req)
         const title = meta.indexable ? meta.title : '프로필을 찾을 수 없습니다 | ONE FC'
         const description = meta.indexable

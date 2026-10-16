@@ -74,13 +74,6 @@ async function uploadImage(token, kind, fileName) {
     body: PNG,
   })
   if (!put.ok) throw new Error(`R2 put ${put.status}`)
-  const cdnUrl =
-    presign.json.publicUrl ??
-    `https://cdn.platform-assets.com/${String(presign.json.objectKey).replace(/^\//, '')}`
-  const cdnHead = await fetch(cdnUrl, { method: 'HEAD' })
-  if (!cdnHead.ok) {
-    throw new Error(`CDN not ready ${cdnHead.status} for ${cdnUrl}`)
-  }
   return presign.json.objectKey
 }
 
@@ -151,6 +144,14 @@ async function main() {
   const pub = await fetch(`${BASE}/api/public/advisors/${SLUG}`)
   const pubJson = await pub.json()
   record('Public API published', pub.ok && pubJson.displayName && pubJson.gallery?.length === 6)
+  if (pubJson.profilePhotoUrl) {
+    const photoHead = await fetch(pubJson.profilePhotoUrl, { method: 'HEAD' })
+    record('Profile photo delivery URL', photoHead.ok, String(pubJson.profilePhotoUrl).slice(0, 80))
+  }
+  if (pubJson.gallery?.[0]?.imageUrl) {
+    const galHead = await fetch(pubJson.gallery[0].imageUrl, { method: 'HEAD' })
+    record('Gallery image delivery URL', galHead.ok)
+  }
 
   const html = await fetch(`${BASE}/fc/${SLUG}`).then((r) => r.text())
   const ogOk =
