@@ -14,6 +14,7 @@ import {
   ScheduleWeek,
 } from '../../components/ScheduleBoards'
 import type { ScheduleViewProps } from '../../hooks/useScheduleState'
+import ScheduleTodoEditor from '../../components/ScheduleTodoEditor'
 import ScheduleHolidaySetting, { useScheduleHolidayMode } from '../../components/ScheduleHolidaySetting'
 
 /** 달력 기간(월간 anchor 의 달)에 오늘이 들어 있는가 */
@@ -54,7 +55,8 @@ export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?
     else baseOpenEvent(event)
   }, [baseOpenEvent, pc, setCustomerTarget])
   const onOpenTask = useCallback((task: ScheduleTask) => {
-    const target = pc ? customerTargetOfTask(task) : null
+    // ONE FC 할 일은 고객 연결 여부와 무관하게 할 일 상세 모달(고객 연결은 모달 안에 표시)
+    const target = pc && task.source !== 'onefc_todo' ? customerTargetOfTask(task) : null
     if (target) setCustomerTarget(target)
     else baseOpenTask(task)
   }, [baseOpenTask, pc, setCustomerTarget])
@@ -138,6 +140,14 @@ export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?
         onOpenTodos={props.onOpenTodos}
         actions={props.taskDetail ? googleWrite.taskActions(props.taskDetail, props.onCloseTaskDetail) : undefined}
         writable={googleWrite.enabled && Boolean(props.google.write?.tasksWritable)}
+      />
+      <ScheduleTodoEditor
+        task={props.todoEditing}
+        token={props.token}
+        gaId={props.gaId}
+        onClose={props.onCloseTodoEditing}
+        onCommitted={props.onReload}
+        onMissing={props.onTodoMissing}
       />
       {googleWrite.dialogs}
       <ScheduleEventDialog {...props} />

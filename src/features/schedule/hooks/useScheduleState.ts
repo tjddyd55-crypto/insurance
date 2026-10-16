@@ -56,6 +56,11 @@ export type ScheduleViewProps = {
   selectedDate: string
   detail: ScheduleEvent | null
   taskDetail: ScheduleTask | null
+  /** 일정 관리에서 연 ONE FC 할 일(할 일 상세 모달) */
+  todoEditing: ScheduleTask | null
+  gaId: number | null
+  onCloseTodoEditing: () => void
+  onTodoMissing: (message: string) => void
   editing: ScheduleEvent | null
   editTitle: string
   editDate: string
@@ -167,6 +172,7 @@ export function useScheduleState(): ScheduleViewProps {
   const [selectedDate, setSelectedDate] = useState('')
   const [detailState, setDetailState] = useState<Owned<ScheduleEvent> | null>(null)
   const [taskDetailState, setTaskDetailState] = useState<Owned<ScheduleTask> | null>(null)
+  const [todoEditingState, setTodoEditingState] = useState<Owned<ScheduleTask> | null>(null)
   const [editingState, setEditingState] = useState<Owned<ScheduleEvent> | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editDate, setEditDate] = useState('')
@@ -273,6 +279,7 @@ export function useScheduleState(): ScheduleViewProps {
   const detail = detailState && detailState.owner === userKey ? detailState.value : null
   const taskDetail = taskDetailState && taskDetailState.owner === userKey ? taskDetailState.value : null
   const editing = editingState && editingState.owner === userKey ? editingState.value : null
+  const todoEditing = todoEditingState && todoEditingState.owner === userKey ? todoEditingState.value : null
 
   // 출처 필터는 받아 둔 기간 데이터에서만 거른다(필터 변경마다 다시 부르지 않음).
   const visibleEvents = useMemo(
@@ -370,6 +377,14 @@ export function useScheduleState(): ScheduleViewProps {
     selectedDate,
     detail,
     taskDetail,
+    todoEditing,
+    gaId: user?.gaId != null && Number.isFinite(Number(user.gaId)) ? Number(user.gaId) : null,
+    onCloseTodoEditing: () => setTodoEditingState(null),
+    onTodoMissing: (message) => {
+      setTodoEditingState(null)
+      setActionError(message)
+      setReloadNonce((current) => current + 1)
+    },
     editing,
     editTitle,
     editDate,
@@ -402,8 +417,15 @@ export function useScheduleState(): ScheduleViewProps {
     onOpenEvent,
     onCloseDetail: () => setDetailState(null),
     onToggleCompleted: () => replaceQuery({ done: includeCompleted ? '' : '1' }),
-    // 할 일은 일정 화면에서 조회만 한다. Google 할 일은 수정 UI 없음, ONE FC 할 일 수정은 할 일 화면에서.
-    onOpenTask: (task) => setTaskDetailState({ owner: userKey, value: task }),
+    // ONE FC 할 일 → 할 일 목록과 같은 상세 모달을 그 자리에서. Google 할 일 → 기존 상세(쓰기 버튼은 기존 정책).
+    onOpenTask: (task) => {
+      if (task.source === 'onefc_todo') {
+        setActionError('')
+        setTodoEditingState({ owner: userKey, value: task })
+        return
+      }
+      setTaskDetailState({ owner: userKey, value: task })
+    },
     onCloseTaskDetail: () => setTaskDetailState(null),
     onOpenTodos: () => {
       setTaskDetailState(null)
