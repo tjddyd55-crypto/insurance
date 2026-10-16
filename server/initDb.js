@@ -4614,6 +4614,8 @@ export async function initDb() {
   const { ensureServiceIntegrationsSchema } = await import('./integrations/ensureServiceIntegrationsSchema.js')
   await ensureServiceIntegrationsSchema(pool)
   console.log('[initDb][service-integrations] schema ensure 완료')
+  const { ensureGoogleAutoSyncSchema } = await import('./integrations/google/googleCalendarAutoSync.js')
+  await ensureGoogleAutoSyncSchema(pool)
   const { ensureCrmUserBulkSmsSchema } = await import('./lib/crmUserBulkSmsSchema.js')
   await ensureCrmUserBulkSmsSchema(pool)
   console.log('[initDb][crm-user-bulk-sms] schema ensure 완료')

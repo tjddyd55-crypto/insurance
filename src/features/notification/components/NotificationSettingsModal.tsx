@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { FormButton, FormInput } from '../../../components/form'
 import { FormDialog } from '../../../components/dialog/FormDialog'
-import type { UserAlertSettings } from '../api/notificationApi'
+import type { GoogleAutoSyncKind, GoogleAutoSyncState, UserAlertSettings } from '../api/notificationApi'
 
 export type NotificationSettingsModalProps = {
   open: boolean
@@ -11,6 +11,71 @@ export type NotificationSettingsModalProps = {
   onChange: (next: UserAlertSettings) => void
   onSave: () => void | Promise<void>
   onCancel: () => void
+  google?: GoogleAutoSyncState | null
+  onGoogleChange?: (next: GoogleAutoSyncState) => void
+}
+
+const GOOGLE_KIND_ROWS: Array<{ kind: GoogleAutoSyncKind; label: string }> = [
+  { kind: 'todo', label: 'ONE FC 할 일' },
+  { kind: 'car_expiry', label: '자동차 만기 알림' },
+  { kind: 'insurance_age_date', label: '상령일 알림' },
+  { kind: 'special_date', label: '알림일(사용자 지정)' },
+]
+
+function GoogleAutoSyncSection({
+  google,
+  onChange,
+}: {
+  google: GoogleAutoSyncState
+  onChange: (next: GoogleAutoSyncState) => void
+}) {
+  const canTurnOn = google.available && google.connected && google.calendarWritable
+  const masterDisabled = !google.enabled && !canTurnOn
+  return (
+    <ToggleRow
+      label="Google 캘린더 자동 연동"
+      enabled={google.enabled}
+      onToggle={(enabled) => {
+        if (enabled && !canTurnOn) return
+        onChange({ ...google, enabled })
+      }}
+    >
+      <p className="notification-settings-modal__hint">
+        ON 하면 ONE FC 할 일과 아래에서 선택한 알림이 연결된 본인 Google 캘린더에 &quot;ONE FC 할 일&quot; 같은 일반 제목으로
+        자동 등록됩니다(앞으로 {google.windowDays}일 범위, 고객 이름·연락처·메모는 보내지 않음).
+        OFF 하면 더 이상 등록하지 않고, OFF 한 날 다음 날 이후의 ONE FC 자동 일정만 Google 에서 지웁니다.
+        지난 일정과 당일 일정, Google 에서 직접 만든 일정, Google 할 일, ONE FC 원본은 그대로 둡니다.
+      </p>
+      {masterDisabled ? (
+        <p className="notification-settings-modal__hint">
+          {!google.available
+            ? '현재 계정에서는 아직 사용할 수 없습니다.'
+            : !google.connected
+              ? '내 정보 → 업무 편의 → 서비스 연동에서 Google을 먼저 연결해 주세요.'
+              : 'Google 캘린더 쓰기 권한이 필요합니다. 서비스 연동에서 권한을 허용해 주세요.'}
+        </p>
+      ) : null}
+      {GOOGLE_KIND_ROWS.map((row) => (
+        <label
+          key={row.kind}
+          className={`notification-settings-modal__toggle${google.enabled ? '' : ' is-disabled'}`}
+        >
+          <FormInput
+            type="checkbox"
+            disabled={!google.enabled}
+            checked={google.kinds[row.kind]}
+            onChange={(event) =>
+              onChange({ ...google, kinds: { ...google.kinds, [row.kind]: event.target.checked } })
+            }
+          />
+          <span>{row.label}</span>
+        </label>
+      ))}
+      {google.lastSyncError ? (
+        <p className="notification-settings-modal__error">마지막 동기화 중 일부가 실패했습니다. 자동으로 다시 시도합니다.</p>
+      ) : null}
+    </ToggleRow>
+  )
 }
 
 function ToggleRow({
@@ -86,6 +151,8 @@ export function NotificationSettingsModal({
   onChange,
   onSave,
   onCancel,
+  google,
+  onGoogleChange,
 }: NotificationSettingsModalProps) {
   return (
     <FormDialog
@@ -190,6 +257,8 @@ export function NotificationSettingsModal({
               고객앱에서 청구 문의 또는 파일이 올라오면 알림을 표시합니다.
             </p>
           </ToggleRow>
+
+          {google && onGoogleChange ? <GoogleAutoSyncSection google={google} onChange={onGoogleChange} /> : null}
 
           {error ? (
             <p className="notification-settings-modal__error" role="alert">

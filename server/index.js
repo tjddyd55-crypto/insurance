@@ -8524,6 +8524,16 @@ async function startServer() {
   }, ANALYTICS_TICK_MS)
 
   startSmsAutomationScheduler(pool)
+
+  // t321 Google 캘린더 자동 연동 주기 보정(롤링 구간 확장·실패 재시도·삭제 대기 처리). 플래그 OFF 면 아무것도 안 한다.
+  const GCAL_AUTOSYNC_TICK_MS = 30 * 60 * 1000
+  const runGcalAutoSync = () => {
+    void import('./integrations/google/googleCalendarAutoSync.js')
+      .then((m) => m.reconcileAllUsers(pool))
+      .catch((err) => console.warn('[gcal-autosync] tick failed', { code: String(err?.code ?? 'error') }))
+  }
+  setTimeout(runGcalAutoSync, 60 * 1000)
+  setInterval(runGcalAutoSync, GCAL_AUTOSYNC_TICK_MS)
   startInsuranceBillingRenewalWorker(pool)
 
   const PUSH_OUTBOX_TICK_MS = 15 * 1000
