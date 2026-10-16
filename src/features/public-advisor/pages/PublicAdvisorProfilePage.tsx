@@ -10,7 +10,12 @@ import {
 import { AdvisorProfileActionBar } from '../components/AdvisorProfileActionBar'
 import { AdvisorPublicImage } from '../components/AdvisorPublicImage'
 import { PublicAdvisorHeader } from '../components/PublicAdvisorHeader'
+import { parseCareerDisplayLines } from '../utils/parseCareerDisplayLines'
 import '../public-advisor.css'
+
+type InfoFactBlock =
+  | { label: string; value: string; lines?: undefined }
+  | { label: string; lines: string[]; value?: undefined }
 
 const MAX_PUBLIC_TAGS = 5
 
@@ -93,12 +98,17 @@ export function PublicAdvisorProfilePage() {
 
   const publicTags = useMemo(() => (data?.hashtags ?? []).slice(0, MAX_PUBLIC_TAGS), [data?.hashtags])
 
-  const infoBlocks = useMemo(() => {
+  const infoBlocks = useMemo((): InfoFactBlock[] => {
     if (!data) return []
-    const blocks: Array<{ label: string; value: string }> = []
+    const blocks: InfoFactBlock[] = []
     const affiliation = [data.gaName, data.teamName].filter(Boolean).join(' ')
     if (affiliation) blocks.push({ label: '소속', value: affiliation })
-    if (data.careerText?.trim()) blocks.push({ label: '경력', value: data.careerText.trim() })
+    const careerLines = parseCareerDisplayLines(data.careerText, data.gaName, data.teamName)
+    if (careerLines.length === 1) {
+      blocks.push({ label: '경력', value: careerLines[0] })
+    } else if (careerLines.length > 1) {
+      blocks.push({ label: '경력', lines: careerLines })
+    }
     if (data.officeLine?.trim()) blocks.push({ label: '사무실', value: data.officeLine.trim() })
     return blocks
   }, [data])
@@ -207,33 +217,28 @@ export function PublicAdvisorProfilePage() {
                 {infoBlocks.map((block) => (
                   <div key={block.label} className="pap-facts__row">
                     <dt>{block.label}</dt>
-                    <dd>{block.value}</dd>
+                    {block.lines ? (
+                      <dd className="pap-facts__dd--stacked">
+                        {block.lines.map((line) => (
+                          <span key={line} className="pap-facts__line">{line}</span>
+                        ))}
+                      </dd>
+                    ) : (
+                      <dd>{block.value}</dd>
+                    )}
                   </div>
                 ))}
               </dl>
             </section>
           ) : null}
 
-          {(data.phoneNumber || data.allowConsultation) ? (
+          {data.allowConsultation ? (
             <section className="pap-section pap-section--contact pap-section--contact-inline">
               <h2>상담 문의</h2>
-              <p className="pap-contact-lead">궁금한 점이 있으면 편하게 연락 주세요.</p>
-              <div className="pap-cta-row pap-cta-row--left pap-cta-row--contact">
-                {data.phoneNumber ? (
-                  <a
-                    className="pap-btn pap-btn--primary"
-                    href={`tel:${data.phoneNumber.replace(/\s/g, '')}`}
-                    onClick={() => trackAdvisorPublicEvent(slug, ADVISOR_PUBLIC_EVENT.PHONE_CLICK)}
-                  >
-                    전화
-                  </a>
-                ) : null}
-                {data.allowConsultation ? (
-                  <button type="button" className="pap-btn pap-btn--secondary" onClick={openConsult}>
-                    상담하기
-                  </button>
-                ) : null}
-              </div>
+              <p className="pap-contact-lead">궁금한 점이 있으면 편하게 문의해주세요.</p>
+              <button type="button" className="pap-btn pap-btn--primary pap-btn--block" onClick={openConsult}>
+                상담하기
+              </button>
             </section>
           ) : null}
 

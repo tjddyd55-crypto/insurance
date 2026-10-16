@@ -35,11 +35,12 @@ function IconConsult() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
-        d="M4 5h16a1 1 0 011 1v9a1 1 0 01-1 1H8l-4 3V6a1 1 0 011-1z"
+        d="M8 4h8a2 2 0 012 2v14l-3-2H8a2 2 0 01-2-2V6a2 2 0 012-2z"
         stroke="currentColor"
-        strokeWidth="1.8"
+        strokeWidth="1.75"
         strokeLinejoin="round"
       />
+      <path d="M9 9h6M9 12.5h4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
     </svg>
   )
 }

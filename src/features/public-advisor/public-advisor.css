@@ -119,6 +119,7 @@
   padding-left: 0;
   padding-right: 0;
   padding-top: 0;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
 }
 
 .pap-home-sections {
@@ -153,51 +154,68 @@
 }
 
 .pap-hero-body {
-  padding: 14px 16px 4px;
+  padding: 12px 16px 2px;
 }
 
 .pap-name--billboard {
-  font-size: 1.4rem;
+  font-size: 1.42rem;
   letter-spacing: -0.02em;
-  margin-bottom: 4px;
+  margin: 0 0 2px;
+  line-height: 1.25;
+}
+
+.pap-hero--billboard .pap-verify-line {
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
 }
 
 .pap-hero-line {
-  font-size: 0.95rem;
+  font-size: 0.92rem;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.pap-hero-line + .pap-hero-line {
   margin-top: 2px;
 }
 
 .pap-hero-office {
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   color: #6b7280;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .pap-headline--billboard {
-  margin: 10px 0 0;
-  font-size: 0.98rem;
-  line-height: 1.55;
+  margin: 6px 0 0;
+  font-size: 0.94rem;
+  line-height: 1.5;
   color: #374151;
-  padding: 0 4px;
+  padding: 0 2px;
 }
 
 .pap-tags--hero {
-  margin: 10px 0 0;
+  margin: 6px 0 0;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .pap-tags--hero .pap-tag {
-  font-size: 0.8rem;
-  font-weight: 600;
-  padding: 3px 9px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  color: #4b5563;
+  background: #f3f4f6;
 }
 
 .pap-action-bar {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  gap: 4px;
-  padding: 10px 8px 14px;
+  gap: 2px;
+  padding: 8px 6px 12px;
   margin: 0;
   border-top: 1px solid #f3f4f6;
 }
@@ -401,14 +419,23 @@
   font-weight: 600;
 }
 
-.pap-section {
-  margin-top: 32px;
+.pap-home-sections .pap-section {
+  margin-top: 22px;
+}
+
+.pap-home-sections .pap-section--intro {
+  margin-top: 18px;
+}
+
+.pap-home-sections .pap-section--gallery {
+  margin-top: 20px;
 }
 
 .pap-section h2 {
-  margin: 0 0 12px;
-  font-size: 1.05rem;
+  margin: 0 0 10px;
+  font-size: 1rem;
   font-weight: 700;
+  color: #111827;
 }
 
 .pap-section--intro .pap-body--intro {
@@ -460,8 +487,26 @@
 
 .pap-facts dd {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.94rem;
   line-height: 1.5;
+  color: #1f2937;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.pap-facts__dd--stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pap-facts__line {
+  display: block;
+}
+
+.pap-facts__line + .pap-facts__line {
+  font-size: 0.88rem;
+  color: #4b5563;
 }
 
 .pap-status {
@@ -476,11 +521,17 @@
 }
 
 .pap-section--contact-inline {
-  margin-top: 28px;
-  padding: 20px 16px;
+  margin-top: 22px;
+  margin-bottom: 8px;
+  padding: 18px 16px;
   border-radius: 14px;
   background: #fff;
   border: 1px solid #e5e7eb;
+}
+
+.pap-btn--block {
+  width: 100%;
+  margin-top: 4px;
 }
 
 .pap-section--contact-inline h2 {
