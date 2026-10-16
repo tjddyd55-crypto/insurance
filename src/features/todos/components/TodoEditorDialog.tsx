@@ -7,7 +7,7 @@ import { ApiError } from '../../../lib/apiClient'
 import { searchCustomers } from '../../customers/api/customersApi'
 import type { CustomerRecord } from '../../customers/domain/types'
 import type { TodoDto, TodoSourceType } from '../domain/todoTypes'
-import { createTodo, deleteTodo, patchTodo } from '../api/todosApi'
+import { completeTodo, createTodo, deleteTodo, patchTodo, reopenTodo } from '../api/todosApi'
 import { formatSeoulYmd } from '../utils/formatSeoulYmd'
 import { suggestDueDateFromText } from '../utils/suggestDueDateFromText'
 import { initialCreateDueDate } from '../utils/defaultTodoDueDate'
@@ -43,6 +43,8 @@ type Props = {
   /** 열림 세션당 증가 — 동일 고객에서 연속으로 띄울 때 폼 리셋 */
   sessionKey?: number
   onCommitted?: () => void
+  /** 수정 모드에서 완료 처리/다시 열기 버튼 표시(일정 관리처럼 목록 체크박스가 없는 화면용). 기본 false = 기존 화면 그대로 */
+  showStatusToggle?: boolean
 }
 
 function resolveEditorContent(description: string | null | undefined, title: string | null | undefined): string {
@@ -63,6 +65,7 @@ export function TodoEditorDialog({
   usePortal = false,
   sessionKey = 0,
   onCommitted,
+  showStatusToggle = false,
 }: Props) {
   const { confirm, confirmDialog } = useConfirmDialog()
 
@@ -292,6 +295,25 @@ export function TodoEditorDialog({
     }
   }
 
+  async function onToggleStatus() {
+    if (!token?.trim() || !editingTodo) return
+    if (editingTodo.status !== 'pending' && editingTodo.status !== 'completed') return
+    setBusy(true)
+    setFormError('')
+    try {
+      if (editingTodo.status === 'completed') await reopenTodo(token, editingTodo.id)
+      else await completeTodo(token, editingTodo.id)
+      onCommitted?.()
+      onClose()
+    } catch (e) {
+      const msg =
+        e instanceof ApiError ? e.message : e instanceof Error ? e.message : '상태 변경에 실패했습니다.'
+      setFormError(msg)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <>
       <BaseDialog
@@ -433,6 +455,11 @@ export function TodoEditorDialog({
               )}
             </div>
             <div className="flex gap-2">
+              {mode === 'edit' && showStatusToggle && editingTodo && editingTodo.status !== 'canceled' ? (
+                <FormButton htmlType="button" variant="secondary" disabled={busy} onClick={() => void onToggleStatus()}>
+                  {editingTodo.status === 'completed' ? '다시 열기' : '완료 처리'}
+                </FormButton>
+              ) : null}
               <FormButton variant="secondary" disabled={busy} onClick={() => void handleRequestClose()}>
                 취소
               </FormButton>
