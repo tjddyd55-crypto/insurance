@@ -7,6 +7,9 @@ import {
   fetchNotificationSettings,
   fetchNotifications,
   patchNotificationSettings,
+  fetchGoogleAutoSync,
+  saveGoogleAutoSync,
+  type GoogleAutoSyncState,
   type NotificationListType,
   type NotificationListView,
   type NotificationRow,
@@ -65,6 +68,8 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
   const [settingsDraft, setSettingsDraft] = useState<UserAlertSettings | null>(null)
   const [settingsBusy, setSettingsBusy] = useState(false)
   const [settingsError, setSettingsError] = useState('')
+  const [googleDraft, setGoogleDraft] = useState<GoogleAutoSyncState | null>(null)
+  const [googleSaved, setGoogleSaved] = useState<GoogleAutoSyncState | null>(null)
   const [expandedSections, setExpandedSections] = useState<Set<string>>(() => new Set())
 
   const load = useCallback(async () => {
@@ -178,6 +183,14 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
     try {
       const { data } = await fetchNotificationSettings(token)
       setSettingsDraft(data ?? { ...DEFAULT_USER_ALERT_SETTINGS })
+      try {
+        const g = await fetchGoogleAutoSync(token)
+        setGoogleDraft(g)
+        setGoogleSaved(g)
+      } catch {
+        setGoogleDraft(null)
+        setGoogleSaved(null)
+      }
       setSettingsOpen(true)
     } catch (e) {
       // 조회 실패해도 모달은 기본값으로 열어 "무반응"을 막는다.
@@ -196,6 +209,8 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
     setSettingsOpen(false)
     setSettingsDraft(null)
     setSettingsError('')
+    setGoogleDraft(null)
+    setGoogleSaved(null)
   }
 
   const handleSettingsSave = async () => {
@@ -206,6 +221,19 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
     setSettingsError('')
     try {
       await patchNotificationSettings(token, settingsDraft)
+      if (googleDraft && JSON.stringify(googleDraft) !== JSON.stringify(googleSaved)) {
+        try {
+          const saved = await saveGoogleAutoSync(token, { enabled: googleDraft.enabled, kinds: googleDraft.kinds })
+          setGoogleSaved(saved)
+          setGoogleDraft(saved)
+        } catch (e) {
+          // 저장 실패를 성공처럼 닫지 않는다.
+          setSettingsError(
+            e instanceof Error && e.message ? e.message : 'Google 캘린더 자동 연동 설정을 저장하지 못했습니다.',
+          )
+          return
+        }
+      }
       setSettingsOpen(false)
       setSettingsDraft(null)
       setToast('알림 설정을 저장했습니다.')
@@ -246,6 +274,8 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
         error={settingsError}
         onChange={setSettingsDraft}
         onSave={handleSettingsSave}
+        google={googleDraft}
+        onGoogleChange={setGoogleDraft}
         onCancel={closeSettingsModal}
       />
 

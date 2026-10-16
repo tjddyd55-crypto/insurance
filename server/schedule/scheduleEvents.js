@@ -184,6 +184,10 @@ export function normalizeGoogleCalendarEvent(item, calendar = { id: 'primary' })
   if (!item || item.status === 'cancelled' || !item.id) {
     return null
   }
+  // t321: ONE FC 가 자동으로 만든 Google 사본은 일정 관리에 다시 보이지 않게 한다(태그로만 판단).
+  if (item.extendedProperties?.private?.app === 'onefcAutoSync') {
+    return null
+  }
   const start = item.start && typeof item.start === 'object' ? item.start : {}
   const end = item.end && typeof item.end === 'object' ? item.end : {}
   const allDay = Boolean(start.date) && !start.dateTime

@@ -1,4 +1,5 @@
 import { safeQuery } from '../utils/dbSafeQuery.js'
+import { notifyTodoChanged } from '../integrations/google/googleCalendarAutoSync.js'
 import { parseGaId } from '../lib/parseGaId.js'
 import { getKstDateString, coerceDateOnlyString } from '../../shared/dateTimeKst.js'
 import {
@@ -457,6 +458,7 @@ export function registerTodosApi(apiRouter, ctx) {
         ],
       )
       const enriched = await enrichCustomerName(pool, gaId, ins.rows[0])
+      notifyTodoChanged(pool, userId)
       res.status(201).json(mapTodoRow(enriched))
     } catch (error) {
       handleDbError(error, req, res)
@@ -663,6 +665,7 @@ export function registerTodosApi(apiRouter, ctx) {
         res.status(404).json({ message: '할 일을 찾을 수 없습니다.' })
         return
       }
+      notifyTodoChanged(pool, userId)
       const enriched = await enrichCustomerName(pool, gaId, next)
       res.json(mapTodoRow(enriched))
     } catch (error) {
@@ -703,6 +706,7 @@ export function registerTodosApi(apiRouter, ctx) {
         res.status(404).json({ message: '할 일을 찾을 수 없거나 완료 처리할 수 없습니다.' })
         return
       }
+      notifyTodoChanged(pool, userId)
       const enriched = await enrichCustomerName(pool, gaId, next)
       res.json(mapTodoRow(enriched))
     } catch (error) {
@@ -743,6 +747,7 @@ export function registerTodosApi(apiRouter, ctx) {
         res.status(404).json({ message: '할 일을 찾을 수 없거나 완료 취소할 수 없습니다.' })
         return
       }
+      notifyTodoChanged(pool, userId)
       const enriched = await enrichCustomerName(pool, gaId, next)
       res.json(mapTodoRow(enriched))
     } catch (error) {
@@ -780,6 +785,7 @@ export function registerTodosApi(apiRouter, ctx) {
         res.status(404).json({ message: '할 일을 찾을 수 없습니다.' })
         return
       }
+      notifyTodoChanged(pool, userId)
       res.status(204).end()
     } catch (error) {
       handleDbError(error, req, res)
