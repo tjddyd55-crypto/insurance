@@ -7,6 +7,8 @@ import {
   isAutoSyncEnabledFor,
   isOnefcAutoSyncCopy,
   isOwnedAutoSyncEvent,
+  markTodoDeleted,
+  markOffKinds,
 } from './googleCalendarAutoSync.js'
 import { normalizeGoogleCalendarEvent } from '../../schedule/scheduleEvents.js'
 
@@ -50,4 +52,19 @@ test('flag requires autosync env AND write allowlist', () => {
   assert.equal(isAutoSyncEnabledFor('u1', { GOOGLE_WRITE_ENABLED: 'true' }), false)
   assert.equal(isAutoSyncEnabledFor('u1', { GOOGLE_WRITE_ENABLED: 'true', GOOGLE_CALENDAR_AUTOSYNC_ENABLED: 'true' }), true)
   assert.equal(isAutoSyncEnabledFor('u1', { GOOGLE_WRITE_ENABLED: 'true', GOOGLE_CALENDAR_AUTOSYNC_ENABLED: 'true', GOOGLE_WRITE_ALLOWED_USER_IDS: 'u2' }), false)
+})
+
+test('todo delete marks every mapped copy (past/today/future, incl. retained) for deletion; OFF rule keeps <= off date', async () => {
+  const calls = []
+  const pool = { query: async (sql, params) => { calls.push({ sql, params }); return { rowCount: 3 } } }
+  assert.equal(await markTodoDeleted(pool, 'u1', 42), 3)
+  const { sql, params } = calls[0]
+  assert.doesNotMatch(sql, /event_date/)
+  assert.match(sql, /pending_delete/)
+  assert.deepEqual(params.slice(0, 2), ['u1', 'todo:42'])
+  assert.ok(params[2].includes('retained') && params[2].includes('active'))
+  calls.length = 0
+  await markOffKinds(pool, 'u1', ['todo'], '2026-10-16')
+  assert.match(calls[0].sql, /event_date > \$3::date/)
+  assert.match(calls[1].sql, /event_date <= \$3::date/)
 })

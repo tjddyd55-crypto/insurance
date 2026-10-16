@@ -271,6 +271,23 @@ export async function markOffKinds(pool, userId, offKinds, offYmd = seoulYmd()) 
   return { pendingDelete: del.rowCount ?? 0, retained: keep.rowCount ?? 0 }
 }
 
+/** 삭제 대기 대상이 될 수 있는 매핑 상태(할 일 삭제 시 날짜 무관). */
+export const TODO_DELETE_MAP_STATUSES = ['pending', 'active', 'failed', 'retained']
+
+/**
+ * ONE FC 할 일 삭제(목록에서 제거): 연결된 Google 사본은 날짜(과거·당일·미래)와 무관하게 삭제 대기로.
+ * 실제 삭제는 reconcile 에서 매핑 + 소유 태그 확인 후에만 수행. OFF 규칙(markOffKinds)과는 별개.
+ */
+export async function markTodoDeleted(pool, userId, todoId) {
+  const r = await pool.query(
+    `UPDATE google_calendar_sync_map SET status = 'pending_delete', updated_at = NOW(),
+       history = history || jsonb_build_array(jsonb_build_object('at', NOW(), 'status', 'pending_delete', 'reason', 'todo_deleted'))
+     WHERE user_id = $1 AND source_type = 'todo' AND source_key = $2 AND status = ANY($3::text[])`,
+    [String(userId), `todo:${todoId}`, TODO_DELETE_MAP_STATUSES],
+  )
+  return r.rowCount ?? 0
+}
+
 /**
  * 설정 저장(먼저 저장 → 세대 증가 → OFF 처리 표시). 실패하면 throw(가짜 성공 없음).
  */
@@ -413,6 +430,28 @@ export async function reconcileUser(pool, userId, options = {}) {
 
     // 3) 원본이 사라졌거나 대상에서 빠진(완료 외 취소·삭제·날짜 변경) 사본: 오늘 이후(>= 오늘)만 삭제, 과거는 보존
     if (result.skipped !== 'settings_changed') {
+      // 원본 할 일이 DB 에서 삭제된 사본은 날짜 무관 삭제(삭제 = 어디서든 제거). 보존(retained) 사본 포함.
+      const todoIds = maps.filter((m) => m.source_type === 'todo' && !desired.has(m.source_key) && TODO_DELETE_MAP_STATUSES.includes(m.status))
+        .map((m) => String(m.source_id)).filter((v) => /^\d+$/.test(v))
+      const gone = new Set()
+      if (todoIds.length) {
+        const ex = await client.query('SELECT id::text AS id FROM todos WHERE id = ANY($1::bigint[])', [todoIds])
+        const exist = new Set(ex.rows.map((r) => r.id))
+        for (const id of todoIds) if (!exist.has(id)) gone.add(`todo:${id}`)
+      }
+      for (const m of maps) {
+        if (!gone.has(m.source_key) || !TODO_DELETE_MAP_STATUSES.includes(m.status)) continue
+        try {
+          await deleteOwnedEvent(access, m.calendar_id, m.google_event_id, ctx, m.source_key)
+          await setMap(client, m.id, 'deleted')
+          m.status = 'deleted'
+          result.deleted += 1
+        } catch (error) {
+          await setMap(client, m.id, error?.code === 'autosync_not_owned' ? 'conflict' : 'pending_delete', { error: String(error?.code ?? 'error') })
+          m.status = 'handled'
+          result.failed += 1
+        }
+      }
       for (const m of maps) {
         if (desired.has(m.source_key)) continue
         if (!['active', 'failed', 'pending'].includes(m.status)) continue
