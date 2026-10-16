@@ -38,7 +38,6 @@ export async function assertAdvisorPublicMediaIsPublished(pool, objectKey) {
     FROM advisor_public_profiles p
     INNER JOIN users u ON u.id = p.user_id
     WHERE p.is_published = true
-      AND p.is_deleted = false
       AND u.is_deleted = false
       AND u.role = 'USER'
       AND u.status = 'active'
