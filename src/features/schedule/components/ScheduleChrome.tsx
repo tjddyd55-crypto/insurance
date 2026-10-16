@@ -260,6 +260,7 @@ export default function ScheduleChrome(props: ScheduleViewProps & { compact?: bo
         <Button type="button" variant="secondary" size="sm" loading={props.refreshing} loadingText="새로고침 중…" onClick={props.onRefresh}>
           일정 새로고침
         </Button>
+        {props.toolbarExtra}
         {props.refreshMessage ? (
           <span
             className={props.refreshMessage.kind === 'error' ? 'schedule-page__refresh-message schedule-page__refresh-message--error' : 'schedule-page__refresh-message'}
