@@ -30,6 +30,7 @@ for (const [label, width, height] of [
   const page = await ctx.newPage()
   await page.goto(`${BASE}/fc/${SLUG}`, { waitUntil: 'networkidle' })
   if (label === '390') {
+    await capture(page, '390-billboard.png')
     await capture(page, '390-top.png')
     await page.locator('.pap-section--intro').scrollIntoViewIfNeeded()
     await page.waitForTimeout(300)
