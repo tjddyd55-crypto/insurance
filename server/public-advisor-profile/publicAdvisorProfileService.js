@@ -1,0 +1,379 @@
+import { systemQuery } from '../utils/dbSafeQuery.js'
+import { parseGaId } from '../lib/parseGaId.js'
+import { isGeneralGaCompanyCode } from '../lib/generalGa.js'
+import {
+  buildDefaultAdvisorSlug,
+  isAdvisorPublicSlugValid,
+  normalizeAdvisorPublicSlug,
+} from './publicAdvisorSlug.js'
+
+const GALLERY_MAX = 6
+const HASHTAG_MAX = 5
+
+export function normalizeHashtags(raw) {
+  const list = Array.isArray(raw) ? raw : []
+  const out = []
+  const seen = new Set()
+  for (const item of list) {
+    const tag = String(item ?? '')
+      .trim()
+      .replace(/^#+/, '')
+      .replace(/\s+/g, '')
+    if (!tag) continue
+    const key = tag.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(tag.slice(0, 40))
+    if (out.length >= HASHTAG_MAX) break
+  }
+  return out
+}
+
+async function loadUserContext(pool, userId) {
+  const r = await systemQuery(
+    pool,
+    `
+    SELECT
+      u.id,
+      u.username,
+      u.display_name,
+      u.phone_number,
+      u.role,
+      u.status,
+      u.is_deleted,
+      u.ga_id,
+      u.team_id,
+      g.name AS ga_name,
+      g.code AS ga_code,
+      t.name AS team_name
+    FROM users u
+    LEFT JOIN ga_companies g ON g.id = u.ga_id AND g.is_deleted = false
+    LEFT JOIN teams t ON t.id = u.team_id
+    WHERE u.id = $1
+    LIMIT 1
+    `,
+    [userId],
+  )
+  return r.rows[0] ?? null
+}
+
+export async function ensureAdvisorProfileRow(pool, userId) {
+  const user = await loadUserContext(pool, userId)
+  if (!user || user.is_deleted) return null
+
+  const existing = await systemQuery(
+    pool,
+    `SELECT * FROM advisor_public_profiles WHERE user_id = $1 LIMIT 1`,
+    [userId],
+  )
+  if (existing.rowCount > 0) return existing.rows[0]
+
+  let slug = buildDefaultAdvisorSlug({
+    username: user.username,
+    displayName: user.display_name,
+    userId: user.id,
+  })
+  for (let i = 0; i < 8; i += 1) {
+    const candidate = i === 0 ? slug : `${slug}-${i + 1}`
+    const dup = await systemQuery(
+      pool,
+      `SELECT 1 FROM advisor_public_profiles WHERE lower(public_slug) = lower($1) LIMIT 1`,
+      [candidate],
+    )
+    if (dup.rowCount === 0) {
+      slug = candidate
+      break
+    }
+  }
+
+  const ins = await systemQuery(
+    pool,
+    `
+    INSERT INTO advisor_public_profiles (user_id, public_slug)
+    VALUES ($1, $2)
+    ON CONFLICT (user_id) DO NOTHING
+    RETURNING *
+    `,
+    [userId, slug],
+  )
+  if (ins.rowCount > 0) return ins.rows[0]
+
+  const again = await systemQuery(
+    pool,
+    `SELECT * FROM advisor_public_profiles WHERE user_id = $1 LIMIT 1`,
+    [userId],
+  )
+  return again.rows[0] ?? null
+}
+
+function mapVerificationBadges(user) {
+  const badges = []
+  if (user?.role === 'USER' && user?.status === 'active' && !user?.is_deleted) {
+    badges.push({ id: 'onefc_member', label: 'ONE FC 회원' })
+  }
+  const phone = String(user?.phone_number ?? '').trim()
+  if (phone) {
+    badges.push({ id: 'phone_registered', label: '연락처 등록' })
+  }
+  const gaId = parseGaId(user?.ga_id)
+  const gaCode = String(user?.ga_code ?? '').trim()
+  if (gaId != null && gaCode && !isGeneralGaCompanyCode(gaCode)) {
+    badges.push({ id: 'ga_affiliation', label: '소속 GA' })
+  }
+  return badges
+}
+
+function buildOfficeLine(profile) {
+  const road = String(profile?.office_road_address ?? '').trim()
+  const detail = String(profile?.office_address_detail ?? '').trim()
+  if (!road && !detail) return ''
+  return [road, detail].filter(Boolean).join(' ')
+}
+
+async function loadGallery(pool, userId) {
+  const r = await systemQuery(
+    pool,
+    `
+    SELECT id, object_key, caption, sort_order
+    FROM advisor_public_profile_gallery
+    WHERE user_id = $1
+    ORDER BY sort_order ASC, created_at ASC
+    LIMIT $2
+    `,
+    [userId, GALLERY_MAX],
+  )
+  return r.rows
+}
+
+export async function getAdvisorProfileForOwner(pool, userId) {
+  const row = await ensureAdvisorProfileRow(pool, userId)
+  if (!row) return null
+  const user = await loadUserContext(pool, userId)
+  const gallery = await loadGallery(pool, userId)
+  return { profile: row, user, gallery, verificationBadges: mapVerificationBadges(user) }
+}
+
+export async function getPublishedAdvisorBySlug(pool, slug) {
+  const normalized = normalizeAdvisorPublicSlug(slug)
+  if (!isAdvisorPublicSlugValid(normalized)) return { status: 'invalid' }
+
+  const r = await systemQuery(
+    pool,
+    `
+    SELECT p.*, u.display_name, u.phone_number, u.role, u.status, u.is_deleted, u.ga_id, u.team_id,
+           g.name AS ga_name, g.code AS ga_code, t.name AS team_name
+    FROM advisor_public_profiles p
+    INNER JOIN users u ON u.id = p.user_id
+    LEFT JOIN ga_companies g ON g.id = u.ga_id AND g.is_deleted = false
+    LEFT JOIN teams t ON t.id = u.team_id
+    WHERE lower(p.public_slug) = lower($1)
+    LIMIT 1
+    `,
+    [normalized],
+  )
+  if (r.rowCount === 0) return { status: 'not_found' }
+  const row = r.rows[0]
+  if (!row.is_published || row.is_deleted || row.role !== 'USER' || row.status !== 'active') {
+    return { status: 'private' }
+  }
+  const gallery = await loadGallery(pool, row.user_id)
+  const publicUser = {
+    displayName: String(row.display_name ?? '').trim(),
+    gaName: String(row.ga_name ?? '').trim(),
+    teamName: String(row.team_name ?? '').trim(),
+    phoneNumber: row.show_phone ? String(row.phone_number ?? '').trim() : '',
+    kakaoLink: row.show_kakao ? String(row.kakao_link ?? '').trim() : '',
+  }
+  return {
+    status: 'ok',
+    profile: {
+      userId: row.user_id,
+      slug: row.public_slug,
+      headline: row.headline,
+      bio: row.bio,
+      hashtags: row.hashtags ?? [],
+      titleLabel: row.title_label,
+      careerText: row.career_text,
+      officeLine: buildOfficeLine(row),
+      officeRoadAddress: row.office_road_address,
+      officeAddressDetail: row.office_address_detail,
+      officePostalCode: row.office_postal_code,
+      profilePhotoObjectKey: row.profile_photo_object_key,
+      allowConsultation: row.allow_consultation,
+    },
+    user: publicUser,
+    gallery,
+    verificationBadges: mapVerificationBadges(row),
+  }
+}
+
+export async function searchPublishedAdvisors(pool, { q, limit = 24, offset = 0 }) {
+  const term = String(q ?? '').trim()
+  const lim = Math.min(Math.max(Number(limit) || 24, 1), 50)
+  const off = Math.max(Number(offset) || 0, 0)
+
+  const params = []
+  let where = `
+    p.is_published = true
+    AND u.is_deleted = false
+    AND u.role = 'USER'
+    AND u.status = 'active'
+  `
+  if (term) {
+    params.push(`%${term}%`)
+    where += `
+      AND (
+        u.display_name ILIKE $1
+        OR g.name ILIKE $1
+        OR t.name ILIKE $1
+        OR p.office_road_address ILIKE $1
+        OR p.office_address_sido ILIKE $1
+        OR p.office_address_sigungu ILIKE $1
+        OR p.headline ILIKE $1
+        OR p.bio ILIKE $1
+        OR EXISTS (
+          SELECT 1 FROM unnest(p.hashtags) AS tag WHERE tag ILIKE $1
+        )
+      )
+    `
+  }
+  const limitIdx = params.length + 1
+  const offsetIdx = params.length + 2
+  params.push(lim, off)
+
+  const r = await systemQuery(
+    pool,
+    `
+    SELECT
+      p.public_slug,
+      p.headline,
+      p.hashtags,
+      p.profile_photo_object_key,
+      u.display_name,
+      g.name AS ga_name,
+      t.name AS team_name,
+      p.office_road_address,
+      p.office_address_detail
+    FROM advisor_public_profiles p
+    INNER JOIN users u ON u.id = p.user_id
+    LEFT JOIN ga_companies g ON g.id = u.ga_id AND g.is_deleted = false
+    LEFT JOIN teams t ON t.id = u.team_id
+    WHERE ${where}
+    ORDER BY p.updated_at DESC
+    LIMIT $${limitIdx} OFFSET $${offsetIdx}
+    `,
+    params,
+  )
+
+  return r.rows.map((row) => ({
+    slug: row.public_slug,
+    displayName: row.display_name,
+    gaName: row.ga_name,
+    teamName: row.team_name,
+    headline: row.headline,
+    hashtags: row.hashtags ?? [],
+    profilePhotoObjectKey: row.profile_photo_object_key,
+    officeLine: buildOfficeLine(row),
+  }))
+}
+
+export async function patchAdvisorProfileForOwner(pool, userId, patch) {
+  const current = await ensureAdvisorProfileRow(pool, userId)
+  if (!current) return { ok: false, status: 404, message: '프로필을 찾을 수 없습니다.' }
+
+  const sets = []
+  const values = []
+  let n = 1
+
+  if (patch.public_slug != null) {
+    const slug = normalizeAdvisorPublicSlug(patch.public_slug)
+    if (!isAdvisorPublicSlugValid(slug)) {
+      return { ok: false, status: 400, message: '공개 주소(slug) 형식이 올바르지 않습니다.' }
+    }
+    const dup = await systemQuery(
+      pool,
+      `SELECT 1 FROM advisor_public_profiles WHERE lower(public_slug) = lower($1) AND user_id <> $2 LIMIT 1`,
+      [slug, userId],
+    )
+    if (dup.rowCount > 0) {
+      return { ok: false, status: 409, message: '이미 사용 중인 공개 주소입니다.' }
+    }
+    sets.push(`public_slug = $${n++}`)
+    values.push(slug)
+  }
+
+  const textFields = [
+    'headline',
+    'bio',
+    'title_label',
+    'career_text',
+    'office_road_address',
+    'office_address_detail',
+    'office_postal_code',
+    'office_address_sido',
+    'office_address_sigungu',
+    'kakao_link',
+    'profile_photo_object_key',
+  ]
+  for (const key of textFields) {
+    if (patch[key] != null) {
+      sets.push(`${key} = $${n++}`)
+      values.push(String(patch[key] ?? '').slice(0, key === 'bio' ? 8000 : 500))
+    }
+  }
+
+  if (patch.hashtags != null) {
+    sets.push(`hashtags = $${n++}`)
+    values.push(normalizeHashtags(patch.hashtags))
+  }
+
+  const boolFields = ['is_published', 'show_phone', 'show_kakao', 'allow_consultation']
+  for (const key of boolFields) {
+    if (patch[key] != null) {
+      sets.push(`${key} = $${n++}`)
+      values.push(Boolean(patch[key]))
+    }
+  }
+
+  if (sets.length === 0) {
+    return { ok: true, profile: current }
+  }
+
+  if (patch.is_published === true) {
+    sets.push(`published_at = COALESCE(published_at, NOW())`)
+  }
+  if (patch.is_published === false) {
+    sets.push(`published_at = NULL`)
+  }
+
+  sets.push(`updated_at = NOW()`)
+  values.push(userId)
+
+  const r = await systemQuery(
+    pool,
+    `
+    UPDATE advisor_public_profiles
+    SET ${sets.join(', ')}
+    WHERE user_id = $${n}
+    RETURNING *
+    `,
+    values,
+  )
+  return { ok: true, profile: r.rows[0] }
+}
+
+export async function recordAdvisorPublicEvent(pool, { advisorUserId, eventType, source }) {
+  const uid = String(advisorUserId ?? '').trim()
+  const type = String(eventType ?? '').trim()
+  if (!uid || !type) return
+  await systemQuery(
+    pool,
+    `
+    INSERT INTO advisor_public_profile_events (advisor_user_id, event_type, source)
+    VALUES ($1, $2, $3)
+    `,
+    [uid, type.slice(0, 64), source ? String(source).slice(0, 64) : null],
+  )
+}
+
+export { GALLERY_MAX, HASHTAG_MAX }

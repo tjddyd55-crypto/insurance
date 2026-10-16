@@ -81,6 +81,9 @@ import PdfIssuanceHistoryPage from './features/pdf-engine/pages/PdfIssuanceHisto
 import { ConsentFormPage } from './features/consent/pages/ConsentFormPage'
 import { DashboardPage } from './features/dashboard/pages/DashboardPage'
 import { IntroductionPage } from './features/web/pages/IntroductionPage'
+import ExpertSearchPage from './features/public-advisor/pages/ExpertSearchPage'
+import PublicAdvisorProfilePage from './features/public-advisor/pages/PublicAdvisorProfilePage'
+import MyPublicProfilePage from './features/public-advisor/pages/MyPublicProfilePage'
 import FeatureRequestPage from './features/feature-request/pages/FeatureRequestPage'
 import FeatureRequestsAdminPage from './features/feature-request/pages/FeatureRequestsAdminPage'
 import ProgramInquiriesAdminPage from './features/admin/pages/ProgramInquiriesAdminPage'
@@ -285,6 +288,8 @@ export const appRouter = createBrowserRouter([
       { path: 'account-deletion', element: <AccountDeletionPage /> },
       { path: 'g/:groupSlug', element: <GaGroupLandingPage /> },
       { path: 'g/:groupSlug/signup', element: <GaGroupSignupPage /> },
+      { path: 'experts', element: <ExpertSearchPage /> },
+      { path: 'fc/:slug', element: <PublicAdvisorProfilePage /> },
       { path: 'introduction', element: <IntroductionPage /> },
       { path: 'introduction/facebook', element: <IntroductionPage showFacebookPromo /> },
       // 과거 install 전용 페이지는 랜딩 다운로드 섹션으로 통일 (권장 정책 2)
@@ -653,6 +658,7 @@ export const appRouter = createBrowserRouter([
                 children: [{ path: 'admin/audit-logs', element: <AuditLogsPage /> }],
               },
               { path: 'profile', element: <ProfilePage /> },
+              { path: 'profile/public-advisor', element: <MyPublicProfilePage /> },
               { path: 'account/billing', element: <FreeLaunchBillingGuard><AccountBillingPage /></FreeLaunchBillingGuard> },
               { path: 'account/reset', element: <AccountResetPage /> },
               { path: 'feature-request', element: <FeatureRequestPage /> },

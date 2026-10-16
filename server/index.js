@@ -198,6 +198,7 @@ import { registerGaAdminManagementApi } from './registerGaAdminManagementApi.js'
 import { registerSuperAdminGaAdminAccountsApi } from './registerSuperAdminGaAdminAccountsApi.js'
 import { registerPublicInquiryApi } from './public-inquiries/registerPublicInquiryApi.js'
 import { registerPublicInquiryAdminApi } from './public-inquiries/registerPublicInquiryAdminApi.js'
+import { registerPublicAdvisorProfileApi } from './public-advisor-profile/registerPublicAdvisorProfileApi.js'
 import { registerSignatureApi } from './registerSignatureApi.js'
 import { registerClientLogRoutes } from './routes/client-log.js'
 import { registerVersionRoutes } from './routes/version.js'
@@ -1627,6 +1628,11 @@ registerSuperAdminGaAdminAccountsApi(apiRouter, {
 
 registerPublicInquiryApi(apiRouter, {
   pool,
+  handleDbError,
+})
+registerPublicAdvisorProfileApi(apiRouter, {
+  pool,
+  requireAuth,
   handleDbError,
 })
 registerPublicInquiryAdminApi(apiRouter, {
