@@ -22,8 +22,8 @@ const GALLERY_SOURCES = [
     caption: '고객 상담',
   },
   {
-    url: 'https://images.unsplash.com/photo-1521737716867-874aee28112a?w=1200&h=1200&fit=crop&q=85',
-    fileName: 'qa-award.webp',
+    url: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=1200&h=1200&fit=crop&q=85',
+    fileName: 'qa-award.jpg',
     caption: '시상식',
   },
   {
@@ -32,7 +32,7 @@ const GALLERY_SOURCES = [
     caption: '팀 미팅',
   },
   {
-    url: 'https://images.unsplash.com/photo-1524178232366-40fb2a6c5d9b?w=1200&h=1200&fit=crop&q=85',
+    url: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&h=1200&fit=crop&q=85',
     fileName: 'qa-training.jpg',
     caption: '교육 강의',
   },
