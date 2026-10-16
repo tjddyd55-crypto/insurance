@@ -226,6 +226,14 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
           const saved = await saveGoogleAutoSync(token, { enabled: googleDraft.enabled, kinds: googleDraft.kinds })
           setGoogleSaved(saved)
           setGoogleDraft(saved)
+          if (saved.syncStatus === 'syncing') {
+            setToast('알림 설정을 저장했습니다. Google 캘린더 동기화는 백그라운드에서 진행됩니다.')
+            dispatchNotificationRefresh()
+            setSettingsOpen(false)
+            setSettingsDraft(null)
+            await load()
+            return
+          }
         } catch (e) {
           // 저장 실패를 성공처럼 닫지 않는다.
           setSettingsError(

@@ -1,5 +1,5 @@
+import { TodoEditorDialog } from '../../todos/components/TodoEditorDialog'
 import { useCallback, useRef, useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { FormDialog, useConfirmDialog } from '../../../components/dialog'
 import { Button } from '../../../components/ui'
@@ -70,14 +70,14 @@ function addDays(ymd: string, days: number): string {
 /**
  * t307 일정 관리 Google 쓰기. 기능 플래그(google.write.enabled)가 꺼져 있으면 아무것도 그리지 않는다.
  * 세 저장 위치(Google 일정 / Google 할 일 / ONE FC 할 일)는 서로 다른 저장소라 따로 저장한다.
- * ONE FC 할 일은 기존 할 일 작성 창으로 보낸다(고객 연결·마감일 기본값 등 기존 기능 그대로).
+ * ONE FC 할 일은 할 일 목록과 같은 작성 창(TodoEditorDialog)을 일정 관리 위에서 바로 연다(t327, 화면 이동 없음).
  */
-export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 'google' | 'selectedDate' | 'today' | 'onReload' | 'userKey'>) {
-  const navigate = useNavigate()
+export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 'google' | 'selectedDate' | 'today' | 'onReload' | 'userKey' | 'gaId'>) {
   const { confirm, confirmDialog } = useConfirmDialog()
   const write = props.google.write ?? EMPTY_GOOGLE_WRITE_STATE
   const enabled = write.enabled && props.google.status === 'connected'
   const [chooserOpen, setChooserOpen] = useState(false)
+  const [todoCreate, setTodoCreate] = useState<{ due: string; session: number } | null>(null)
   const [targets, setTargets] = useState<GoogleWriteTargets | null>(null)
   const [eventForm, setEventForm] = useState<EventForm | null>(null)
   const [taskForm, setTaskForm] = useState<TaskForm | null>(null)
@@ -133,7 +133,7 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
     reset()
     requestIdRef.current = newGoogleRequestId()
     if (kind === 'onefc_todo') {
-      navigate(`/todos?new=1&due=${encodeURIComponent(baseDate)}`)
+      setTodoCreate((current) => ({ due: baseDate, session: (current?.session ?? 0) + 1 }))
       return
     }
     if (kind === 'google_event') {
@@ -296,6 +296,15 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
   const dialogs: ReactNode = (
     <>
       {confirmDialog}
+      <TodoEditorDialog
+        open={Boolean(todoCreate)}
+        onClose={() => setTodoCreate(null)}
+        token={props.token}
+        gaId={props.gaId}
+        sessionKey={todoCreate?.session ?? 0}
+        prefill={todoCreate ? { sourceType: 'manual', description: '', dueDate: todoCreate.due } : null}
+        onCommitted={() => finish('ONE FC 할 일을 추가했습니다.')}
+      />
       {chooserOpen ? (
         <FormDialog open title="새 항목 추가" closeOnBackdrop closeOnEsc onClose={() => setChooserOpen(false)}>
           <p className="schedule-page__dialog-sub">{baseDate} · 저장할 위치를 고르세요.{targets?.accountEmail ? ` (Google: ${targets.accountEmail})` : ''}</p>
