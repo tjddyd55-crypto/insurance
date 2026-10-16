@@ -3,7 +3,18 @@ import { parseGaId } from '../lib/parseGaId.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 import { safeQuery } from '../utils/dbSafeQuery.js'
 import { normalizeKrMobile, validateKrMobileDigits } from '../lib/phoneNormalize.js'
-import { getR2PublicCdnBase } from '../lib/consentStorage.js'
+import {
+  addGalleryItem,
+  deleteGalleryItem,
+  reorderGallery,
+  updateGalleryCaption,
+} from './publicAdvisorGalleryService.js'
+import { ADVISOR_PUBLIC_EVENT_TYPES } from './publicAdvisorEvents.js'
+import {
+  assertConsultationRateLimit,
+  consultationRateLimitKey,
+} from './publicAdvisorConsultationRateLimit.js'
+import { advisorPublicCdnUrl, createAdvisorPresignedUpload } from './publicAdvisorMedia.js'
 import {
   getAdvisorProfileForOwner,
   getPublishedAdvisorBySlug,
@@ -12,11 +23,10 @@ import {
   searchPublishedAdvisors,
 } from './publicAdvisorProfileService.js'
 
+const PUBLIC_EVENT_WHITELIST = new Set(Object.values(ADVISOR_PUBLIC_EVENT_TYPES))
+
 function publicMediaUrl(objectKey) {
-  const key = String(objectKey ?? '').trim()
-  if (!key) return null
-  const base = getR2PublicCdnBase().replace(/\/$/, '')
-  return `${base}/${key.replace(/^\//, '')}`
+  return advisorPublicCdnUrl(objectKey)
 }
 
 function mapPublicProfilePayload(resolved) {
@@ -55,6 +65,11 @@ function requireUserRole(req, res) {
   return true
 }
 
+function clientIp(req) {
+  const forwarded = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim()
+  return forwarded || String(req.socket?.remoteAddress ?? 'unknown')
+}
+
 /**
  * @param {import('express').Router} apiRouter
  * @param {{ pool: import('pg').Pool, requireAuth: Function, handleDbError: Function }} ctx
@@ -65,7 +80,8 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
   apiRouter.get('/public/experts', async (req, res) => {
     try {
       const q = String(req.query?.q ?? '')
-      const items = await searchPublishedAdvisors(pool, { q }).map((item) => ({
+      const rows = await searchPublishedAdvisors(pool, { q })
+      const items = rows.map((item) => ({
         ...item,
         profilePhotoUrl: publicMediaUrl(item.profilePhotoObjectKey),
         profilePhotoObjectKey: undefined,
@@ -85,15 +101,41 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
       }
       void recordAdvisorPublicEvent(pool, {
         advisorUserId: resolved.profile?.userId,
-        eventType: 'profile_view',
+        eventType: ADVISOR_PUBLIC_EVENT_TYPES.PROFILE_VIEW,
         source: 'public',
       }).catch(() => {})
-      res.json(mapPublicProfilePayload({
-        profile: resolved.profile,
-        user: resolved.user,
-        gallery: resolved.gallery,
-        verificationBadges: resolved.verificationBadges,
-      }))
+      res.json(
+        mapPublicProfilePayload({
+          profile: resolved.profile,
+          user: resolved.user,
+          gallery: resolved.gallery,
+          verificationBadges: resolved.verificationBadges,
+        }),
+      )
+    } catch (e) {
+      handleDbError(res, e)
+    }
+  })
+
+  apiRouter.post('/public/advisors/:slug/events', async (req, res) => {
+    try {
+      const resolved = await getPublishedAdvisorBySlug(pool, req.params.slug)
+      if (resolved.status !== 'ok') {
+        res.status(404).json({ message: '프로필을 찾을 수 없습니다.' })
+        return
+      }
+      const rawType = String(req.body?.eventType ?? req.body?.event_type ?? '').trim()
+      const eventType = rawType.toUpperCase()
+      if (!PUBLIC_EVENT_WHITELIST.has(eventType)) {
+        res.status(400).json({ message: '지원하지 않는 이벤트입니다.' })
+        return
+      }
+      void recordAdvisorPublicEvent(pool, {
+        advisorUserId: resolved.profile.userId,
+        eventType,
+        source: 'public',
+      }).catch(() => {})
+      res.status(204).end()
     } catch (e) {
       handleDbError(res, e)
     }
@@ -147,8 +189,116 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
     }
   })
 
+  apiRouter.post('/me/public-profile/media/presign', requireAuth, async (req, res) => {
+    try {
+      if (!requireUserRole(req, res)) return
+      const body = req.body ?? {}
+      const kind = String(body.kind ?? '').trim() === 'gallery' ? 'gallery' : 'profile'
+      const result = await createAdvisorPresignedUpload({
+        userId: req.user.id,
+        kind,
+        fileName: body.fileName ?? body.file_name,
+        contentType: body.contentType ?? body.content_type,
+        sizeBytes: body.sizeBytes ?? body.size_bytes,
+      })
+      if (!result.ok) {
+        res.status(result.status ?? 400).json({ message: result.message })
+        return
+      }
+      res.json({
+        uploadUrl: result.uploadUrl,
+        objectKey: result.objectKey,
+        contentType: result.contentType,
+      })
+    } catch (e) {
+      handleDbError(res, e)
+    }
+  })
+
+  apiRouter.post('/me/public-profile/gallery', requireAuth, async (req, res) => {
+    try {
+      if (!requireUserRole(req, res)) return
+      const objectKey = String(req.body?.objectKey ?? req.body?.object_key ?? '').trim()
+      const caption = req.body?.caption
+      const result = await addGalleryItem(pool, req.user.id, { objectKey, caption })
+      if (!result.ok) {
+        res.status(result.status ?? 400).json({ message: result.message })
+        return
+      }
+      res.status(201).json({
+        item: {
+          id: result.item.id,
+          caption: result.item.caption,
+          sortOrder: result.item.sort_order,
+          objectKey: result.item.object_key,
+          imageUrl: publicMediaUrl(result.item.object_key),
+        },
+      })
+    } catch (e) {
+      handleDbError(res, e)
+    }
+  })
+
+  apiRouter.put('/me/public-profile/gallery/reorder', requireAuth, async (req, res) => {
+    try {
+      if (!requireUserRole(req, res)) return
+      const orderedIds = req.body?.orderedIds ?? req.body?.ordered_ids
+      const result = await reorderGallery(pool, req.user.id, orderedIds)
+      if (!result.ok) {
+        res.status(result.status ?? 400).json({ message: result.message })
+        return
+      }
+      res.json({ ok: true })
+    } catch (e) {
+      handleDbError(res, e)
+    }
+  })
+
+  apiRouter.patch('/me/public-profile/gallery/:galleryId', requireAuth, async (req, res) => {
+    try {
+      if (!requireUserRole(req, res)) return
+      const result = await updateGalleryCaption(pool, req.user.id, req.params.galleryId, req.body?.caption)
+      if (!result.ok) {
+        res.status(result.status ?? 400).json({ message: result.message })
+        return
+      }
+      res.json({
+        item: {
+          id: result.item.id,
+          caption: result.item.caption,
+          sortOrder: result.item.sort_order,
+          objectKey: result.item.object_key,
+          imageUrl: publicMediaUrl(result.item.object_key),
+        },
+      })
+    } catch (e) {
+      handleDbError(res, e)
+    }
+  })
+
+  apiRouter.delete('/me/public-profile/gallery/:galleryId', requireAuth, async (req, res) => {
+    try {
+      if (!requireUserRole(req, res)) return
+      const result = await deleteGalleryItem(pool, req.user.id, req.params.galleryId)
+      if (!result.ok) {
+        res.status(result.status ?? 400).json({ message: result.message })
+        return
+      }
+      res.json({ ok: true })
+    } catch (e) {
+      handleDbError(res, e)
+    }
+  })
+
   apiRouter.post('/public/advisors/:slug/consultations', async (req, res) => {
     try {
+      const ip = clientIp(req)
+      const rl = assertConsultationRateLimit(consultationRateLimitKey(ip))
+      if (!rl.ok) {
+        res.status(429).json({ message: '잠시 후 다시 시도해 주세요.' })
+        return
+      }
+
       const resolved = await getPublishedAdvisorBySlug(pool, req.params.slug)
       if (resolved.status !== 'ok') {
         res.status(404).json({ message: '프로필을 찾을 수 없습니다.' })
@@ -219,7 +369,7 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
 
       void recordAdvisorPublicEvent(pool, {
         advisorUserId,
-        eventType: 'consultation_submit',
+        eventType: ADVISOR_PUBLIC_EVENT_TYPES.CONSULTATION_SUBMIT,
         source: 'public',
       }).catch(() => {})
 

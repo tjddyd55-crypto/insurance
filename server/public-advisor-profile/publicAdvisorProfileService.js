@@ -6,6 +6,7 @@ import {
   isAdvisorPublicSlugValid,
   normalizeAdvisorPublicSlug,
 } from './publicAdvisorSlug.js'
+import { assertAdvisorPublicObjectKeyOwned } from './publicAdvisorMedia.js'
 
 const GALLERY_MAX = 6
 const HASHTAG_MAX = 5
@@ -106,19 +107,33 @@ export async function ensureAdvisorProfileRow(pool, userId) {
   return again.rows[0] ?? null
 }
 
-function mapVerificationBadges(user) {
+export async function resolveVerificationBadges(pool, user) {
   const badges = []
+  const userId = String(user?.id ?? user?.user_id ?? '').trim()
   if (user?.role === 'USER' && user?.status === 'active' && !user?.is_deleted) {
-    badges.push({ id: 'onefc_member', label: 'ONE FC 회원' })
-  }
-  const phone = String(user?.phone_number ?? '').trim()
-  if (phone) {
-    badges.push({ id: 'phone_registered', label: '연락처 등록' })
+    badges.push({ id: 'onefc_active', label: 'ONE FC 확인' })
   }
   const gaId = parseGaId(user?.ga_id)
   const gaCode = String(user?.ga_code ?? '').trim()
   if (gaId != null && gaCode && !isGeneralGaCompanyCode(gaCode)) {
-    badges.push({ id: 'ga_affiliation', label: '소속 GA' })
+    badges.push({ id: 'ga_affiliation', label: '소속 GA 확인' })
+  }
+  if (user?.team_id) {
+    badges.push({ id: 'team_linked', label: '지점 연결' })
+  }
+  if (userId) {
+    const appr = await systemQuery(
+      pool,
+      `
+      SELECT 1 FROM ga_membership_approval_requests
+      WHERE applicant_user_id = $1 AND status = 'APPROVED'
+      LIMIT 1
+      `,
+      [userId],
+    )
+    if (appr.rowCount > 0) {
+      badges.push({ id: 'ga_approval', label: 'GA 가입 승인' })
+    }
   }
   return badges
 }
@@ -150,7 +165,8 @@ export async function getAdvisorProfileForOwner(pool, userId) {
   if (!row) return null
   const user = await loadUserContext(pool, userId)
   const gallery = await loadGallery(pool, userId)
-  return { profile: row, user, gallery, verificationBadges: mapVerificationBadges(user) }
+  const verificationBadges = await resolveVerificationBadges(pool, user)
+  return { profile: row, user, gallery, verificationBadges }
 }
 
 export async function getPublishedAdvisorBySlug(pool, slug) {
@@ -203,7 +219,28 @@ export async function getPublishedAdvisorBySlug(pool, slug) {
     },
     user: publicUser,
     gallery,
-    verificationBadges: mapVerificationBadges(row),
+    verificationBadges: await resolveVerificationBadges(pool, row),
+  }
+}
+
+export async function getAdvisorPublicMetaBySlug(pool, slug) {
+  const resolved = await getPublishedAdvisorBySlug(pool, slug)
+  if (resolved.status !== 'ok') {
+    return { indexable: false, slug: normalizeAdvisorPublicSlug(slug) }
+  }
+  const titleLabel = String(resolved.profile.titleLabel ?? 'FC').trim() || 'FC'
+  const title = `${resolved.user.displayName} ${titleLabel} | ONE FC`
+  const descParts = [
+    resolved.profile.headline,
+    [resolved.user.gaName, resolved.user.teamName].filter(Boolean).join(' '),
+  ].filter(Boolean)
+  const description = descParts.join(' · ').slice(0, 200) || 'ONE FC 설계사 공개 프로필'
+  return {
+    indexable: true,
+    slug: resolved.profile.slug,
+    title,
+    description,
+    profilePhotoObjectKey: resolved.profile.profilePhotoObjectKey,
   }
 }
 
@@ -249,8 +286,15 @@ export async function searchPublishedAdvisors(pool, { q, limit = 24, offset = 0 
       p.headline,
       p.hashtags,
       p.profile_photo_object_key,
+      u.id,
       u.display_name,
+      u.role,
+      u.status,
+      u.is_deleted,
+      u.ga_id,
+      u.team_id,
       g.name AS ga_name,
+      g.code AS ga_code,
       t.name AS team_name,
       p.office_road_address,
       p.office_address_detail
@@ -265,16 +309,22 @@ export async function searchPublishedAdvisors(pool, { q, limit = 24, offset = 0 
     params,
   )
 
-  return r.rows.map((row) => ({
-    slug: row.public_slug,
-    displayName: row.display_name,
-    gaName: row.ga_name,
-    teamName: row.team_name,
-    headline: row.headline,
-    hashtags: row.hashtags ?? [],
-    profilePhotoObjectKey: row.profile_photo_object_key,
-    officeLine: buildOfficeLine(row),
-  }))
+  const items = []
+  for (const row of r.rows) {
+    const verificationBadges = await resolveVerificationBadges(pool, row)
+    items.push({
+      slug: row.public_slug,
+      displayName: row.display_name,
+      gaName: row.ga_name,
+      teamName: row.team_name,
+      headline: row.headline,
+      hashtags: row.hashtags ?? [],
+      profilePhotoObjectKey: row.profile_photo_object_key,
+      officeLine: buildOfficeLine(row),
+      verificationBadges,
+    })
+  }
+  return items
 }
 
 export async function patchAdvisorProfileForOwner(pool, userId, patch) {
@@ -302,6 +352,19 @@ export async function patchAdvisorProfileForOwner(pool, userId, patch) {
     values.push(slug)
   }
 
+  if (patch.profile_photo_object_key != null) {
+    const photoKey = String(patch.profile_photo_object_key ?? '').trim()
+    if (!photoKey) {
+      sets.push(`profile_photo_object_key = $${n++}`)
+      values.push(null)
+    } else if (!assertAdvisorPublicObjectKeyOwned(userId, photoKey)) {
+      return { ok: false, status: 400, message: '대표사진 경로가 올바르지 않습니다.' }
+    } else {
+      sets.push(`profile_photo_object_key = $${n++}`)
+      values.push(photoKey)
+    }
+  }
+
   const textFields = [
     'headline',
     'bio',
@@ -313,7 +376,6 @@ export async function patchAdvisorProfileForOwner(pool, userId, patch) {
     'office_address_sido',
     'office_address_sigungu',
     'kakao_link',
-    'profile_photo_object_key',
   ]
   for (const key of textFields) {
     if (patch[key] != null) {

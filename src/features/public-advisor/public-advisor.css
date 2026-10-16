@@ -33,6 +33,51 @@
   display: block;
 }
 
+.pap-avatar--hero {
+  width: 140px;
+  height: 140px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.pap-hero--card {
+  padding: 24px 16px 28px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #f9fafb 0%, #fff 100%);
+  margin-bottom: 8px;
+}
+
+.pap-affiliation--strong {
+  font-weight: 700;
+  color: var(--text-primary, #111);
+}
+
+.pap-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin: 12px 0;
+}
+
+.pap-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: #111;
+  color: #fff;
+}
+
+.pap-badges--card .pap-badge {
+  background: #374151;
+}
+
+.pap-body {
+  white-space: pre-wrap;
+  line-height: 1.75;
+  margin: 0;
+}
+
 .pap-name {
   margin: 0 0 6px;
   font-size: 1.5rem;
@@ -129,6 +174,69 @@
   background: #f3f4f6;
 }
 
+.pap-section--gallery h2 {
+  font-size: 1.35rem;
+}
+
+.pap-gallery--prominent {
+  gap: 12px;
+}
+
+.pap-gallery-tile {
+  border: none;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  position: relative;
+}
+
+.pap-gallery-tile img {
+  transition: transform 0.15s ease;
+}
+
+.pap-gallery-tile:hover img {
+  transform: scale(1.02);
+}
+
+.pap-gallery-caption {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #4b5563);
+  margin-top: 6px;
+  padding: 0 4px;
+}
+
+.pap-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+}
+
+.pap-lightbox img {
+  max-width: min(960px, 100%);
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.pap-lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .pap-experts-search {
   margin: 16px 0 24px;
 }
@@ -150,14 +258,42 @@
 
 .pap-card {
   display: grid;
-  grid-template-columns: 64px 1fr auto;
-  gap: 12px;
-  align-items: center;
-  padding: 14px;
+  grid-template-columns: 72px 1fr;
+  gap: 14px;
+  align-items: start;
+  padding: 16px;
   border: 1px solid #e5e7eb;
   border-radius: 14px;
   text-decoration: none;
   color: inherit;
+}
+
+.pap-card__body {
+  min-width: 0;
+}
+
+.pap-card__name {
+  font-size: 1.05rem;
+}
+
+.pap-card__office {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #4b5563);
+}
+
+.pap-card__headline {
+  margin: 8px 0 0;
+  font-size: 0.95rem;
+}
+
+.pap-tags--card {
+  justify-content: flex-start;
+  margin: 8px 0 0;
+}
+
+.pap-tags--left {
+  justify-content: flex-start;
 }
 
 .pap-card__thumb {
@@ -202,4 +338,167 @@
 .pap-editor-form textarea {
   min-height: 120px;
   resize: vertical;
+}
+
+.pap-editor-page .pap-cta-row--left {
+  justify-content: flex-start;
+}
+
+.pap-editor-toolbar {
+  margin: 16px 0 24px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #f9fafb;
+}
+
+.pap-editor-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.pap-editor-section-title {
+  margin: 28px 0 12px;
+  font-size: 1.1rem;
+}
+
+.pap-editor-photo-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.pap-editor-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #e5e7eb;
+}
+
+.pap-editor-avatar--empty {
+  display: block;
+}
+
+.pap-hidden-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pap-tag--editable,
+.pap-tag--suggest {
+  border: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.pap-tag-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.pap-editor-gallery {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+@media (min-width: 640px) {
+  .pap-editor-gallery {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.pap-editor-gallery-item img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.pap-editor-gallery-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.pap-editor-gallery-actions button {
+  flex: 1;
+  font-size: 0.8rem;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  cursor: pointer;
+}
+
+.pap-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+@media (min-width: 640px) {
+  .pap-modal-backdrop {
+    align-items: center;
+  }
+}
+
+.pap-modal {
+  background: #fff;
+  width: 100%;
+  max-width: 420px;
+  padding: 20px 16px 24px;
+  border-radius: 16px 16px 0 0;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .pap-modal {
+    border-radius: 16px;
+  }
+}
+
+.pap-modal--sheet {
+  max-width: 720px;
+  text-align: left;
+}
+
+.pap-modal--sheet label {
+  display: block;
+  font-weight: 600;
+  margin: 12px 0 6px;
+}
+
+.pap-modal--sheet input,
+.pap-modal--sheet textarea,
+.pap-modal--sheet select {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  padding: 10px 12px;
+  font: inherit;
+}
+
+.pap-modal--qr .pap-qr-canvas {
+  margin: 12px auto;
+}
+
+.pap-card__thumb {
+  width: 72px;
+  height: 72px;
 }

@@ -10,9 +10,7 @@ export function ExpertSearchPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    document.title = '보험 설계사 찾기 | ONE FC'
-    const meta = document.querySelector('meta[name="robots"]')
-    if (meta) meta.setAttribute('content', 'index,follow')
+    document.title = '설계사 찾기 | ONE FC'
   }, [])
 
   useEffect(() => {
@@ -33,8 +31,8 @@ export function ExpertSearchPage() {
   return (
     <div className="public-advisor-page">
       <div className="public-advisor-shell">
-        <h1>보험 설계사를 찾아보세요</h1>
-        <p className="pap-affiliation">이름, 소속, 지점, 사무실 위치, 해시태그로 검색할 수 있습니다.</p>
+        <h1>설계사를 찾아보세요</h1>
+        <p className="pap-affiliation">이름, 소속, 지점, 사무실 위치, 해시태그, 소개로 검색할 수 있습니다.</p>
         <div className="pap-experts-search">
           <input
             type="search"
@@ -53,14 +51,28 @@ export function ExpertSearchPage() {
               ) : (
                 <div className="pap-card__thumb" aria-hidden />
               )}
-              <div>
-                <strong>{item.displayName}</strong>
+              <div className="pap-card__body">
+                <strong className="pap-card__name">{item.displayName}</strong>
                 <p className="pap-affiliation">
                   {[item.gaName, item.teamName].filter(Boolean).join(' · ')}
                 </p>
-                <p className="pap-headline">{item.headline || item.officeLine}</p>
+                {item.officeLine ? <p className="pap-card__office">{item.officeLine}</p> : null}
+                {item.headline ? <p className="pap-headline pap-card__headline">{item.headline}</p> : null}
+                {item.hashtags?.length ? (
+                  <div className="pap-tags pap-tags--card">
+                    {item.hashtags.slice(0, 5).map((tag) => (
+                      <span key={tag} className="pap-tag">#{tag}</span>
+                    ))}
+                  </div>
+                ) : null}
+                {item.verificationBadges?.length ? (
+                  <div className="pap-badges pap-badges--card">
+                    {item.verificationBadges.map((b) => (
+                      <span key={b.id} className="pap-badge">{b.label}</span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
-              <span aria-hidden>›</span>
             </Link>
           ))}
         </div>
