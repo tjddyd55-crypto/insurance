@@ -211,11 +211,32 @@ export type GoogleAutoSyncState = {
   kinds: Record<GoogleAutoSyncKind, boolean>
   lastSyncAt: string | null
   lastSyncError: string | null
+  /** t327: 백그라운드 동기화 상태 */
+  syncStatus?: 'idle' | 'syncing' | 'done' | 'error'
   windowDays: number
 }
 
+/** t327: 요청이 멈춰 보이지 않도록 제한 시간을 둔다. */
+async function withTimeout<T>(ms: number, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), ms)
+  try {
+    return await run(controller.signal)
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      throw new ApiError('응답이 늦어 저장 여부를 확인하지 못했습니다. 잠시 후 다시 열어 확인해 주세요.', 0)
+    }
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
+}
+export const GOOGLE_AUTOSYNC_TIMEOUT_MS = 20000
+
 export async function fetchGoogleAutoSync(token: string): Promise<GoogleAutoSyncState> {
-  const res = await apiRequest<unknown>('/api/service-integrations/google/calendar-autosync', { token })
+  const res = await withTimeout(GOOGLE_AUTOSYNC_TIMEOUT_MS, (signal) =>
+    apiRequest<unknown>('/api/service-integrations/google/calendar-autosync', { token, signal }),
+  )
   return asGoogleAutoSyncState(res)
 }
 
@@ -233,11 +254,14 @@ export async function saveGoogleAutoSync(
   token: string,
   body: { enabled: boolean; kinds: Record<GoogleAutoSyncKind, boolean> },
 ): Promise<GoogleAutoSyncState> {
-  const res = await apiRequest<unknown>('/api/service-integrations/google/calendar-autosync', {
-    method: 'PUT',
-    token,
-    body: JSON.stringify(body),
-  })
+  const res = await withTimeout(GOOGLE_AUTOSYNC_TIMEOUT_MS, (signal) =>
+    apiRequest<unknown>('/api/service-integrations/google/calendar-autosync', {
+      method: 'PUT',
+      token,
+      body: JSON.stringify(body),
+      signal,
+    }),
+  )
   const saved = asGoogleAutoSyncState(res)
   // 서버에 실제로 저장된 값이 요청과 다르면 성공으로 보지 않는다.
   if (saved.enabled !== body.enabled) {
