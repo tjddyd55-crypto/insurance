@@ -15,7 +15,10 @@ export type PublicAdvisorCard = {
   verificationBadges?: VerificationBadge[]
 }
 
+export type AdvisorProfileTheme = 'classic' | 'brand' | 'premium'
+
 export type PublicAdvisorDetail = PublicAdvisorCard & {
+  profileTheme?: AdvisorProfileTheme
   bio: string
   titleLabel: string
   careerText: string

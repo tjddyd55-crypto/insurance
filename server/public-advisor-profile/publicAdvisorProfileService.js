@@ -8,6 +8,7 @@ import {
   normalizeAdvisorPublicSlug,
 } from './publicAdvisorSlug.js'
 import { assertAdvisorPublicObjectKeyOwned } from './publicAdvisorMedia.js'
+import { normalizeAdvisorProfileTheme } from './publicAdvisorProfileTheme.js'
 
 const GALLERY_MAX = 6
 const HASHTAG_MAX = 5
@@ -226,6 +227,7 @@ export async function getPublishedAdvisorBySlug(pool, slug) {
       officePostalCode: row.office_postal_code,
       profilePhotoObjectKey: row.profile_photo_object_key,
       allowConsultation: row.allow_consultation,
+      profileTheme: normalizeAdvisorProfileTheme(row.profile_theme),
     },
     user: publicUser,
     gallery,
@@ -403,6 +405,11 @@ export async function patchAdvisorProfileForOwner(pool, userId, patch) {
   if (patch.hashtags != null) {
     sets.push(`hashtags = $${n++}`)
     values.push(normalizeHashtags(patch.hashtags))
+  }
+
+  if (patch.profile_theme != null) {
+    sets.push(`profile_theme = $${n++}`)
+    values.push(normalizeAdvisorProfileTheme(patch.profile_theme))
   }
 
   const boolFields = ['is_published', 'show_phone', 'show_kakao', 'allow_consultation']

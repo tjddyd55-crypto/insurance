@@ -1,8 +1,11 @@
 /** 모바일 명함 하단 액션. 향후 QR·채팅·ONE FC 연결 등 슬롯 확장 가능. */
+type ActionBarTheme = 'classic' | 'brand' | 'premium'
+
 type ActionBarProps = {
   phoneNumber: string
   kakaoLink: string
   allowConsultation: boolean
+  theme?: ActionBarTheme
   onPhoneClick: () => void
   onKakaoClick: () => void
   onConsultClick: () => void
@@ -63,6 +66,7 @@ export function AdvisorProfileActionBar({
   phoneNumber,
   kakaoLink,
   allowConsultation,
+  theme = 'classic',
   onPhoneClick,
   onKakaoClick,
   onConsultClick,
@@ -72,7 +76,7 @@ export function AdvisorProfileActionBar({
   const showKakao = Boolean(kakaoLink?.trim())
 
   return (
-    <nav className="pap-action-bar" aria-label="연락 및 공유">
+    <nav className={`pap-action-bar pap-action-bar--theme-${theme}`} aria-label="연락 및 공유">
       {tel ? (
         <a
           className="pap-action-bar__item pap-action-bar__item--phone"

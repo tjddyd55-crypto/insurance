@@ -59,6 +59,7 @@ function mapPublicProfilePayload(resolved, req) {
     phoneNumber: user.phoneNumber,
     kakaoLink: user.kakaoLink,
     allowConsultation: profile.allowConsultation,
+    profileTheme: profile.profileTheme,
     profilePhotoUrl: publicMediaUrl(profile.profilePhotoObjectKey, req),
     gallery: gallery.map((g) => ({
       id: g.id,

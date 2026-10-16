@@ -7,9 +7,9 @@ import {
   trackAdvisorPublicEvent,
   type PublicAdvisorDetail,
 } from '../api/publicAdvisorApi'
-import { AdvisorProfileActionBar } from '../components/AdvisorProfileActionBar'
+import { AdvisorProfileHero } from '../components/heroes/AdvisorProfileHero'
 import { AdvisorPublicImage } from '../components/AdvisorPublicImage'
-import { PublicAdvisorHeader } from '../components/PublicAdvisorHeader'
+import { normalizeProfileTheme } from '../profileTheme'
 import { parseCareerDisplayLines } from '../utils/parseCareerDisplayLines'
 import '../public-advisor.css'
 
@@ -116,77 +116,55 @@ export function PublicAdvisorProfilePage() {
   if (error && !data) {
     return (
       <div className="public-advisor-page pap-page--fc">
-        <PublicAdvisorHeader />
-        <div className="public-advisor-shell pap-shell--fc"><p>{error}</p></div>
+        <div className="public-advisor-shell pap-shell--fc pap-shell--fc-state"><p>{error}</p></div>
       </div>
     )
   }
   if (!data) {
     return (
       <div className="public-advisor-page pap-page--fc">
-        <PublicAdvisorHeader />
-        <div className="public-advisor-shell pap-shell--fc"><p>불러오는 중…</p></div>
+        <div className="public-advisor-shell pap-shell--fc pap-shell--fc-state"><p>불러오는 중…</p></div>
       </div>
     )
   }
 
   const titleSuffix = data.titleLabel?.trim() || 'FC'
   const primaryBadge = data.verificationBadges?.[0]
+  const profileTheme = normalizeProfileTheme(data.profileTheme)
 
   return (
-    <div className="public-advisor-page pap-page--fc">
-      <PublicAdvisorHeader />
+    <div className={`public-advisor-page pap-page--fc pap-page-theme--${profileTheme}`}>
       <div className="public-advisor-shell pap-shell--fc">
-        <header className="pap-hero pap-hero--billboard">
-          <div className="pap-hero-photo-wrap">
-            <AdvisorPublicImage
-              className="pap-hero-photo"
-              src={data.profilePhotoUrl}
-              alt={data.displayName}
-              loading="eager"
-            />
-          </div>
-          <div className="pap-hero-body">
-            <h1 className="pap-name pap-name--billboard">
-              {data.displayName} {titleSuffix}
-            </h1>
-            {primaryBadge ? <p className="pap-verify-line">{primaryBadge.label}</p> : null}
-            {affiliationLine ? (
-              <p className="pap-affiliation pap-affiliation--strong pap-hero-line">{affiliationLine}</p>
-            ) : null}
-            {data.officeLine ? (
-              <p className="pap-affiliation pap-hero-line pap-hero-office">{data.officeLine}</p>
-            ) : null}
-            {data.headline ? <p className="pap-headline pap-headline--billboard">{data.headline}</p> : null}
-            {publicTags.length ? (
-              <div className="pap-tags pap-tags--hero">
-                {publicTags.map((tag) => (
-                  <span key={tag} className="pap-tag">#{tag}</span>
-                ))}
-              </div>
-            ) : null}
-          </div>
-          <AdvisorProfileActionBar
-            phoneNumber={data.phoneNumber}
-            kakaoLink={data.kakaoLink}
-            allowConsultation={data.allowConsultation}
-            onPhoneClick={() => trackAdvisorPublicEvent(slug, ADVISOR_PUBLIC_EVENT.PHONE_CLICK)}
-            onKakaoClick={() => trackAdvisorPublicEvent(slug, ADVISOR_PUBLIC_EVENT.CONTACT_CLICK)}
-            onConsultClick={openConsult}
-            onShareClick={() => void sharePage()}
-          />
-        </header>
+        <AdvisorProfileHero
+          theme={profileTheme}
+          displayName={data.displayName}
+          titleSuffix={titleSuffix}
+          profilePhotoUrl={data.profilePhotoUrl}
+          primaryBadgeLabel={primaryBadge?.label ?? null}
+          affiliationLine={affiliationLine}
+          officeLine={data.officeLine}
+          headline={data.headline}
+          publicTags={publicTags}
+          phoneNumber={data.phoneNumber}
+          kakaoLink={data.kakaoLink}
+          allowConsultation={data.allowConsultation}
+          actionBarTheme={profileTheme}
+          onPhoneClick={() => trackAdvisorPublicEvent(slug, ADVISOR_PUBLIC_EVENT.PHONE_CLICK)}
+          onKakaoClick={() => trackAdvisorPublicEvent(slug, ADVISOR_PUBLIC_EVENT.CONTACT_CLICK)}
+          onConsultClick={openConsult}
+          onShareClick={() => void sharePage()}
+        />
 
         <div className="pap-home-sections">
           {data.bio ? (
-            <section className="pap-section pap-section--intro">
+            <section className="pap-section pap-section--intro pap-fc-card">
               <h2>소개</h2>
               <p className="pap-body pap-body--intro">{data.bio}</p>
             </section>
           ) : null}
 
           {data.gallery?.length ? (
-            <section className="pap-section pap-section--gallery">
+            <section className="pap-section pap-section--gallery pap-fc-card">
               <h2>활동 모습</h2>
               <div className="pap-gallery pap-gallery--photos-only">
                 {data.gallery.map((g) => (
@@ -211,7 +189,7 @@ export function PublicAdvisorProfilePage() {
           ) : null}
 
           {infoBlocks.length ? (
-            <section className="pap-section pap-section--facts">
+            <section className="pap-section pap-section--facts pap-fc-card">
               <h2 className="pap-section__sr-only">소속 및 연락 정보</h2>
               <dl className="pap-facts">
                 {infoBlocks.map((block) => (
@@ -233,7 +211,7 @@ export function PublicAdvisorProfilePage() {
           ) : null}
 
           {data.allowConsultation ? (
-            <section className="pap-section pap-section--contact pap-section--contact-inline pap-section--contact-copy-only">
+            <section className="pap-section pap-section--contact pap-section--contact-copy-only pap-fc-card">
               <h2>상담 문의</h2>
               <p className="pap-contact-lead">궁금한 점이 있으면 편하게 문의해주세요.</p>
             </section>

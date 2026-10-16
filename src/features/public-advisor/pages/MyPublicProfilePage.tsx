@@ -16,7 +16,9 @@ import {
   type OwnerGalleryItem,
 } from '../api/publicAdvisorApi'
 import { buildAdvisorPublicPath } from '../advisorPublicRoutes'
+import { AdvisorMobileCardThemePicker } from '../components/AdvisorMobileCardThemePicker'
 import { AdvisorProfileQr } from '../components/AdvisorProfileQr'
+import { normalizeProfileTheme, type AdvisorProfileTheme } from '../profileTheme'
 import { RECOMMENDED_ADVISOR_HASHTAGS } from '../recommendedHashtags'
 import '../public-advisor.css'
 
@@ -63,6 +65,7 @@ export function MyPublicProfilePage() {
   const [showKakao, setShowKakao] = useState(false)
   const [kakaoLink, setKakaoLink] = useState('')
   const [allowConsultation, setAllowConsultation] = useState(true)
+  const [profileTheme, setProfileTheme] = useState<AdvisorProfileTheme>('classic')
   const [address, setAddress] = useState<AddressSearchValue>(emptyAddress)
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null)
   const [gallery, setGallery] = useState<OwnerGalleryItem[]>([])
@@ -91,6 +94,7 @@ export function MyPublicProfilePage() {
       setShowKakao(Boolean(p.show_kakao))
       setKakaoLink(String(p.kakao_link ?? ''))
       setAllowConsultation(p.allow_consultation !== false)
+      setProfileTheme(normalizeProfileTheme(p.profile_theme))
       setAddress({
         postalCode: String(p.office_postal_code ?? ''),
         roadAddress: String(p.office_road_address ?? ''),
@@ -143,6 +147,7 @@ export function MyPublicProfilePage() {
         show_kakao: showKakao,
         kakao_link: kakaoLink,
         allow_consultation: allowConsultation,
+        profile_theme: profileTheme,
         office_postal_code: address.postalCode,
         office_road_address: address.roadAddress,
         office_address_detail: address.addressDetail,
@@ -317,6 +322,10 @@ export function MyPublicProfilePage() {
             }}
           />
         </div>
+
+        <h2 className="pap-editor-section-title">모바일 명함 디자인</h2>
+        <p className="pap-editor-hint">공개 페이지 상단 Hero만 변경됩니다. 소개·사진·상담 영역은 동일합니다.</p>
+        <AdvisorMobileCardThemePicker value={profileTheme} onChange={setProfileTheme} disabled={saving || mediaBusy} />
 
         <h2 className="pap-editor-section-title">기본정보</h2>
         <p className="pap-affiliation"><strong>{ownerDisplayName || user.displayName}</strong>{gaLine ? ` · ${gaLine}` : ''}</p>

@@ -27,9 +27,28 @@ export async function ensurePublicAdvisorProfileSchema(executor) {
       published_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      profile_theme TEXT NOT NULL DEFAULT 'classic',
       CONSTRAINT advisor_public_profiles_hashtags_max5
-        CHECK (cardinality(hashtags) <= 5)
+        CHECK (cardinality(hashtags) <= 5),
+      CONSTRAINT advisor_public_profiles_profile_theme_check
+        CHECK (profile_theme IN ('classic', 'brand', 'premium'))
     )
+  `)
+
+  await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ADD COLUMN IF NOT EXISTS profile_theme TEXT NOT NULL DEFAULT 'classic'
+  `)
+
+  await executor.query(`
+    DO $$
+    BEGIN
+      ALTER TABLE advisor_public_profiles
+        ADD CONSTRAINT advisor_public_profiles_profile_theme_check
+        CHECK (profile_theme IN ('classic', 'brand', 'premium'));
+    EXCEPTION
+      WHEN duplicate_object THEN NULL;
+    END $$
   `)
 
   await executor.query(`
