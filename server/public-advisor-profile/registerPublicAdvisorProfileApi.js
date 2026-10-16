@@ -316,14 +316,14 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
       const privacyConsent = body.privacyConsent === true || body.privacy_consent === true
       const phoneRaw = String(body.phone ?? body.phoneNumber ?? '').trim()
       const phoneDigits = normalizeKrMobile(phoneRaw)
-      const phoneCheck = validateKrMobileDigits(phoneDigits)
+      const phoneErr = validateKrMobileDigits(phoneDigits)
 
       if (!name || name.length < 2) {
         res.status(400).json({ message: '이름을 입력해 주세요.' })
         return
       }
-      if (!phoneCheck.ok) {
-        res.status(400).json({ message: phoneCheck.message ?? '연락처를 확인해 주세요.' })
+      if (phoneErr) {
+        res.status(400).json({ message: phoneErr })
         return
       }
       if (message.length < 5) {
@@ -357,7 +357,7 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
       const gaRow = await systemQuery(pool, `SELECT ga_id FROM users WHERE id = $1`, [advisorUserId])
       const gaId = parseGaId(gaRow.rows[0]?.ga_id)
       if (gaId != null) {
-        await safeQuery(
+        await systemQuery(
           pool,
           `
           INSERT INTO notifications (user_id, ga_id, type, reference_id, message)
