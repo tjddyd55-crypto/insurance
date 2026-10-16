@@ -199,3 +199,39 @@ export function buildNotificationNavigatePath(notification: NotificationRow): st
   }
   return `/customers/${notification.customerId}/consultations`
 }
+
+/** t321 Google 캘린더 자동 연동(알림 설정 안). 서버가 사용자별로 저장한다. */
+export type GoogleAutoSyncKind = 'todo' | 'car_expiry' | 'insurance_age_date' | 'special_date'
+export type GoogleAutoSyncState = {
+  available: boolean
+  connected: boolean
+  calendarWritable: boolean
+  accountEmail: string
+  enabled: boolean
+  kinds: Record<GoogleAutoSyncKind, boolean>
+  lastSyncAt: string | null
+  lastSyncError: string | null
+  windowDays: number
+}
+
+export async function fetchGoogleAutoSync(token: string): Promise<GoogleAutoSyncState> {
+  const res = await apiRequest<{ success: boolean; data: GoogleAutoSyncState }>(
+    '/api/service-integrations/google/calendar-autosync',
+    { token },
+  )
+  return res.data
+}
+
+export async function saveGoogleAutoSync(
+  token: string,
+  body: { enabled: boolean; kinds: Record<GoogleAutoSyncKind, boolean> },
+): Promise<GoogleAutoSyncState> {
+  const res = await apiRequest<{ success: boolean; data: GoogleAutoSyncState }>(
+    '/api/service-integrations/google/calendar-autosync',
+    { method: 'PUT', token, body: JSON.stringify(body) },
+  )
+  if (!res?.success) {
+    throw new ApiError('Google 캘린더 자동 연동 설정을 저장하지 못했습니다.', 500)
+  }
+  return res.data
+}

@@ -43,7 +43,16 @@ import {
   readCookie,
 } from '../integrations/google/googleOAuthStateStore.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
-import { buildGoogleAuthorizationUrl, completeGoogleConnection, getGoogleAccessToken } from '../integrations/google/googleTokenService.js'
+import {
+  AUTOSYNC_WINDOW_DAYS,
+  isAutoSyncEnabledFor,
+  readAutoSyncSettings,
+  requestAutoSync,
+  saveAutoSyncSettings,
+} from '../integrations/google/googleCalendarAutoSync.js'
+import { parseGaId } from '../lib/parseGaId.js'
+import { buildGoogleAuthorizationUrl, completeGoogleConnection, getGoogleAccessToken, googleError } from '../integrations/google/googleTokenService.js'
+import { hasCalendarWriteScope } from '../integrations/google/googleOAuthConfig.js'
 
 const RETURN_PATH = '/service-integrations'
 const WRITE_RETURN_PATH = '/schedule'
@@ -292,6 +301,79 @@ export async function startGoogleConnect(pool, req, res, options = {}) {
  * @param {{ pool: import('pg').Pool, requireAuth: import('express').RequestHandler, handleDbError: Function, fetchImpl?: typeof fetch }} deps
  */
 export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, handleDbError, fetchImpl }) {
+  // ---- t321 Google 캘린더 자동 연동(알림 설정) ----
+  const autoSyncStatus = async (userId) => {
+    const settings = await readAutoSyncSettings(pool, userId)
+    const row = await readUserIntegration(pool, userId, GOOGLE_ACCOUNT_PROVIDER_KEY)
+    const counts = await pool.query(
+      `SELECT status, COUNT(*)::int AS n FROM google_calendar_sync_map WHERE user_id = $1 GROUP BY status`,
+      [userId],
+    )
+    return {
+      available: isAutoSyncEnabledFor(userId),
+      connected: Boolean(row && row.status === 'connected'),
+      calendarWritable: Boolean(row && row.status === 'connected' && hasCalendarWriteScope(row.credential?.scope)),
+      accountEmail: String(row?.accountEmail ?? ''),
+      enabled: settings.enabled,
+      kinds: settings.kinds,
+      lastSyncAt: settings.lastSyncAt,
+      lastSyncError: settings.lastSyncError,
+      windowDays: AUTOSYNC_WINDOW_DAYS,
+      counts: Object.fromEntries(counts.rows.map((r) => [r.status, r.n])),
+    }
+  }
+  apiRouter.get('/service-integrations/google/calendar-autosync', requireAuth, async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store')
+    try {
+      res.json({ success: true, data: await autoSyncStatus(currentUserId(req)) })
+    } catch (error) {
+      sendGoogleError(res, error, req, handleDbError)
+    }
+  })
+  apiRouter.put('/service-integrations/google/calendar-autosync', requireAuth, async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store')
+    try {
+      const userId = currentUserId(req)
+      const gaId = parseGaId(req.gaId ?? req.user?.gaId)
+      if (gaId == null) {
+        res.status(400).json({ success: false, code: 'ga_required', message: 'GA 컨텍스트가 필요합니다.' })
+        return
+      }
+      const b = req.body && typeof req.body === 'object' ? req.body : {}
+      const turningOn = b.enabled === true
+      if (turningOn) {
+        if (!isAutoSyncEnabledFor(userId)) {
+          res.status(403).json({ success: false, code: 'autosync_unavailable', message: 'Google 캘린더 자동 연동은 아직 사용할 수 없습니다.' })
+          return
+        }
+        const row = await readUserIntegration(pool, userId, GOOGLE_ACCOUNT_PROVIDER_KEY)
+        if (!row || row.status !== 'connected') throw googleError('not_connected')
+        if (!hasCalendarWriteScope(row.credential?.scope)) throw googleError('write_scope_missing')
+      }
+      const kinds = b.kinds && typeof b.kinds === 'object' ? b.kinds : {}
+      const saved = await saveAutoSyncSettings(pool, userId, gaId, { enabled: typeof b.enabled === 'boolean' ? b.enabled : undefined, kinds })
+      let sync = null
+      try {
+        sync = await requestAutoSync(pool, userId, { fetchImpl })
+      } catch (error) {
+        sync = { error: String(error?.code ?? 'sync_failed') }
+      }
+      res.json({ success: true, data: { ...(await autoSyncStatus(userId)), marked: saved.marked, sync } })
+    } catch (error) {
+      sendGoogleError(res, error, req, handleDbError)
+    }
+  })
+  apiRouter.post('/service-integrations/google/calendar-autosync/sync', requireAuth, async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store')
+    try {
+      const userId = currentUserId(req)
+      const sync = await requestAutoSync(pool, userId, { fetchImpl })
+      res.json({ success: true, data: { ...(await autoSyncStatus(userId)), sync } })
+    } catch (error) {
+      sendGoogleError(res, error, req, handleDbError)
+    }
+  })
+
   apiRouter.get('/service-integrations/google/status', requireAuth, async (req, res) => {
     try {
       const data = await readGoogleIntegrationStatus(pool, currentUserId(req))
