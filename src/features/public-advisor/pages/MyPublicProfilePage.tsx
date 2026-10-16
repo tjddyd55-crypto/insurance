@@ -266,6 +266,19 @@ export function MyPublicProfilePage() {
   }
 
   const gaLine = [ownerGaName, ownerTeamName].filter(Boolean).join(' · ')
+  const officePreviewLine = [address.roadAddress, address.addressDetail].filter(Boolean).join(' ')
+  const heroThemePreviewSource = {
+    displayName: ownerDisplayName || user.displayName || '',
+    titleSuffix: titleLabel.trim() || 'FC',
+    profilePhotoUrl,
+    affiliationLine: gaLine,
+    officeLine: officePreviewLine,
+    headline: headline.trim() || '한 줄 소개',
+    publicTags: hashtags,
+    phoneNumber: showPhone ? '01000000000' : '',
+    kakaoLink: showKakao ? kakaoLink : '',
+    allowConsultation,
+  }
 
   return (
     <div className="page-shell pap-editor-page">
@@ -325,7 +338,12 @@ export function MyPublicProfilePage() {
 
         <h2 className="pap-editor-section-title">모바일 명함 디자인</h2>
         <p className="pap-editor-hint">공개 페이지 상단 Hero만 변경됩니다. 소개·사진·상담 영역은 동일합니다.</p>
-        <AdvisorMobileCardThemePicker value={profileTheme} onChange={setProfileTheme} disabled={saving || mediaBusy} />
+        <AdvisorMobileCardThemePicker
+          value={profileTheme}
+          onChange={setProfileTheme}
+          previewSource={heroThemePreviewSource}
+          disabled={saving || mediaBusy}
+        />
 
         <h2 className="pap-editor-section-title">기본정보</h2>
         <p className="pap-affiliation"><strong>{ownerDisplayName || user.displayName}</strong>{gaLine ? ` · ${gaLine}` : ''}</p>
