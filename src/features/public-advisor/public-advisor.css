@@ -535,19 +535,33 @@
 .pap-gallery-img,
 .pap-gallery img {
   width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 1;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: 0;
   background: #f3f4f6;
   display: block;
+  vertical-align: top;
+}
+
+.pap-gallery--photos-only .pap-gallery-img,
+.pap-gallery--photos-only .pap-gallery-tile .pap-img-fallback {
+  aspect-ratio: 1;
+  border-radius: 0;
 }
 
 .pap-section--gallery h2 {
   font-size: 1.35rem;
 }
 
-.pap-gallery--prominent {
-  gap: 12px;
+.pap-gallery--prominent,
+.pap-gallery--photos-only {
+  gap: 8px;
+}
+
+.pap-gallery--photos-only .pap-gallery-tile {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #e5e7eb;
 }
 
 .pap-gallery-tile {
@@ -557,6 +571,8 @@
   cursor: pointer;
   text-align: left;
   position: relative;
+  display: block;
+  width: 100%;
 }
 
 .pap-gallery-tile img {
@@ -586,11 +602,30 @@
   padding: 48px 16px;
 }
 
+.pap-lightbox-figure {
+  margin: 0;
+  max-width: min(960px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
 .pap-lightbox img {
   max-width: min(960px, 100%);
-  max-height: 90vh;
+  max-height: 78vh;
   object-fit: contain;
   border-radius: 8px;
+}
+
+.pap-lightbox-caption {
+  margin: 0;
+  padding: 0 12px;
+  max-width: 36rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.88);
+  text-align: center;
 }
 
 .pap-lightbox-close {

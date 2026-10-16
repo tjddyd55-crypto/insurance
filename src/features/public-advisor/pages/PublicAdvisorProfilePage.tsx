@@ -21,7 +21,7 @@ export function PublicAdvisorProfilePage() {
   const [consultOpen, setConsultOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitDone, setSubmitDone] = useState(false)
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+  const [lightbox, setLightbox] = useState<{ url: string; caption: string } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -178,20 +178,22 @@ export function PublicAdvisorProfilePage() {
           {data.gallery?.length ? (
             <section className="pap-section pap-section--gallery">
               <h2>활동 모습</h2>
-              <div className="pap-gallery pap-gallery--prominent">
+              <div className="pap-gallery pap-gallery--photos-only">
                 {data.gallery.map((g) => (
                   <button
                     key={g.id}
                     type="button"
                     className="pap-gallery-tile"
-                    onClick={() => g.imageUrl && setLightboxUrl(g.imageUrl)}
+                    onClick={() =>
+                      g.imageUrl &&
+                      setLightbox({ url: g.imageUrl, caption: String(g.caption ?? '').trim() })
+                    }
                   >
                     <AdvisorPublicImage
                       className="pap-gallery-img"
                       src={g.imageUrl}
-                      alt={g.caption || '활동 사진'}
+                      alt="활동 사진"
                     />
-                    {g.caption ? <span className="pap-gallery-caption">{g.caption}</span> : null}
                   </button>
                 ))}
               </div>
@@ -288,10 +290,13 @@ export function PublicAdvisorProfilePage() {
         </div>
       ) : null}
 
-      {lightboxUrl ? (
-        <div className="pap-lightbox" role="dialog" aria-modal="true" onClick={() => setLightboxUrl(null)}>
-          <button type="button" className="pap-lightbox-close" onClick={() => setLightboxUrl(null)}>닫기</button>
-          <img src={lightboxUrl} alt="" onClick={(e) => e.stopPropagation()} />
+      {lightbox ? (
+        <div className="pap-lightbox" role="dialog" aria-modal="true" onClick={() => setLightbox(null)}>
+          <button type="button" className="pap-lightbox-close" onClick={() => setLightbox(null)}>닫기</button>
+          <figure className="pap-lightbox-figure" onClick={(e) => e.stopPropagation()}>
+            <img src={lightbox.url} alt={lightbox.caption || '활동 사진'} />
+            {lightbox.caption ? <figcaption className="pap-lightbox-caption">{lightbox.caption}</figcaption> : null}
+          </figure>
         </div>
       ) : null}
     </div>
