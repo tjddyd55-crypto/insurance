@@ -41,8 +41,8 @@ function GoogleAutoSyncSection({
       }}
     >
       <p className="notification-settings-modal__hint">
-        ON 하면 ONE FC 할 일과 아래에서 선택한 알림이 연결된 본인 Google 캘린더에 &quot;ONE FC 할 일&quot; 같은 일반 제목으로
-        자동 등록됩니다(앞으로 {google.windowDays}일 범위, 고객 이름·연락처·메모는 보내지 않음).
+        ON 하면 ONE FC 할 일과 아래에서 선택한 알림이 연결된 본인 Google 캘린더에 &quot;[상령일] 고객 이름&quot;, &quot;[할 일] 할 일 제목&quot;
+        같은 제목으로 자동 등록됩니다(앞으로 {google.windowDays}일 범위). 연락처·주민번호·계좌·병력·메모 내용은 보내지 않습니다.
         OFF 하면 더 이상 등록하지 않고, OFF 한 날 다음 날 이후의 ONE FC 자동 일정만 Google 에서 지웁니다.
         지난 일정과 당일 일정, Google 에서 직접 만든 일정, Google 할 일, ONE FC 원본은 그대로 둡니다.
       </p>
@@ -71,8 +71,16 @@ function GoogleAutoSyncSection({
           <span>{row.label}</span>
         </label>
       ))}
-      {google.lastSyncError ? (
-        <p className="notification-settings-modal__error">마지막 동기화 중 일부가 실패했습니다. 자동으로 다시 시도합니다.</p>
+      {google.enabled || google.syncStatus === 'syncing' ? (
+        <p className="notification-settings-modal__hint" data-testid="gcal-sync-status">
+          {google.syncStatus === 'syncing'
+            ? 'Google 캘린더 동기화 중… (창을 닫아도 계속 진행됩니다)'
+            : google.syncStatus === 'error' || google.lastSyncError
+              ? '동기화 오류: 일부가 실패했습니다. 자동으로 다시 시도합니다.'
+              : google.lastSyncAt
+                ? 'Google 캘린더 동기화 완료'
+                : ''}
+        </p>
       ) : null}
     </ToggleRow>
   )
