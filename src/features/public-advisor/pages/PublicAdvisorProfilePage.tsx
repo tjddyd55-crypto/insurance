@@ -232,6 +232,29 @@ export function PublicAdvisorProfilePage() {
           </section>
         ) : null}
 
+        {(data.phoneNumber || data.allowConsultation) ? (
+          <section className="pap-section pap-section--contact pap-section--contact-inline">
+            <h2>상담 문의</h2>
+            <p className="pap-contact-lead">궁금한 점이 있으면 편하게 연락 주세요.</p>
+            <div className="pap-cta-row pap-cta-row--left pap-cta-row--contact">
+              {data.phoneNumber ? (
+                <a
+                  className="pap-btn pap-btn--primary"
+                  href={`tel:${data.phoneNumber.replace(/\s/g, '')}`}
+                  onClick={() => trackAdvisorPublicEvent(slug, ADVISOR_PUBLIC_EVENT.PHONE_CLICK)}
+                >
+                  전화
+                </a>
+              ) : null}
+              {data.allowConsultation ? (
+                <button type="button" className="pap-btn pap-btn--secondary" onClick={openConsult}>
+                  상담신청
+                </button>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+
         {submitDone ? <p className="pap-status" role="status">상담 신청이 접수되었습니다.</p> : null}
         {error && data ? <p className="pap-error" role="alert">{error}</p> : null}
       </div>

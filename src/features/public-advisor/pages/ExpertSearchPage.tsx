@@ -6,6 +6,8 @@ import { AdvisorPublicImage } from '../components/AdvisorPublicImage'
 import { PublicAdvisorHeader } from '../components/PublicAdvisorHeader'
 import '../public-advisor.css'
 
+const MAX_CARD_TAGS = 3
+
 export function ExpertSearchPage() {
   const [q, setQ] = useState('')
   const [items, setItems] = useState<PublicAdvisorCard[]>([])
@@ -31,55 +33,62 @@ export function ExpertSearchPage() {
   }, [q])
 
   return (
-    <div className="public-advisor-page">
+    <div className="public-advisor-page pap-experts-page">
       <PublicAdvisorHeader />
-      <div className="public-advisor-shell">
-        <h1>설계사를 찾아보세요</h1>
-        <p className="pap-affiliation">이름, 소속, 지점, 사무실 위치, 해시태그, 소개로 검색할 수 있습니다.</p>
+      <div className="public-advisor-shell pap-experts-shell">
+        <header className="pap-experts-hero">
+          <h1 className="pap-experts-title">보험 설계사를 찾아보세요</h1>
+          <p className="pap-experts-lead">이름, 소속, 지점, 해시태그로 검색할 수 있습니다.</p>
+        </header>
         <div className="pap-experts-search">
           <input
             type="search"
-            placeholder="검색어 입력"
+            placeholder="이름, 소속, 지점, 해시태그로 검색"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             aria-label="설계사 검색"
           />
         </div>
-        {loading ? <p>불러오는 중…</p> : null}
-        <div className="pap-card-list">
-          {items.map((item) => (
-            <Link key={item.slug} to={buildAdvisorPublicPath(item.slug)} className="pap-card">
-              <AdvisorPublicImage
-                className="pap-card__thumb"
-                src={item.profilePhotoUrl}
-                alt=""
-              />
-              <div className="pap-card__body">
-                <strong className="pap-card__name">{item.displayName}</strong>
-                <p className="pap-affiliation">
-                  {[item.gaName, item.teamName].filter(Boolean).join(' · ')}
-                </p>
-                {item.officeLine ? <p className="pap-card__office">{item.officeLine}</p> : null}
-                {item.headline ? <p className="pap-headline pap-card__headline">{item.headline}</p> : null}
-                {item.hashtags?.length ? (
-                  <div className="pap-tags pap-tags--card">
-                    {item.hashtags.slice(0, 5).map((tag) => (
-                      <span key={tag} className="pap-tag">#{tag}</span>
-                    ))}
+        {loading ? <p className="pap-experts-hint">불러오는 중…</p> : null}
+        <div className="pap-card-list pap-card-list--experts">
+          {items.map((item) => {
+            const verify = item.verificationBadges?.[0]
+            const tags = (item.hashtags ?? []).slice(0, MAX_CARD_TAGS)
+            return (
+              <Link key={item.slug} to={buildAdvisorPublicPath(item.slug)} className="pap-card pap-card--expert">
+                <AdvisorPublicImage
+                  className="pap-card__thumb"
+                  src={item.profilePhotoUrl}
+                  alt=""
+                />
+                <div className="pap-card__body">
+                  <div className="pap-card__title-row">
+                    <strong className="pap-card__name">{item.displayName}</strong>
+                    {verify ? <span className="pap-card__verify">{verify.label}</span> : null}
                   </div>
-                ) : null}
-                {item.verificationBadges?.length ? (
-                  <div className="pap-badges pap-badges--card">
-                    {item.verificationBadges.map((b) => (
-                      <span key={b.id} className="pap-badge">{b.label}</span>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </Link>
-          ))}
+                  <p className="pap-affiliation pap-card__meta">
+                    {[item.gaName, item.teamName].filter(Boolean).join(' · ')}
+                  </p>
+                  {item.officeLine ? <p className="pap-card__office">{item.officeLine}</p> : null}
+                  {item.headline ? <p className="pap-card__headline">{item.headline}</p> : null}
+                  {tags.length ? (
+                    <div className="pap-tags pap-tags--card">
+                      {tags.map((tag) => (
+                        <span key={tag} className="pap-tag">#{tag}</span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </Link>
+            )
+          })}
         </div>
-        {!loading && items.length === 0 ? <p>검색 결과가 없습니다.</p> : null}
+        {!loading && items.length === 0 ? (
+          <div className="pap-experts-empty" role="status">
+            <p className="pap-experts-empty__title">검색 결과가 없습니다.</p>
+            <p className="pap-experts-empty__hint">다른 이름이나 소속, 해시태그로 검색해 보세요.</p>
+          </div>
+        ) : null}
       </div>
     </div>
   )
