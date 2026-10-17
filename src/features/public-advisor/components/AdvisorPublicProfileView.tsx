@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState } from 'react'
 import { ADVISOR_PUBLIC_EVENT, trackAdvisorPublicEvent } from '../api/publicAdvisorApi'
 import type { AdvisorProfileTheme } from '../profileTheme'
 import { AdvisorBusinessCardSection } from './AdvisorBusinessCardSection'
@@ -46,7 +46,6 @@ type Props = {
   /** 공개 페이지 slug — preview 모드에서는 생략 */
   slug?: string
   variant?: 'public' | 'preview'
-  topSlot?: ReactNode
   className?: string
   onConsultClick?: () => void
   onShareClick?: () => void
@@ -57,7 +56,6 @@ export function AdvisorPublicProfileView({
   model,
   slug = '',
   variant = 'public',
-  topSlot,
   className,
   onConsultClick,
   onShareClick,
@@ -102,7 +100,6 @@ export function AdvisorPublicProfileView({
       className={`public-advisor-page pap-page--fc pap-page-theme--${theme}${isPreview ? ' pap-public-profile-view--in-editor-preview' : ''}${className ? ` ${className}` : ''}`}
     >
       <div className="public-advisor-shell pap-shell--fc">
-        {topSlot}
         <AdvisorProfileHero
           theme={theme}
           displayName={model.displayName}

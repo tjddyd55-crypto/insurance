@@ -22,33 +22,35 @@ async function login(page) {
   ])
 }
 
+async function dismissBlockingModals(page) {
+  await page.waitForTimeout(400)
+  const closeBtn = page
+    .locator('.customer-ui-modal-backdrop button, .notification-login-modal button')
+    .filter({ hasText: /닫기|확인|나중에|다음에|건너/ })
+  if (await closeBtn.count()) {
+    await closeBtn.first().click({ timeout: 5000 }).catch(() => {})
+  } else {
+    await page.keyboard.press('Escape').catch(() => {})
+  }
+  await page.locator('.customer-ui-modal-backdrop').waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {})
+}
+
 const browser = await chromium.launch({ headless: true })
 const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true })
 const page = await mobile.newPage()
 
-const themes = [
-  ['01-classic-with-business-card.png', '1안'],
-  ['02-brand-with-business-card.png', '2안'],
-  ['03-premium-with-business-card.png', '3안'],
-]
-
 await page.goto(`${BASE}/fc/${SLUG}`, { waitUntil: 'domcontentloaded', timeout: 60000 })
 await page.locator('.pap-hero').first().waitFor({ timeout: 30000 })
-
-for (const [file, label] of themes) {
-  await page.getByRole('button', { name: new RegExp(label) }).click()
-  await page.waitForTimeout(400)
-  await page.screenshot({ path: join(OUT, file), fullPage: true })
-  console.log('saved', file)
-}
+await page.screenshot({ path: join(OUT, '01-public-fc-hero-top.png'), fullPage: true })
+console.log('saved 01-public-fc-hero-top.png')
 
 const gap = await page.evaluate(() => {
-  const bar = document.querySelector('.pap-dev-theme-review')
-  const hero = document.querySelector('.pap-fc-card--hero')
-  if (!bar || !hero) return { hasBar: Boolean(bar), gapPx: null }
-  const b = bar.getBoundingClientRect()
-  const h = hero.getBoundingClientRect()
-  return { hasBar: true, gapPx: Math.round(h.top - b.bottom) }
+  const devThemeBar = document.querySelector('.pap-dev-theme-review')
+  const hero = document.querySelector('.pap-fc-card--hero, .pap-hero')
+  return {
+    devThemeBarAbsent: !devThemeBar,
+    heroTopPx: hero ? Math.round(hero.getBoundingClientRect().top) : null,
+  }
 })
 writeFileSync(join(OUT, 'gap-measure.json'), JSON.stringify(gap, null, 2))
 
@@ -76,6 +78,17 @@ if (PASS) {
   await login(crmPage)
   await crmPage.goto(`${BASE}/profile/mobile-card`, { waitUntil: 'domcontentloaded', timeout: 60000 })
   await crmPage.locator('h1').first().waitFor({ timeout: 30000 })
+  await dismissBlockingModals(crmPage)
+  for (const [file, label] of [
+    ['01-classic-with-business-card.png', '기본형'],
+    ['02-brand-with-business-card.png', '브랜드형'],
+    ['03-premium-with-business-card.png', '프리미엄형'],
+  ]) {
+    await crmPage.locator('.pap-theme-picker__card', { hasText: label }).click()
+    await crmPage.waitForTimeout(400)
+    await crmPage.locator('.pap-editor-live-preview__frame').screenshot({ path: join(OUT, file) })
+    console.log('saved', file)
+  }
   await crmPage.screenshot({ path: join(OUT, '04-mobile-card-editor-top.png') })
   const biz = crmPage.locator('.pap-editor-business-card-row')
   if (await biz.count()) {

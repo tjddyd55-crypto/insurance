@@ -1,6 +1,8 @@
 # ONEFC_PUBLIC_ADVISOR_DEV_THEME_REVIEW_SWITCHER_READY
 
-Development only — `/fc/:slug` 상단 임시 Hero 테마 비교 바.
+> **Superseded:** `ONEFC_PUBLIC_ADVISOR_DEV_SWITCHER_REMOVED.md` — 검수 switcher는 제거되었습니다.
+
+Development only — `/fc/:slug` 상단 임시 Hero 테마 비교 바 (역사적 기록).
 
 | 검수 표기 | `profile_theme` | Hero |
 |-----------|-----------------|------|

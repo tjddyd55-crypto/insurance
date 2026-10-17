@@ -8,9 +8,7 @@ import {
   type PublicAdvisorDetail,
 } from '../api/publicAdvisorApi'
 import { AdvisorPublicProfileView } from '../components/AdvisorPublicProfileView'
-import { AdvisorThemeDevSwitcher } from '../components/AdvisorThemeDevSwitcher'
-import { isAdvisorThemeDevReviewEnabled } from '../config/advisorThemeDevReviewGate'
-import { normalizeProfileTheme, type AdvisorProfileTheme } from '../profileTheme'
+import { normalizeProfileTheme } from '../profileTheme'
 import { buildAdvisorPublicInfoBlocks } from '../utils/buildAdvisorPublicInfoBlocks'
 import { normalizeAdvisorMediaUrl } from '../utils/advisorMediaUrl'
 import '../public-advisor.css'
@@ -24,8 +22,6 @@ export function PublicAdvisorProfilePage() {
   const [consultOpen, setConsultOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitDone, setSubmitDone] = useState(false)
-  const [devReviewHeroTheme, setDevReviewHeroTheme] = useState<AdvisorProfileTheme | null>(null)
-  const showDevThemeReviewBar = isAdvisorThemeDevReviewEnabled()
 
   useEffect(() => {
     let cancelled = false
@@ -43,10 +39,6 @@ export function PublicAdvisorProfilePage() {
       cancelled = true
     }
   }, [slug])
-
-  useEffect(() => {
-    setDevReviewHeroTheme(null)
-  }, [slug, data?.profileTheme])
 
   const onConsultSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -151,8 +143,7 @@ export function PublicAdvisorProfilePage() {
     )
   }
 
-  const savedProfileTheme = normalizeProfileTheme(data.profileTheme)
-  const profileTheme = devReviewHeroTheme ?? savedProfileTheme
+  const profileTheme = normalizeProfileTheme(data.profileTheme)
 
   return (
     <>
@@ -162,11 +153,6 @@ export function PublicAdvisorProfilePage() {
         slug={slug}
         variant="public"
         onConsultClick={openConsult}
-        topSlot={
-          showDevThemeReviewBar ? (
-            <AdvisorThemeDevSwitcher value={profileTheme} onChange={setDevReviewHeroTheme} />
-          ) : null
-        }
       />
 
       {submitDone ? (
