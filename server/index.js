@@ -170,6 +170,7 @@ import {
   injectPublicAdvisorProfileMeta,
 } from './lib/publicAdvisorPublicMeta.js'
 import { advisorPublicMediaUrl } from './public-advisor-profile/publicAdvisorMediaDelivery.js'
+import { buildAdvisorOgCardApiPath } from './public-advisor-profile/publicAdvisorOgMeta.js'
 import { getAdvisorPublicMetaBySlug } from './public-advisor-profile/publicAdvisorProfileService.js'
 import {
   getPublicCoverageShareByToken,
@@ -8455,8 +8456,8 @@ if (fs.existsSync(DIST_PATH)) {
         const meta = slug ? await getAdvisorPublicMetaBySlug(pool, slug) : { indexable: false, slug: '' }
         const pathSuffix = `/fc/${meta.slug || slug || 'profile'}`
         const ogCardPath =
-          meta.indexable && meta.profilePhotoObjectKey && meta.slug
-            ? `/api/public/advisors/${encodeURIComponent(meta.slug)}/og-card.png`
+          meta.indexable && meta.slug
+            ? buildAdvisorOgCardApiPath(meta.slug, meta.ogImageCacheVersion)
             : null
         const imageUrl = ogCardPath
           ? buildAbsolutePublicUrl(req, ogCardPath)

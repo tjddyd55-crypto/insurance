@@ -264,6 +264,7 @@ export async function getPublishedAdvisorBySlug(pool, slug) {
         value: String(c.value ?? '').trim(),
         contactType: String(c.contact_type ?? 'text'),
       })),
+      updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
     },
     user: publicUser,
     gallery,
@@ -292,7 +293,7 @@ export async function getAdvisorPublicMetaBySlug(pool, slug) {
     title,
     description,
     profilePhotoObjectKey: resolved.profile.profilePhotoObjectKey,
-    profileTheme: resolved.profile.profileTheme,
+    ogImageCacheVersion: resolved.profile.updatedAt,
   }
 }
 

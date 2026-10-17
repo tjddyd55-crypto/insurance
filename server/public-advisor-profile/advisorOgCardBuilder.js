@@ -47,14 +47,7 @@ export async function buildAdvisorOgCardPng(pool, slug) {
   }
 
   const renderInput = {
-    theme: resolved.profile.profileTheme ?? 'classic',
     photoBuffer,
-    heroDisplayEyebrow: resolved.profile.heroDisplayEyebrow,
-    heroDisplayTitle: resolved.profile.heroDisplayTitle,
-    heroDisplaySubtitle: resolved.profile.heroDisplaySubtitle,
-    heroDisplayEyebrowVisible: resolved.profile.heroDisplayEyebrowVisible,
-    heroDisplayTitleVisible: resolved.profile.heroDisplayTitleVisible,
-    heroDisplaySubtitleVisible: resolved.profile.heroDisplaySubtitleVisible,
   }
 
   const renderStart = Date.now()
@@ -82,5 +75,5 @@ export async function buildAdvisorOgCardPng(pool, slug) {
     console.info('[advisor-og-card]', { slug, timing })
   }
 
-  return { status: 'ok', png, timing, theme: renderInput.theme }
+  return { status: 'ok', png, timing }
 }

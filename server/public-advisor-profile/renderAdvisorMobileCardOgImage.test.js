@@ -11,26 +11,13 @@ const photo = await sharp({
   .png()
   .toBuffer()
 
-const baseInput = {
-  heroDisplayEyebrow: 'ONE FC',
-  heroDisplayTitle: '홍길동 FC',
-  heroDisplaySubtitle: '영진에셋 · 팀장',
-  heroDisplayEyebrowVisible: true,
-  heroDisplayTitleVisible: true,
-  heroDisplaySubtitleVisible: true,
-  verificationBadgeLabel: '✓ ONE FC 확인',
-  photoBuffer: photo,
-}
-
-for (const theme of ['classic', 'brand', 'premium']) {
-  test(`renderAdvisorMobileCardOgPng ${theme} is 1200x630 png`, async () => {
-    const png = await renderAdvisorMobileCardOgPng({ ...baseInput, theme })
-    const meta = await sharp(png).metadata()
-    assert.equal(meta.width, ADVISOR_OG_IMAGE_WIDTH)
-    assert.equal(meta.height, ADVISOR_OG_IMAGE_HEIGHT)
-    assert.equal(meta.format, 'png')
-  })
-}
+test('renderAdvisorMobileCardOgPng is 1200x630 png (photo only, theme-agnostic)', async () => {
+  const png = await renderAdvisorMobileCardOgPng({ photoBuffer: photo })
+  const meta = await sharp(png).metadata()
+  assert.equal(meta.width, ADVISOR_OG_IMAGE_WIDTH)
+  assert.equal(meta.height, ADVISOR_OG_IMAGE_HEIGHT)
+  assert.equal(meta.format, 'png')
+})
 
 test('renderAdvisorMobileCardOgPng uses fallback for corrupt tiny photo buffer', async () => {
   const corrupt = Buffer.from(
@@ -38,7 +25,7 @@ test('renderAdvisorMobileCardOgPng uses fallback for corrupt tiny photo buffer',
     'base64',
   )
   const t0 = Date.now()
-  const png = await renderAdvisorMobileCardOgPng({ ...baseInput, theme: 'classic', photoBuffer: corrupt })
+  const png = await renderAdvisorMobileCardOgPng({ photoBuffer: corrupt })
   assert.ok(Date.now() - t0 < 15_000)
   const meta = await sharp(png).metadata()
   assert.equal(meta.width, ADVISOR_OG_IMAGE_WIDTH)
@@ -46,7 +33,7 @@ test('renderAdvisorMobileCardOgPng uses fallback for corrupt tiny photo buffer',
 })
 
 test('renderAdvisorMobileCardOgPng renders without photo buffer', async () => {
-  const png = await renderAdvisorMobileCardOgPng({ ...baseInput, theme: 'brand', photoBuffer: null })
+  const png = await renderAdvisorMobileCardOgPng({ photoBuffer: null })
   const meta = await sharp(png).metadata()
   assert.equal(meta.format, 'png')
 })

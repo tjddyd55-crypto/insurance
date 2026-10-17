@@ -175,7 +175,7 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
         return
       }
       res.setHeader('Content-Type', 'image/png')
-      res.setHeader('Cache-Control', 'public, max-age=600, stale-while-revalidate=86400')
+      res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
       if (built.timing) {
         res.setHeader('X-Advisor-Og-Total-Ms', String(built.timing.totalMs ?? ''))
         res.setHeader('X-Advisor-Og-Photo-Fallback', built.timing.usedPhotoFallback ? '1' : '0')

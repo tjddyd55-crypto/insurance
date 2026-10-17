@@ -22,7 +22,26 @@ export function buildAdvisorOgTitle(input) {
   return `${name} | ONE FC`
 }
 
-export function buildAdvisorOgCardApiPath(slug) {
+/**
+ * @param {string | number | Date | null | undefined} cacheVersion
+ */
+export function buildAdvisorOgImageCacheVersion(cacheVersion) {
+  if (cacheVersion == null || cacheVersion === '') return ''
+  if (cacheVersion instanceof Date) {
+    const ms = cacheVersion.getTime()
+    return Number.isFinite(ms) ? String(ms) : ''
+  }
+  const s = String(cacheVersion).trim()
+  if (!s) return ''
+  const asNum = Number(s)
+  if (Number.isFinite(asNum) && asNum > 0) return String(Math.floor(asNum))
+  const parsed = Date.parse(s)
+  return Number.isFinite(parsed) ? String(parsed) : s
+}
+
+export function buildAdvisorOgCardApiPath(slug, cacheVersion) {
   const s = String(slug ?? '').trim()
-  return `/api/public/advisors/${encodeURIComponent(s)}/og-card.png`
+  const base = `/api/public/advisors/${encodeURIComponent(s)}/og-card.png`
+  const v = buildAdvisorOgImageCacheVersion(cacheVersion)
+  return v ? `${base}?v=${encodeURIComponent(v)}` : base
 }
