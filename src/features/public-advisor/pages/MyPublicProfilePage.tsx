@@ -28,7 +28,7 @@ import { normalizeProfileTheme, type AdvisorProfileTheme } from '../profileTheme
 import { RECOMMENDED_ADVISOR_HASHTAGS } from '../recommendedHashtags'
 import { advisorMediaUrlFromObjectKey, normalizeAdvisorMediaUrl } from '../utils/advisorMediaUrl'
 import { buildAdvisorPublicInfoBlocks } from '../utils/buildAdvisorPublicInfoBlocks'
-import { formatKrPhoneInputLive } from '../utils/formatKrPhoneNumber'
+import { formatKrPhoneInputLive, formatKrPhoneNumberForDisplay } from '../utils/formatKrPhoneNumber'
 import '../public-advisor.css'
 
 const GALLERY_MAX = 6
@@ -167,8 +167,8 @@ export function MyPublicProfilePage() {
       setHeroSubtitleVisible(p.hero_display_subtitle_visible !== false)
       setHashtags(Array.isArray(p.hashtags) ? (p.hashtags as string[]) : [])
       setIsPublished(Boolean(p.is_published))
-      setPublicPhone(loadProfileTextField(p.public_phone))
-      setPublicFax(loadProfileTextField(p.public_fax))
+      setPublicPhone(formatKrPhoneNumberForDisplay(loadProfileTextField(p.public_phone)))
+      setPublicFax(formatKrPhoneNumberForDisplay(loadProfileTextField(p.public_fax)))
       setPublicEmail(loadProfileTextField(p.public_email))
       setShowPublicPhone(p.show_public_phone !== false)
       setShowPublicFax(p.show_public_fax === true)

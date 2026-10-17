@@ -26,7 +26,10 @@ import {
   formatNotificationRowDDay,
   sortNotificationRowsByReferenceDate,
 } from '../utils/notificationDateLabel'
-import { openNotificationCustomerNavigate } from '../utils/notificationCustomerNavigation'
+import {
+  canNavigateFromNotification,
+  openNotificationNavigate,
+} from '../utils/notificationCustomerNavigation'
 import { NotificationConfirmModal } from './NotificationConfirmModal'
 import { NotificationSettingsModal } from './NotificationSettingsModal'
 
@@ -43,10 +46,6 @@ function resolveNotificationLoadError(error: unknown): string {
     return error.message
   }
   return '알림을 불러오지 못했습니다.'
-}
-
-function canOpenCustomerFromNotification(row: NotificationRow): boolean {
-  return row.customerId != null && row.customerId > 0
 }
 
 export type NotificationCenterProps = {
@@ -126,12 +125,12 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
   }, [items])
 
   const handleNameClick = async (row: NotificationRow) => {
-    if (!canOpenCustomerFromNotification(row)) {
+    if (!canNavigateFromNotification(row)) {
       return
     }
     setPendingId(row.id)
     try {
-      openNotificationCustomerNavigate({ notification: row, navigate })
+      openNotificationNavigate({ notification: row, navigate })
     } catch (e) {
       setError(resolveNotificationLoadError(e))
     } finally {
@@ -363,7 +362,7 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
                         {visibleRows.map((row) => (
                           <tr key={row.id}>
                             <td>
-                              {canOpenCustomerFromNotification(row) ? (
+                              {canNavigateFromNotification(row) ? (
                                 <button
                                   type="button"
                                   className="notification-section__name-link"

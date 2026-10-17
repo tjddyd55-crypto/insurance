@@ -21,6 +21,8 @@ import { isActivePcNavigationPath } from './pcNavigationUtils'
 import { PcMenuEntitlementBadges } from './PcMenuEntitlementBadges'
 import { resolvePcMenuGroupBadgeLabels } from './pcMenuGroupBadge'
 import { useAiSecretary } from '../../features/ai-secretary/context/AiSecretaryContext'
+import { useAdvisorConsultationLeadNewCount } from '../../features/public-advisor/hooks/useAdvisorConsultationLeadNewCount'
+import { applyConsultationLeadMenuBadge } from '../../features/public-advisor/utils/applyConsultationLeadMenuBadge'
 import './pc-top-navigation.css'
 
 type LinkEntry = Extract<GaTenantDashboardMenuEntry, { type: 'link' }>
@@ -167,14 +169,16 @@ export default function PCTopNavigation({
 
   const { summary: billingSummary } = useInsuranceBillingSummary()
   const hasActivePaidAccess = resolveHasActivePaidAccess(user, billingSummary)
+  const consultationLeadNewCount = useAdvisorConsultationLeadNewCount(token, user?.role)
 
   const items = useMemo(() => {
-    return buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
+    const base = buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
       teamMenuManageVisible,
       dynamicNewsletterBoards,
       subscriptionExpired: user?.subscription?.effectiveStatus === 'EXPIRED',
       hasActivePaidAccess,
     })
+    return applyConsultationLeadMenuBadge(base, consultationLeadNewCount)
   }, [
     teamMenuManageVisible,
     dynamicNewsletterBoards,
@@ -183,6 +187,7 @@ export default function PCTopNavigation({
     user?.gaName,
     user?.subscription?.effectiveStatus,
     hasActivePaidAccess,
+    consultationLeadNewCount,
   ])
 
   const groups = useMemo(() => buildMenuGroups(items), [items])

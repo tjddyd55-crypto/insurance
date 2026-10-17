@@ -84,6 +84,7 @@ import { IntroductionPage } from './features/web/pages/IntroductionPage'
 import ExpertSearchPage from './features/public-advisor/pages/ExpertSearchPage'
 import PublicAdvisorProfilePage from './features/public-advisor/pages/PublicAdvisorProfilePage'
 import MyPublicProfilePage from './features/public-advisor/pages/MyPublicProfilePage'
+import ConsultationLeadsPage from './features/public-advisor/pages/ConsultationLeadsPage'
 import FeatureRequestPage from './features/feature-request/pages/FeatureRequestPage'
 import FeatureRequestsAdminPage from './features/feature-request/pages/FeatureRequestsAdminPage'
 import ProgramInquiriesAdminPage from './features/admin/pages/ProgramInquiriesAdminPage'
@@ -660,6 +661,7 @@ export const appRouter = createBrowserRouter([
               { path: 'profile', element: <ProfilePage /> },
               { path: 'profile/public-advisor', element: <MyPublicProfilePage /> },
               { path: 'profile/mobile-card', element: <MyPublicProfilePage /> },
+              { path: 'consultation-leads', element: <ConsultationLeadsPage /> },
               { path: 'account/billing', element: <FreeLaunchBillingGuard><AccountBillingPage /></FreeLaunchBillingGuard> },
               { path: 'account/reset', element: <AccountResetPage /> },
               { path: 'feature-request', element: <FeatureRequestPage /> },

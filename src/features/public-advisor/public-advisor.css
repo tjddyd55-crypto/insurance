@@ -374,12 +374,18 @@
   width: 44px;
   height: 44px;
   border-radius: 14px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  line-height: 0;
   background: #f3f4f6;
   color: #1f2937;
   transition: background 0.15s ease;
+}
+
+.pap-action-bar__icon svg {
+  display: block;
+  flex-shrink: 0;
 }
 
 .pap-action-bar__item:active .pap-action-bar__icon {

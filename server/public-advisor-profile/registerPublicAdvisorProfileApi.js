@@ -37,6 +37,8 @@ import {
   searchPublishedAdvisors,
 } from './publicAdvisorProfileService.js'
 import { buildAdvisorOgCardPng } from './advisorOgCardBuilder.js'
+import { MOBILE_CARD_CONSULTATION_PRIVACY_POLICY_VERSION } from './advisorConsultationPrivacyPolicy.js'
+import { registerAdvisorConsultationLeadsApi } from './registerAdvisorConsultationLeadsApi.js'
 import { resolveRequestPublicOrigin } from './requestPublicOrigin.js'
 
 const PUBLIC_EVENT_WHITELIST = new Set(Object.values(ADVISOR_PUBLIC_EVENT_TYPES))
@@ -125,6 +127,8 @@ async function readRawBodyBuffer(req, maxBytes) {
  */
 export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
   const { pool, requireAuth, handleDbError } = ctx
+
+  registerAdvisorConsultationLeadsApi(apiRouter, ctx)
 
   apiRouter.get('/public/advisor-media', async (req, res) => {
     try {
@@ -496,11 +500,21 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
         `
         INSERT INTO advisor_consultation_leads (
           id, advisor_user_id, visitor_name, phone_normalized, phone_display,
-          message, contact_channel, privacy_consent, privacy_consent_at
+          message, contact_channel, privacy_consent, privacy_consent_at,
+          privacy_policy_version, status
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, true, NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, true, NOW(), $8, 'new')
         `,
-        [leadId, advisorUserId, name, phoneDigits, phoneRaw, message.slice(0, 2000), contactChannel],
+        [
+          leadId,
+          advisorUserId,
+          name,
+          phoneDigits,
+          phoneRaw,
+          message.slice(0, 2000),
+          contactChannel,
+          MOBILE_CARD_CONSULTATION_PRIVACY_POLICY_VERSION,
+        ],
       )
 
       const gaRow = await systemQuery(pool, `SELECT ga_id FROM users WHERE id = $1`, [advisorUserId])

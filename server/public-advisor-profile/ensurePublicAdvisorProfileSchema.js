@@ -248,7 +248,7 @@ export async function ensurePublicAdvisorProfileSchema(executor) {
       contact_channel TEXT NOT NULL,
       privacy_consent BOOLEAN NOT NULL,
       privacy_consent_at TIMESTAMPTZ NOT NULL,
-      status TEXT NOT NULL DEFAULT 'NEW',
+      status TEXT NOT NULL DEFAULT 'new',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       CONSTRAINT advisor_consultation_leads_channel_check
@@ -257,8 +257,34 @@ export async function ensurePublicAdvisorProfileSchema(executor) {
   `)
 
   await executor.query(`
+    ALTER TABLE advisor_consultation_leads
+    ADD COLUMN IF NOT EXISTS privacy_policy_version TEXT NOT NULL DEFAULT ''
+  `)
+
+  await executor.query(`
+    ALTER TABLE advisor_consultation_leads
+    ADD COLUMN IF NOT EXISTS checked_at TIMESTAMPTZ
+  `)
+
+  await executor.query(`
+    ALTER TABLE advisor_consultation_leads
+    ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ
+  `)
+
+  await executor.query(`
+    UPDATE advisor_consultation_leads
+    SET status = 'new'
+    WHERE UPPER(status) = 'NEW'
+  `)
+
+  await executor.query(`
     CREATE INDEX IF NOT EXISTS idx_advisor_consultation_leads_advisor_created
     ON advisor_consultation_leads (advisor_user_id, created_at DESC)
+  `)
+
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_advisor_consultation_leads_advisor_status
+    ON advisor_consultation_leads (advisor_user_id, status)
   `)
 
   await executor.query(`
