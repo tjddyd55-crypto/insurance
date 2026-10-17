@@ -12,38 +12,59 @@ import {
   useVisualViewportKeyboardState,
 } from '../hooks/useVisualViewportKeyboardState'
 import { formatKrPhoneInputLive } from '../utils/formatKrPhoneNumber'
+import {
+  isConsultDraftValid,
+  visibleConsultFieldErrors,
+  type ConsultContactChannel,
+  type ConsultSubmitError,
+} from '../utils/consultFormValidation'
 import { AdvisorConsultationPrivacyConsent } from './AdvisorConsultationPrivacyConsent'
 
 type Props = {
   open: boolean
   submitting: boolean
+  submitError?: ConsultSubmitError | null
   onClose: () => void
+  onSubmitErrorClear?: () => void
   onSubmit: (payload: {
     name: string
     phone: string
     message: string
-    contactChannel: 'phone' | 'sms' | 'kakao'
+    contactChannel: ConsultContactChannel
     privacyConsent: boolean
   }) => void | Promise<void>
 }
 
 type FooterProps = {
   submitting: boolean
-  privacyConsent: boolean
+  submitEnabled: boolean
+  submitError?: ConsultSubmitError | null
   onClose: () => void
 }
 
-function ConsultFooter({ submitting, privacyConsent, onClose }: FooterProps) {
-  const submitDisabled = submitting || !privacyConsent
+function ConsultFooter({ submitting, submitEnabled, submitError, onClose }: FooterProps) {
+  const submitDisabled = submitting || !submitEnabled
   return (
-    <footer className="pap-consult-footer">
-      <button type="button" className="pap-btn pap-btn--secondary" onClick={onClose} disabled={submitting}>
-        닫기
-      </button>
-      <button type="submit" className="pap-btn pap-btn--primary" disabled={submitDisabled} aria-disabled={submitDisabled}>
-        {submitting ? '전송 중…' : '신청하기'}
-      </button>
-    </footer>
+    <>
+      {submitError?.kind === 'system' ? (
+        <p className="pap-consult-alert pap-consult-alert--system" role="alert">
+          {submitError.message}
+        </p>
+      ) : null}
+      <footer className="pap-consult-footer">
+        {submitError?.kind === 'business' ? (
+          <p className="pap-consult-alert pap-consult-alert--business" role="alert">
+            {submitError.message}
+          </p>
+        ) : null}
+        <button type="button" className="pap-btn pap-btn--secondary" onClick={onClose} disabled={submitting}>
+          닫기
+        </button>
+        <button type="submit" className="pap-btn pap-btn--primary" disabled={submitDisabled} aria-disabled={submitDisabled}>
+          {submitting ? '전송 중…' : '신청하기'}
+        </button>
+      </footer>
+    </>
   )
 }
 
@@ -60,8 +81,18 @@ function scrollFocusedField(scrollRoot: HTMLElement, field: HTMLElement, footerT
   ensureFocusedFieldVisible(scrollRoot, field, { visibleTop, visibleBottom })
 }
 
-export function AdvisorConsultationRequestModal({ open, submitting, onClose, onSubmit }: Props) {
+export function AdvisorConsultationRequestModal({
+  open,
+  submitting,
+  submitError = null,
+  onClose,
+  onSubmitErrorClear,
+  onSubmit,
+}: Props) {
+  const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [message, setMessage] = useState('')
+  const [contactChannel, setContactChannel] = useState<ConsultContactChannel>('phone')
   const [privacyConsent, setPrivacyConsent] = useState(false)
   const [privacyTermsOpen, setPrivacyTermsOpen] = useState(false)
   const [trackedOpen, setTrackedOpen] = useState(open)
@@ -71,7 +102,14 @@ export function AdvisorConsultationRequestModal({ open, submitting, onClose, onS
 
   if (open !== trackedOpen) {
     setTrackedOpen(open)
-    if (!open) setPrivacyTermsOpen(false)
+    if (!open) {
+      setPrivacyTermsOpen(false)
+      setName('')
+      setPhone('')
+      setMessage('')
+      setContactChannel('phone')
+      setPrivacyConsent(false)
+    }
   }
 
   useBackButtonClose(open, onClose, { layerKind: 'pap-consult-modal' })
@@ -124,21 +162,33 @@ export function AdvisorConsultationRequestModal({ open, submitting, onClose, onS
 
   if (!open) return null
 
+  const draft = { name, phone, message, contactChannel, privacyConsent }
+  const fieldErrors = visibleConsultFieldErrors(draft)
+  const submitEnabled = isConsultDraftValid(draft)
+
+  const noteChange = () => {
+    if (submitError) onSubmitErrorClear?.()
+  }
+
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!privacyConsent || submitting) return
-    const form = new FormData(e.currentTarget)
+    if (!submitEnabled || submitting) return
     void onSubmit({
-      name: String(form.get('name') ?? ''),
+      name: name.trim(),
       phone,
-      message: String(form.get('message') ?? ''),
-      contactChannel: String(form.get('contactChannel') ?? 'phone') as 'phone' | 'sms' | 'kakao',
+      message: message.trim(),
+      contactChannel,
       privacyConsent: true,
     })
   }
 
   const footer = (
-    <ConsultFooter submitting={submitting} privacyConsent={privacyConsent} onClose={onClose} />
+    <ConsultFooter
+      submitting={submitting}
+      submitEnabled={submitEnabled}
+      submitError={submitError}
+      onClose={onClose}
+    />
   )
 
   return (
@@ -160,36 +210,96 @@ export function AdvisorConsultationRequestModal({ open, submitting, onClose, onS
         <ConsultBody scrollRef={scrollBodyRef} footer={keyboard.keyboardOpen ? footer : null}>
           <label>
             이름
-            <input name="name" required minLength={2} disabled={submitting} autoComplete="name" />
+            <input
+              name="name"
+              value={name}
+              disabled={submitting}
+              autoComplete="name"
+              aria-invalid={Boolean(fieldErrors.name)}
+              aria-describedby={fieldErrors.name ? 'pap-consult-name-error' : undefined}
+              onChange={(e) => {
+                setName(e.target.value)
+                noteChange()
+              }}
+            />
+            {fieldErrors.name ? (
+              <p id="pap-consult-name-error" className="pap-field-error" role="alert">
+                {fieldErrors.name}
+              </p>
+            ) : null}
           </label>
           <label>
             연락처
             <input
               name="phone"
-              required
               placeholder="010-1234-5678"
               value={phone}
               disabled={submitting}
               autoComplete="tel"
-              onChange={(e) => setPhone(formatKrPhoneInputLive(e.target.value))}
+              inputMode="tel"
+              aria-invalid={Boolean(fieldErrors.phone)}
+              aria-describedby={fieldErrors.phone ? 'pap-consult-phone-error' : undefined}
+              onChange={(e) => {
+                setPhone(formatKrPhoneInputLive(e.target.value))
+                noteChange()
+              }}
             />
+            {fieldErrors.phone ? (
+              <p id="pap-consult-phone-error" className="pap-field-error" role="alert">
+                {fieldErrors.phone}
+              </p>
+            ) : null}
           </label>
           <label>
             문의 내용
-            <textarea name="message" required minLength={5} disabled={submitting} rows={4} />
+            <textarea
+              name="message"
+              value={message}
+              disabled={submitting}
+              rows={4}
+              aria-invalid={Boolean(fieldErrors.message)}
+              aria-describedby={fieldErrors.message ? 'pap-consult-message-error' : undefined}
+              onChange={(e) => {
+                setMessage(e.target.value)
+                noteChange()
+              }}
+            />
+            {fieldErrors.message ? (
+              <p id="pap-consult-message-error" className="pap-field-error" role="alert">
+                {fieldErrors.message}
+              </p>
+            ) : null}
           </label>
           <label>
             연락 희망 방식
-            <select name="contactChannel" defaultValue="phone" disabled={submitting}>
+            <select
+              name="contactChannel"
+              value={contactChannel}
+              disabled={submitting}
+              aria-invalid={Boolean(fieldErrors.contactChannel)}
+              onChange={(e) => {
+                setContactChannel(e.target.value as ConsultContactChannel)
+                noteChange()
+              }}
+            >
               <option value="phone">전화</option>
               <option value="sms">문자</option>
               <option value="kakao">카카오톡</option>
             </select>
+            {fieldErrors.contactChannel ? (
+              <p className="pap-field-error" role="alert">
+                {fieldErrors.contactChannel}
+              </p>
+            ) : null}
           </label>
           <AdvisorConsultationPrivacyConsent
             checked={privacyConsent}
-            onChange={setPrivacyConsent}
+            onChange={(checked) => {
+              setPrivacyConsent(checked)
+              noteChange()
+            }}
             disabled={submitting}
+            error={fieldErrors.privacy}
             termsOpen={privacyTermsOpen}
             onTermsOpenChange={setPrivacyTermsOpen}
           />

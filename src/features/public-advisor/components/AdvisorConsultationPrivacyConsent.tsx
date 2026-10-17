@@ -15,6 +15,7 @@ type Props = {
   checked: boolean
   onChange: (checked: boolean) => void
   disabled?: boolean
+  error?: string
   termsOpen: boolean
   onTermsOpenChange: (open: boolean) => void
 }
@@ -23,6 +24,7 @@ export function AdvisorConsultationPrivacyConsent({
   checked,
   onChange,
   disabled,
+  error,
   termsOpen,
   onTermsOpenChange,
 }: Props) {
@@ -73,13 +75,20 @@ export function AdvisorConsultationPrivacyConsent({
 
   return (
     <>
-      <PrivacyConsentRow
-        checked={checked}
-        disabled={disabled}
-        onChecked={onChange}
-        onOpenTerms={() => onTermsOpenChange(true)}
-        viewLinkRef={viewLinkRef}
-      />
+      <div className="pap-consult-privacy-block">
+        <PrivacyConsentRow
+          checked={checked}
+          disabled={disabled}
+          onChecked={onChange}
+          onOpenTerms={() => onTermsOpenChange(true)}
+          viewLinkRef={viewLinkRef}
+        />
+        {error ? (
+          <p id="pap-consult-privacy-error" className="pap-field-error" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </div>
       {termsOpen ? (
         <PrivacySheet
           dialogRef={dialogRef}

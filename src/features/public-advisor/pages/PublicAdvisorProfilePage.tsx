@@ -12,6 +12,11 @@ import { normalizeProfileTheme } from '../profileTheme'
 import { buildAdvisorPublicInfoBlocks } from '../utils/buildAdvisorPublicInfoBlocks'
 import { normalizeAdvisorMediaUrl } from '../utils/advisorMediaUrl'
 import { AdvisorConsultationRequestModal } from '../components/AdvisorConsultationRequestModal'
+import {
+  classifyConsultSubmitError,
+  isConsultDraftValid,
+  type ConsultSubmitError,
+} from '../utils/consultFormValidation'
 import '../public-advisor.css'
 
 const MAX_PUBLIC_TAGS = 5
@@ -19,10 +24,11 @@ const MAX_PUBLIC_TAGS = 5
 export function PublicAdvisorProfilePage() {
   const { slug = '' } = useParams()
   const [data, setData] = useState<PublicAdvisorDetail | null>(null)
-  const [error, setError] = useState('')
+  const [loadError, setLoadError] = useState('')
   const [consultOpen, setConsultOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitDone, setSubmitDone] = useState(false)
+  const [submitError, setSubmitError] = useState<ConsultSubmitError | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -34,7 +40,7 @@ export function PublicAdvisorProfilePage() {
         }
       })
       .catch(() => {
-        if (!cancelled) setError('프로필을 찾을 수 없습니다.')
+        if (!cancelled) setLoadError('프로필을 찾을 수 없습니다.')
       })
     return () => {
       cancelled = true
@@ -48,14 +54,16 @@ export function PublicAdvisorProfilePage() {
     contactChannel: 'phone' | 'sms' | 'kakao'
     privacyConsent: boolean
   }) => {
-    if (!data || submitting) return
+    if (!data || submitting || !isConsultDraftValid(payload)) return
     setSubmitting(true)
+    setSubmitError(null)
     try {
       await submitAdvisorConsultation(slug, payload)
       setSubmitDone(true)
+      setSubmitError(null)
       setConsultOpen(false)
-    } catch {
-      setError('상담 신청에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+    } catch (error) {
+      setSubmitError(classifyConsultSubmitError(error))
     } finally {
       setSubmitting(false)
     }
@@ -127,10 +135,10 @@ export function PublicAdvisorProfilePage() {
     }
   }, [affiliationLine, data, infoBlocks, publicTags])
 
-  if (error && !data) {
+  if (loadError && !data) {
     return (
       <div className="public-advisor-page pap-page--fc">
-        <div className="public-advisor-shell pap-shell--fc pap-shell--fc-state"><p>{error}</p></div>
+        <div className="public-advisor-shell pap-shell--fc pap-shell--fc-state"><p>{loadError}</p></div>
       </div>
     )
   }
@@ -157,12 +165,16 @@ export function PublicAdvisorProfilePage() {
       {submitDone ? (
         <p className="pap-status pap-status--floating" role="status">상담 신청이 접수되었습니다.</p>
       ) : null}
-      {error && data ? <p className="pap-error pap-error--floating" role="alert">{error}</p> : null}
 
       <AdvisorConsultationRequestModal
         open={consultOpen}
         submitting={submitting}
-        onClose={() => setConsultOpen(false)}
+        submitError={submitError}
+        onClose={() => {
+          setConsultOpen(false)
+          setSubmitError(null)
+        }}
+        onSubmitErrorClear={() => setSubmitError(null)}
         onSubmit={onConsultSubmit}
       />
     </>
