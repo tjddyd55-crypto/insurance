@@ -16,6 +16,7 @@ import {
   type OwnerGalleryItem,
 } from '../api/publicAdvisorApi'
 import { buildAdvisorPublicPath } from '../advisorPublicRoutes'
+import { AdvisorBusinessCardSection } from '../components/AdvisorBusinessCardSection'
 import { AdvisorMobileCardThemePicker } from '../components/AdvisorMobileCardThemePicker'
 import { AdvisorProfileQr } from '../components/AdvisorProfileQr'
 import { AdvisorProfileHero } from '../components/heroes/AdvisorProfileHero'
@@ -586,6 +587,19 @@ export function MyPublicProfilePage() {
             </div>
             <div className={`pap-theme-preview-modal__viewport pap-theme-preview-shell pap-page-theme--${profileTheme}`}>
               <AdvisorProfileHero theme={profileTheme} {...mobilePreviewHeroProps} />
+              <div className="pap-home-sections pap-home-sections--editor-preview">
+                {bio.trim() ? (
+                  <section className="pap-section pap-section--intro pap-fc-card">
+                    <h2>소개</h2>
+                    <p className="pap-body pap-body--intro">{bio}</p>
+                  </section>
+                ) : null}
+                <AdvisorBusinessCardSection
+                  frontUrl={businessCardFrontUrl}
+                  backUrl={businessCardBackUrl}
+                  onImageClick={() => {}}
+                />
+              </div>
             </div>
           </div>
         </div>

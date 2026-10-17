@@ -1,9 +1,14 @@
 import { AdvisorPublicImage } from './AdvisorPublicImage'
 
+export type BusinessCardImageClick = {
+  mediaType: 'businessCardFront' | 'businessCardBack'
+  url: string
+}
+
 type Props = {
   frontUrl: string | null | undefined
   backUrl: string | null | undefined
-  onImageClick: (url: string, label: string) => void
+  onImageClick: (payload: BusinessCardImageClick) => void
 }
 
 export function AdvisorBusinessCardSection({ frontUrl, backUrl, onImageClick }: Props) {
@@ -19,7 +24,7 @@ export function AdvisorBusinessCardSection({ frontUrl, backUrl, onImageClick }: 
           <button
             type="button"
             className="pap-business-card-tile"
-            onClick={() => onImageClick(frontUrl!, '명함 앞면')}
+            onClick={() => onImageClick({ mediaType: 'businessCardFront', url: frontUrl! })}
           >
             <span className="pap-business-card-tile__label">앞면</span>
             <AdvisorPublicImage className="pap-business-card-img" src={frontUrl} alt="명함 앞면" />
@@ -29,7 +34,7 @@ export function AdvisorBusinessCardSection({ frontUrl, backUrl, onImageClick }: 
           <button
             type="button"
             className="pap-business-card-tile"
-            onClick={() => onImageClick(backUrl!, '명함 뒷면')}
+            onClick={() => onImageClick({ mediaType: 'businessCardBack', url: backUrl! })}
           >
             <span className="pap-business-card-tile__label">뒷면</span>
             <AdvisorPublicImage className="pap-business-card-img" src={backUrl} alt="명함 뒷면" />

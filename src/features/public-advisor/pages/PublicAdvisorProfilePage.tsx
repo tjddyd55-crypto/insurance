@@ -22,6 +22,24 @@ type InfoFactBlock =
 
 const MAX_PUBLIC_TAGS = 5
 
+export type PublicAdvisorLightboxMediaType = 'gallery' | 'businessCardFront' | 'businessCardBack'
+
+type PublicAdvisorLightboxState = {
+  mediaType: PublicAdvisorLightboxMediaType
+  url: string
+  caption: string
+}
+
+function businessCardCaption(mediaType: PublicAdvisorLightboxMediaType): string {
+  if (mediaType === 'businessCardFront') return '명함 앞면'
+  if (mediaType === 'businessCardBack') return '명함 뒷면'
+  return ''
+}
+
+function isBusinessCardLightbox(mediaType: PublicAdvisorLightboxMediaType): boolean {
+  return mediaType === 'businessCardFront' || mediaType === 'businessCardBack'
+}
+
 export function PublicAdvisorProfilePage() {
   const { slug = '' } = useParams()
   const [data, setData] = useState<PublicAdvisorDetail | null>(null)
@@ -29,7 +47,7 @@ export function PublicAdvisorProfilePage() {
   const [consultOpen, setConsultOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitDone, setSubmitDone] = useState(false)
-  const [lightbox, setLightbox] = useState<{ url: string; caption: string } | null>(null)
+  const [lightbox, setLightbox] = useState<PublicAdvisorLightboxState | null>(null)
   /** DEV REVIEW: Hero 미리보기 테마만 오버라이드. API/DB `profile_theme` 은 변경하지 않음. */
   const [devReviewHeroTheme, setDevReviewHeroTheme] = useState<AdvisorProfileTheme | null>(null)
   const showDevThemeReviewBar = isAdvisorThemeDevReviewEnabled()
@@ -147,10 +165,27 @@ export function PublicAdvisorProfilePage() {
   const hasBusinessCard = Boolean(businessCardFrontUrl?.trim() || businessCardBackUrl?.trim())
 
   const openBusinessCardLightbox = () => {
-    const url = businessCardFrontUrl?.trim() || businessCardBackUrl?.trim()
+    if (businessCardFrontUrl?.trim()) {
+      setLightbox({
+        mediaType: 'businessCardFront',
+        url: businessCardFrontUrl.trim(),
+        caption: businessCardCaption('businessCardFront'),
+      })
+      return
+    }
+    if (businessCardBackUrl?.trim()) {
+      setLightbox({
+        mediaType: 'businessCardBack',
+        url: businessCardBackUrl.trim(),
+        caption: businessCardCaption('businessCardBack'),
+      })
+    }
+  }
+
+  const switchBusinessCardLightbox = (target: 'businessCardFront' | 'businessCardBack') => {
+    const url = target === 'businessCardFront' ? businessCardFrontUrl?.trim() : businessCardBackUrl?.trim()
     if (!url) return
-    const label = businessCardFrontUrl?.trim() ? '명함 앞면' : '명함 뒷면'
-    setLightbox({ url, caption: label })
+    setLightbox({ mediaType: target, url, caption: businessCardCaption(target) })
   }
 
   return (
@@ -192,7 +227,13 @@ export function PublicAdvisorProfilePage() {
           <AdvisorBusinessCardSection
             frontUrl={businessCardFrontUrl}
             backUrl={businessCardBackUrl}
-            onImageClick={(url, label) => setLightbox({ url, caption: label })}
+            onImageClick={(payload) =>
+              setLightbox({
+                mediaType: payload.mediaType,
+                url: payload.url,
+                caption: businessCardCaption(payload.mediaType),
+              })
+            }
           />
 
           {data.gallery?.length ? (
@@ -206,7 +247,11 @@ export function PublicAdvisorProfilePage() {
                     className="pap-gallery-tile"
                     onClick={() =>
                       g.imageUrl &&
-                      setLightbox({ url: g.imageUrl, caption: String(g.caption ?? '').trim() })
+                      setLightbox({
+                        mediaType: 'gallery',
+                        url: g.imageUrl,
+                        caption: String(g.caption ?? '').trim(),
+                      })
                     }
                   >
                     <AdvisorPublicImage
@@ -305,11 +350,29 @@ export function PublicAdvisorProfilePage() {
       {lightbox ? (
         <div className="pap-lightbox" role="dialog" aria-modal="true" onClick={() => setLightbox(null)}>
           <button type="button" className="pap-lightbox-close" onClick={() => setLightbox(null)}>닫기</button>
+          {isBusinessCardLightbox(lightbox.mediaType) && businessCardFrontUrl?.trim() && businessCardBackUrl?.trim() ? (
+            <div className="pap-lightbox-business-nav" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                className={`pap-lightbox-business-nav__btn${lightbox.mediaType === 'businessCardFront' ? ' is-active' : ''}`}
+                onClick={() => switchBusinessCardLightbox('businessCardFront')}
+              >
+                앞면
+              </button>
+              <button
+                type="button"
+                className={`pap-lightbox-business-nav__btn${lightbox.mediaType === 'businessCardBack' ? ' is-active' : ''}`}
+                onClick={() => switchBusinessCardLightbox('businessCardBack')}
+              >
+                뒷면
+              </button>
+            </div>
+          ) : null}
           <figure className="pap-lightbox-figure" onClick={(e) => e.stopPropagation()}>
             <img
               src={lightbox.url}
               alt={lightbox.caption || '활동 사진'}
-              className={lightbox.caption.includes('명함') ? 'pap-lightbox-img--business-card' : undefined}
+              className={isBusinessCardLightbox(lightbox.mediaType) ? 'pap-lightbox-img--business-card' : undefined}
             />
             {lightbox.caption ? <figcaption className="pap-lightbox-caption">{lightbox.caption}</figcaption> : null}
           </figure>
