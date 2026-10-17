@@ -45,19 +45,59 @@ async function resolveOgPhotoBuffer(photoBuffer, forceFallback = false) {
   }
 }
 
+/** Foreground width as a fraction of the 1200 canvas. Tuned on the live 689×886 portrait. */
+const FOREGROUND_WIDTH_RATIO = 0.78
+const PREPARE_MAX_EDGE = 1600
+
 /**
+ * EXIF-orient, then cap the longest edge so later cover/blur stays inside the render timeout.
  * @param {Buffer} source
  */
 async function prepareOgCoverPhoto(source) {
   return promiseWithTimeout(
     sharp(source)
       .rotate()
-      .resize(1400, 1400, { fit: 'inside', withoutEnlargement: false })
-      .jpeg({ quality: 88, mozjpeg: true })
+      .resize(PREPARE_MAX_EDGE, PREPARE_MAX_EDGE, { fit: 'inside', withoutEnlargement: true })
       .toBuffer(),
     OG_PHOTO_PREPARE_TIMEOUT_MS,
     'ogPhotoPrepare',
   )
+}
+
+/**
+ * Full-bleed cover of the same photo, blurred and veiled so it only fills the side gaps.
+ * @param {Buffer} prepared
+ */
+async function renderSoftBackground(prepared) {
+  const covered = await sharp(prepared)
+    .resize(W, H, { fit: 'cover', position: 'attention' })
+    .blur(24)
+    .modulate({ brightness: 1.05, saturation: 0.48 })
+    .png()
+    .toBuffer()
+  const veil = await sharp({
+    create: {
+      width: W,
+      height: H,
+      channels: 4,
+      background: { r: 255, g: 255, b: 255, alpha: 0.22 },
+    },
+  })
+    .png()
+    .toBuffer()
+  return sharp(covered).composite([{ input: veil, blend: 'over' }]).png().toBuffer()
+}
+
+/**
+ * Head-and-shoulders cover. `attention` keeps the face in frame instead of a center contain.
+ * @param {Buffer} prepared
+ */
+async function renderForegroundPortrait(prepared) {
+  const width = Math.round(W * FOREGROUND_WIDTH_RATIO)
+  return sharp(prepared)
+    .resize(width, H, { fit: 'cover', position: 'attention' })
+    .png()
+    .toBuffer()
 }
 
 /**
@@ -71,23 +111,15 @@ async function prepareOgCoverPhoto(source) {
 export async function renderAdvisorMobileCardOgPng(input) {
   const source = await resolveOgPhotoBuffer(input.photoBuffer, Boolean(input.forcePhotoFallback))
   const prepared = await prepareOgCoverPhoto(source)
-
-  const bgBlur = await sharp(prepared).resize(W, H, { fit: 'cover', position: 'centre' }).blur(22).png().toBuffer()
-
-  const portraitMaxHeight = Math.round(H * 0.94)
-  const portraitMaxWidth = Math.round(W * 0.72)
-  const portrait = await sharp(prepared)
-    .resize(portraitMaxWidth, portraitMaxHeight, { fit: 'inside', withoutEnlargement: false })
-    .png()
-    .toBuffer()
-
+  const background = await renderSoftBackground(prepared)
+  const portrait = await renderForegroundPortrait(prepared)
   const portraitMeta = await sharp(portrait).metadata()
-  const portraitWidth = portraitMeta.width ?? portraitMaxWidth
-  const portraitHeight = portraitMeta.height ?? portraitMaxHeight
-  const portraitLeft = Math.floor((W - portraitWidth) / 2)
-  const portraitTop = Math.floor((H - portraitHeight) / 2)
+  const portraitWidth = portraitMeta.width ?? Math.round(W * FOREGROUND_WIDTH_RATIO)
+  const portraitHeight = portraitMeta.height ?? H
+  const portraitLeft = Math.max(0, Math.floor((W - portraitWidth) / 2))
+  const portraitTop = Math.max(0, Math.floor((H - portraitHeight) / 2))
 
-  return sharp(bgBlur)
+  return sharp(background)
     .composite([{ input: portrait, left: portraitLeft, top: portraitTop }])
     .png()
     .toBuffer()
