@@ -1,39 +1,60 @@
-const DEFAULT_PADDING_PX = 12
+/** 주소창 등 작은 visualViewport 변화는 키보드로 보지 않는다. */
+export const KEYBOARD_OPEN_THRESHOLD_PX = 80
 
-/**
- * visualViewport 기준으로 field가 키보드에 가려질 때만 modal body scrollTop을 조정한다.
- * scrollIntoView는 사용하지 않는다.
- */
-export function adjustModalBodyScrollForFocusedField(
-  scrollRoot: HTMLElement,
-  field: HTMLElement,
-  paddingPx = DEFAULT_PADDING_PX,
-): void {
-  const vv = window.visualViewport
-  if (!vv) return
+export const FOCUSED_FIELD_PADDING_PX = 12
 
-  const visibleTop = vv.offsetTop + paddingPx
-  const visibleBottom = vv.offsetTop + vv.height - paddingPx
-  const fieldRect = field.getBoundingClientRect()
-
-  if (fieldRect.top >= visibleTop && fieldRect.bottom <= visibleBottom) {
-    return
-  }
-
-  if (fieldRect.bottom > visibleBottom) {
-    scrollRoot.scrollTop += fieldRect.bottom - visibleBottom
-    return
-  }
-
-  if (fieldRect.top < visibleTop) {
-    scrollRoot.scrollTop -= visibleTop - fieldRect.top
-  }
+export function isKeyboardOpen(
+  layoutHeight: number,
+  visualHeight: number,
+  thresholdPx = KEYBOARD_OPEN_THRESHOLD_PX,
+): boolean {
+  return layoutHeight - visualHeight > thresholdPx
 }
 
-export function measureConsultModalChromePx(formEl: HTMLElement): number {
-  const header = formEl.querySelector('.pap-modal__header')
-  const footer = formEl.querySelector('.pap-modal__footer')
-  const headerH = header instanceof HTMLElement ? header.offsetHeight : 0
-  const footerH = footer instanceof HTMLElement ? footer.offsetHeight : 0
-  return headerH + footerH
+/**
+ * 필드가 usable 영역 밖에 있을 때만 필요한 scroll 거리.
+ * 이미 보이면 0. scrollIntoView 는 쓰지 않는다.
+ */
+export function focusedFieldScrollDelta(params: {
+  fieldTop: number
+  fieldBottom: number
+  visibleTop: number
+  visibleBottom: number
+}): number {
+  const { fieldTop, fieldBottom, visibleTop, visibleBottom } = params
+  if (fieldTop >= visibleTop && fieldBottom <= visibleBottom) return 0
+  if (fieldBottom > visibleBottom) return fieldBottom - visibleBottom
+  return fieldTop - visibleTop
+}
+
+/** 키보드가 닫혀 footer 가 화면을 가리면 그 위를 usable bottom 으로 쓴다. */
+export function focusedFieldUsableBottom(params: {
+  viewportOffsetTop: number
+  viewportHeight: number
+  keyboardOpen: boolean
+  footerTop: number | null
+  paddingPx?: number
+}): number {
+  const paddingPx = params.paddingPx ?? FOCUSED_FIELD_PADDING_PX
+  const viewportBottom = params.viewportOffsetTop + params.viewportHeight
+  if (!params.keyboardOpen && params.footerTop != null) {
+    return Math.min(viewportBottom, params.footerTop) - paddingPx
+  }
+  return viewportBottom - paddingPx
+}
+
+export function ensureFocusedFieldVisible(
+  scrollRoot: HTMLElement,
+  field: HTMLElement,
+  usable: { visibleTop: number; visibleBottom: number },
+): number {
+  const rect = field.getBoundingClientRect()
+  const delta = focusedFieldScrollDelta({
+    fieldTop: rect.top,
+    fieldBottom: rect.bottom,
+    visibleTop: usable.visibleTop,
+    visibleBottom: usable.visibleBottom,
+  })
+  if (delta !== 0) scrollRoot.scrollTop += delta
+  return delta
 }

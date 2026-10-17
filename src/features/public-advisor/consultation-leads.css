@@ -114,12 +114,3 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-
-.pap-consult-privacy-modal__body {
-  white-space: pre-wrap;
-  font-size: 0.9rem;
-  line-height: 1.55;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-}

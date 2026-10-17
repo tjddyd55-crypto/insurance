@@ -1,6 +1,19 @@
-.public-advisor-page {
+.public-advisor-page,
+.pap-modal-backdrop {
   --pap-primary: var(--primary, #2563eb);
   --pap-accent-green: #0d7a4a;
+  --pap-action-padding-y: 12px;
+  --pap-action-icon-size: 44px;
+  --pap-action-gap: 6px;
+  --pap-action-label-line-height: 1.2;
+  --pap-sheet-radius: 16px;
+  --pap-sheet-padding-x: 16px;
+  --pap-sheet-footer-gap: 10px;
+  --pap-sheet-footer-pad-y: 12px;
+  --pap-sheet-max-height: 92dvh;
+}
+
+.public-advisor-page {
   min-height: 100vh;
   background: #f3f4f6;
   color: var(--text-primary, #111);
@@ -139,8 +152,9 @@
   margin-top: 0;
 }
 
+/* 히어로 카드의 하단 padding 이 액션바 흰 영역을 아래로 늘리지 않게 한다. 간격은 액션바가 소유한다. */
 .pap-page--fc .pap-hero.pap-fc-card--hero {
-  padding-top: 0;
+  padding: 0;
 }
 
 .pap-shell--fc-state {
@@ -340,26 +354,31 @@
 }
 
 .pap-action-bar {
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  align-items: center;
+  justify-items: center;
   gap: 2px;
-  padding: 8px 6px;
+  padding-block: var(--pap-action-padding-y);
+  padding-inline: 6px;
   margin: 0;
   border-top: 1px solid #f3f4f6;
+  background: var(--bg-surface, #fff);
 }
 
 .pap-action-bar__item {
-  flex: 1;
+  width: 100%;
   min-width: 0;
   max-width: 92px;
-  min-height: 72px;
-  padding: 6px 2px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--pap-action-gap);
   border: none;
   background: transparent;
   font: inherit;
@@ -372,8 +391,8 @@
 }
 
 .pap-action-bar__icon {
-  width: 44px;
-  height: 44px;
+  width: var(--pap-action-icon-size);
+  height: var(--pap-action-icon-size);
   border-radius: 14px;
   display: inline-flex;
   align-items: center;
@@ -414,7 +433,7 @@
 }
 
 .pap-action-bar__label {
-  line-height: 1.2;
+  line-height: var(--pap-action-label-line-height);
 }
 
 .pap-action-bar--with-card .pap-action-bar__item {
@@ -856,6 +875,22 @@
   margin-top: 16px;
   color: var(--pap-accent-green);
   font-weight: 600;
+}
+
+.pap-status--floating,
+.pap-error--floating {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 70;
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--bg-surface, #fff);
+  border: 1px solid var(--border-default, #e5e7eb);
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
 }
 
 .pap-error {
@@ -1372,18 +1407,34 @@
 
 .pap-modal--consult,
 .pap-consult-privacy-modal {
+  width: 100%;
   height: auto;
-  max-height: min(92dvh, var(--pap-modal-vh, 100dvh));
+  max-height: min(var(--pap-sheet-max-height), 100%);
   display: flex;
   flex-direction: column;
   padding: 0;
   overflow: hidden;
+  background: var(--bg-surface, #fff);
+}
+
+.pap-modal--consult[data-keyboard='open'],
+.pap-consult-privacy-modal[data-keyboard='open'] {
+  position: fixed;
+  top: var(--pap-vv-offset-top, 0px);
+  left: 0;
+  right: 0;
+  bottom: auto;
+  width: min(100%, 720px);
+  height: var(--pap-vv-height, 100dvh);
+  max-height: var(--pap-vv-height, 100dvh);
+  margin-inline: auto;
 }
 
 .pap-modal--consult .pap-modal__header,
 .pap-consult-privacy-modal .pap-modal__header {
   flex: none;
-  padding: 18px 16px 8px;
+  padding: 18px var(--pap-sheet-padding-x) 8px;
+  background: var(--bg-surface, #fff);
 }
 
 .pap-modal--consult .pap-modal__header h2,
@@ -1392,41 +1443,44 @@
   font-size: 1.15rem;
 }
 
-.pap-modal--consult .pap-modal__body {
-  flex: 0 1 auto;
+.pap-modal--consult .pap-modal__body,
+.pap-consult-privacy-modal .pap-modal__body {
+  flex: 1 1 auto;
   min-height: 0;
-  max-height: max(120px, calc(var(--pap-modal-vh, 100dvh) - var(--pap-consult-chrome-h, 220px)));
-  overflow-y: auto;
   overflow-x: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  padding: 4px 16px 12px;
-}
-
-.pap-modal__footer {
-  flex: none;
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
-  border-top: 1px solid #f3f4f6;
-  background: #fff;
-}
-
-.pap-modal__footer--dual {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
   margin: 0;
+  padding: 0;
+}
+
+.pap-sheet__fields {
+  padding: 4px var(--pap-sheet-padding-x) 12px;
+}
+
+.pap-consult-footer {
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--pap-sheet-footer-gap);
   width: 100%;
   box-sizing: border-box;
+  margin: 0;
+  padding: var(--pap-sheet-footer-pad-y) var(--pap-sheet-padding-x)
+    calc(var(--pap-sheet-footer-pad-y) + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid #f3f4f6;
+  background: var(--bg-surface, #fff);
 }
 
-.pap-modal__footer--dual .pap-btn {
+.pap-consult-footer .pap-btn {
   width: 100%;
   min-width: 0;
-  flex: none;
+  min-height: 48px;
 }
 
-.pap-modal__footer--dual .pap-btn:disabled {
+.pap-consult-footer .pap-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
@@ -1439,17 +1493,12 @@
   z-index: 55;
 }
 
-.pap-consult-privacy-modal__body {
-  flex: 0 1 auto;
-  min-height: 0;
-  max-height: max(120px, calc(var(--pap-modal-vh, 100dvh) - var(--pap-consult-chrome-h, 200px)));
+.pap-consult-privacy-modal__copy {
   margin: 0;
-  padding: 0 16px 12px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
+  padding: 0 var(--pap-sheet-padding-x) 12px;
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+  line-height: 1.55;
 }
 
 .pap-consult-privacy {
@@ -1464,7 +1513,7 @@
 
 .pap-consult-privacy__check {
   display: inline-flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   min-width: 0;
   margin: 0;
@@ -1472,6 +1521,13 @@
   cursor: pointer;
   grid-column: 1;
   grid-row: 1;
+}
+
+.pap-consult-privacy__check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: none;
 }
 
 .pap-consult-privacy__required {
@@ -1512,14 +1568,22 @@
   margin: 12px 0 6px;
 }
 
-.pap-modal--sheet input,
+.pap-modal--sheet input:not([type='checkbox']),
 .pap-modal--sheet textarea,
 .pap-modal--sheet select {
   width: 100%;
   border-radius: 10px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--input-border, #d1d5db);
   padding: 10px 12px;
   font: inherit;
+  background: var(--input-bg, #fff);
+  color: var(--text-primary, #111);
+}
+
+.pap-modal--sheet textarea {
+  resize: none;
+  overflow: hidden;
+  min-height: 96px;
 }
 
 .pap-modal--qr .pap-qr-canvas {

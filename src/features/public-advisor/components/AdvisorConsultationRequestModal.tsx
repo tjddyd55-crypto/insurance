@@ -1,10 +1,16 @@
-import { FormEvent, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react'
 import { useBackButtonClose } from '../../../hooks/useBackButtonClose'
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock'
 import {
-  adjustModalBodyScrollForFocusedField,
-  measureConsultModalChromePx,
+  ensureFocusedFieldVisible,
+  focusedFieldUsableBottom,
+  FOCUSED_FIELD_PADDING_PX,
 } from '../hooks/consultModalKeyboardScroll'
+import {
+  consultSheetStyle,
+  readVisualViewportKeyboardState,
+  useVisualViewportKeyboardState,
+} from '../hooks/useVisualViewportKeyboardState'
 import { formatKrPhoneInputLive } from '../utils/formatKrPhoneNumber'
 import { AdvisorConsultationPrivacyConsent } from './AdvisorConsultationPrivacyConsent'
 
@@ -21,25 +27,58 @@ type Props = {
   }) => void | Promise<void>
 }
 
+type FooterProps = {
+  submitting: boolean
+  privacyConsent: boolean
+  onClose: () => void
+}
+
+function ConsultFooter({ submitting, privacyConsent, onClose }: FooterProps) {
+  const submitDisabled = submitting || !privacyConsent
+  return (
+    <footer className="pap-consult-footer">
+      <button type="button" className="pap-btn pap-btn--secondary" onClick={onClose} disabled={submitting}>
+        닫기
+      </button>
+      <button type="submit" className="pap-btn pap-btn--primary" disabled={submitDisabled} aria-disabled={submitDisabled}>
+        {submitting ? '전송 중…' : '신청하기'}
+      </button>
+    </footer>
+  )
+}
+
+function scrollFocusedField(scrollRoot: HTMLElement, field: HTMLElement, footerTop: number | null) {
+  const keyboard = readVisualViewportKeyboardState()
+  const vv = window.visualViewport
+  const visibleTop = (vv?.offsetTop ?? 0) + FOCUSED_FIELD_PADDING_PX
+  const visibleBottom = focusedFieldUsableBottom({
+    viewportOffsetTop: keyboard.viewportOffsetTop,
+    viewportHeight: keyboard.viewportHeight,
+    keyboardOpen: keyboard.keyboardOpen,
+    footerTop,
+  })
+  ensureFocusedFieldVisible(scrollRoot, field, { visibleTop, visibleBottom })
+}
+
 export function AdvisorConsultationRequestModal({ open, submitting, onClose, onSubmit }: Props) {
   const [phone, setPhone] = useState('')
   const [privacyConsent, setPrivacyConsent] = useState(false)
   const [privacyTermsOpen, setPrivacyTermsOpen] = useState(false)
+  const [trackedOpen, setTrackedOpen] = useState(open)
   const scrollBodyRef = useRef<HTMLDivElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
+  const keyboard = useVisualViewportKeyboardState(open)
 
-  useBackButtonClose(open && !privacyTermsOpen, onClose, { layerKind: 'pap-consult-modal' })
+  if (open !== trackedOpen) {
+    setTrackedOpen(open)
+    if (!open) setPrivacyTermsOpen(false)
+  }
+
+  useBackButtonClose(open, onClose, { layerKind: 'pap-consult-modal' })
   useBodyScrollLock(open, { lockDocumentElement: true })
 
   useEffect(() => {
-    if (!open) {
-      setPrivacyTermsOpen(false)
-    }
-  }, [open])
-
-  useEffect(() => {
     if (!open || typeof window === 'undefined') return undefined
-
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || privacyTermsOpen) return
       e.preventDefault()
@@ -49,63 +88,39 @@ export function AdvisorConsultationRequestModal({ open, submitting, onClose, onS
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [open, onClose, privacyTermsOpen])
 
-  const syncViewportVars = () => {
-    const vv = window.visualViewport
-    if (!vv) return
-    document.documentElement.style.setProperty('--pap-modal-vh', `${Math.round(vv.height)}px`)
-    const form = formRef.current
-    if (form) {
-      document.documentElement.style.setProperty(
-        '--pap-consult-chrome-h',
-        `${measureConsultModalChromePx(form)}px`,
-      )
-    }
-  }
-
-  useEffect(() => {
-    if (!open || typeof window === 'undefined') return undefined
-    const vv = window.visualViewport
-
-    syncViewportVars()
-    const onViewportChange = () => {
-      syncViewportVars()
-    }
-    vv?.addEventListener('resize', onViewportChange)
-    vv?.addEventListener('scroll', onViewportChange)
-    window.addEventListener('resize', onViewportChange)
-
-    return () => {
-      vv?.removeEventListener('resize', onViewportChange)
-      vv?.removeEventListener('scroll', onViewportChange)
-      window.removeEventListener('resize', onViewportChange)
-      document.documentElement.style.removeProperty('--pap-modal-vh')
-      document.documentElement.style.removeProperty('--pap-consult-chrome-h')
-    }
-  }, [open])
-
   useEffect(() => {
     const root = scrollBodyRef.current
     if (!open || !root) return undefined
 
     const runAdjust = (target: HTMLElement) => {
-      window.requestAnimationFrame(() => {
-        adjustModalBodyScrollForFocusedField(root, target)
-        window.requestAnimationFrame(() => {
-          adjustModalBodyScrollForFocusedField(root, target)
-        })
-      })
+      const footer = formRef.current?.querySelector('.pap-consult-footer')
+      const footerTop = footer instanceof HTMLElement ? footer.getBoundingClientRect().top : null
+      scrollFocusedField(root, target, footerTop)
     }
 
     const onFocusIn = (e: FocusEvent) => {
       const target = e.target
-      if (!(target instanceof HTMLElement)) return
-      if (!target.matches('input, textarea, select')) return
-      runAdjust(target)
+      if (!(target instanceof HTMLElement) || !target.matches('input, textarea, select')) return
+      window.requestAnimationFrame(() => {
+        runAdjust(target)
+        window.requestAnimationFrame(() => runAdjust(target))
+      })
     }
 
     root.addEventListener('focusin', onFocusIn)
     return () => root.removeEventListener('focusin', onFocusIn)
   }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const active = document.activeElement
+    const root = scrollBodyRef.current
+    if (!(active instanceof HTMLElement) || !root?.contains(active)) return
+    if (!active.matches('input, textarea, select')) return
+    const footer = formRef.current?.querySelector('.pap-consult-footer')
+    const footerTop = footer instanceof HTMLElement ? footer.getBoundingClientRect().top : null
+    scrollFocusedField(root, active, footerTop)
+  }, [open, keyboard.keyboardOpen, keyboard.viewportHeight, keyboard.viewportOffsetTop])
 
   if (!open) return null
 
@@ -122,20 +137,27 @@ export function AdvisorConsultationRequestModal({ open, submitting, onClose, onS
     })
   }
 
+  const footer = (
+    <ConsultFooter submitting={submitting} privacyConsent={privacyConsent} onClose={onClose} />
+  )
+
   return (
     <div className="pap-modal-backdrop pap-modal-backdrop--consult" role="presentation">
       <form
         ref={formRef}
         className="pap-modal pap-modal--sheet pap-modal--consult"
+        style={consultSheetStyle(keyboard)}
+        data-keyboard={keyboard.keyboardOpen ? 'open' : 'closed'}
         onSubmit={handleSubmit}
+        role="dialog"
+        aria-modal="true"
         aria-labelledby="pap-consult-modal-title"
       >
         <header className="pap-modal__header">
           <h2 id="pap-consult-modal-title">상담 신청</h2>
           <p className="pap-affiliation">입력한 정보가 상담을 위해 해당 설계사에게 전달됩니다.</p>
         </header>
-
-        <div className="pap-modal__body" ref={scrollBodyRef}>
+        <ConsultBody scrollRef={scrollBodyRef} footer={keyboard.keyboardOpen ? footer : null}>
           <label>
             이름
             <input name="name" required minLength={2} disabled={submitting} autoComplete="name" />
@@ -171,22 +193,26 @@ export function AdvisorConsultationRequestModal({ open, submitting, onClose, onS
             termsOpen={privacyTermsOpen}
             onTermsOpenChange={setPrivacyTermsOpen}
           />
-        </div>
-
-        <footer className="pap-modal__footer pap-modal__footer--dual">
-          <button type="button" className="pap-btn pap-btn--secondary" onClick={onClose} disabled={submitting}>
-            닫기
-          </button>
-          <button
-            type="submit"
-            className="pap-btn pap-btn--primary"
-            disabled={submitting || !privacyConsent}
-            aria-disabled={submitting || !privacyConsent}
-          >
-            {submitting ? '전송 중…' : '신청하기'}
-          </button>
-        </footer>
+        </ConsultBody>
+        {keyboard.keyboardOpen ? null : footer}
       </form>
+    </div>
+  )
+}
+
+function ConsultBody({
+  scrollRef,
+  footer,
+  children,
+}: {
+  scrollRef: RefObject<HTMLDivElement | null>
+  footer: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <div className="pap-modal__body" ref={scrollRef}>
+      <div className="pap-sheet__fields">{children}</div>
+      {footer}
     </div>
   )
 }
