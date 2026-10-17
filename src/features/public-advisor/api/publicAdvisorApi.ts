@@ -25,6 +25,18 @@ export type PublicAdvisorDetail = PublicAdvisorCard & {
   heroDisplayEyebrowVisible?: boolean
   heroDisplayTitleVisible?: boolean
   heroDisplaySubtitleVisible?: boolean
+  publicPhone?: string
+  publicFax?: string
+  publicEmail?: string
+  showPublicPhone?: boolean
+  showPublicFax?: boolean
+  showPublicEmail?: boolean
+  customContacts?: Array<{
+    id: string
+    label: string
+    value: string
+    contactType: string
+  }>
   businessCardFrontUrl?: string | null
   businessCardBackUrl?: string | null
   bio: string
@@ -71,6 +83,14 @@ export type OwnerPublicProfileResponse = {
   profilePhotoUrl: string | null
   businessCardFrontUrl: string | null
   businessCardBackUrl: string | null
+  customContacts?: Array<{
+    id: string
+    label: string
+    value: string
+    contactType: string
+    isVisible: boolean
+    sortOrder: number
+  }>
 }
 
 export async function fetchMyPublicProfile(token: string): Promise<OwnerPublicProfileResponse> {

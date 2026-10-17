@@ -89,6 +89,18 @@ export function PublicAdvisorProfilePage() {
       teamName: data.teamName,
       careerText: data.careerText,
       officeLine: data.officeLine,
+      publicPhone: data.publicPhone,
+      showPublicPhone: data.showPublicPhone,
+      publicFax: data.publicFax,
+      showPublicFax: data.showPublicFax,
+      publicEmail: data.publicEmail,
+      showPublicEmail: data.showPublicEmail,
+      customContacts: (data.customContacts ?? []).map((c) => ({
+        label: c.label,
+        value: c.value,
+        contactType: c.contactType,
+        isVisible: true,
+      })),
     })
   }, [data])
 

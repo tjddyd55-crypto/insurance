@@ -147,6 +147,57 @@ export async function ensurePublicAdvisorProfileSchema(executor) {
   `)
 
   await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ADD COLUMN IF NOT EXISTS public_phone TEXT NOT NULL DEFAULT ''
+  `)
+
+  await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ADD COLUMN IF NOT EXISTS public_fax TEXT NOT NULL DEFAULT ''
+  `)
+
+  await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ADD COLUMN IF NOT EXISTS public_email TEXT NOT NULL DEFAULT ''
+  `)
+
+  await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ADD COLUMN IF NOT EXISTS show_public_phone BOOLEAN NOT NULL DEFAULT true
+  `)
+
+  await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ADD COLUMN IF NOT EXISTS show_public_fax BOOLEAN NOT NULL DEFAULT false
+  `)
+
+  await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ADD COLUMN IF NOT EXISTS show_public_email BOOLEAN NOT NULL DEFAULT false
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS advisor_public_profile_contacts (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      label TEXT NOT NULL DEFAULT '',
+      value TEXT NOT NULL DEFAULT '',
+      contact_type TEXT NOT NULL DEFAULT 'text',
+      is_visible BOOLEAN NOT NULL DEFAULT true,
+      sort_order SMALLINT NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT advisor_public_profile_contacts_type_check
+        CHECK (contact_type IN ('phone', 'email', 'url', 'text'))
+    )
+  `)
+
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_advisor_public_profile_contacts_user_sort
+    ON advisor_public_profile_contacts (user_id, sort_order ASC, created_at ASC)
+  `)
+
+  await executor.query(`
     DO $$
     BEGIN
       ALTER TABLE advisor_public_profiles

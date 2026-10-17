@@ -10,6 +10,8 @@ import {
 import { assertAdvisorPublicObjectKeyOwned } from './publicAdvisorMedia.js'
 import { normalizeAdvisorProfileTheme } from './publicAdvisorProfileTheme.js'
 import { buildAdvisorOgDescription, buildAdvisorOgTitle } from './publicAdvisorOgMeta.js'
+import { loadCustomContacts, loadVisibleCustomContacts, syncCustomContacts } from './advisorPublicProfileContacts.js'
+import { resolveAdvisorPublicPhone } from './resolveAdvisorPublicPhone.js'
 
 const GALLERY_MAX = 6
 const HASHTAG_MAX = 5
@@ -187,7 +189,8 @@ export async function getAdvisorProfileForOwner(pool, userId) {
   const user = await loadUserContext(pool, userId)
   const gallery = await loadGallery(pool, userId)
   const verificationBadges = await resolveVerificationBadges(pool, user)
-  return { profile: row, user, gallery, verificationBadges }
+  const customContacts = await loadCustomContacts(pool, userId)
+  return { profile: row, user, gallery, verificationBadges, customContacts }
 }
 
 export async function getPublishedAdvisorBySlug(pool, slug) {
@@ -214,11 +217,12 @@ export async function getPublishedAdvisorBySlug(pool, slug) {
     return { status: 'private' }
   }
   const gallery = await loadGallery(pool, row.user_id)
+  const customContacts = await loadVisibleCustomContacts(pool, row.user_id)
   const publicUser = {
     displayName: String(row.display_name ?? '').trim(),
     gaName: String(row.ga_name ?? '').trim(),
     teamName: String(row.team_name ?? '').trim(),
-    phoneNumber: row.show_phone ? String(row.phone_number ?? '').trim() : '',
+    phoneNumber: resolveAdvisorPublicPhone(row),
     kakaoLink: row.show_kakao ? String(row.kakao_link ?? '').trim() : '',
   }
   return {
@@ -248,6 +252,18 @@ export async function getPublishedAdvisorBySlug(pool, slug) {
       heroDisplayEyebrowVisible: row.hero_display_eyebrow_visible !== false,
       heroDisplayTitleVisible: row.hero_display_title_visible !== false,
       heroDisplaySubtitleVisible: row.hero_display_subtitle_visible !== false,
+      publicPhone: String(row.public_phone ?? '').trim(),
+      publicFax: String(row.public_fax ?? '').trim(),
+      publicEmail: String(row.public_email ?? '').trim(),
+      showPublicPhone: row.show_public_phone !== false,
+      showPublicFax: row.show_public_fax === true,
+      showPublicEmail: row.show_public_email === true,
+      customContacts: customContacts.map((c) => ({
+        id: c.id,
+        label: String(c.label ?? '').trim(),
+        value: String(c.value ?? '').trim(),
+        contactType: String(c.contact_type ?? 'text'),
+      })),
     },
     user: publicUser,
     gallery,
@@ -425,6 +441,9 @@ export async function patchAdvisorProfileForOwner(pool, userId, patch) {
     'hero_display_eyebrow',
     'hero_display_title',
     'hero_display_subtitle',
+    'public_phone',
+    'public_fax',
+    'public_email',
   ]
   for (const key of textFields) {
     if (!Object.prototype.hasOwnProperty.call(patch, key)) continue
@@ -455,6 +474,9 @@ export async function patchAdvisorProfileForOwner(pool, userId, patch) {
     'hero_display_eyebrow_visible',
     'hero_display_title_visible',
     'hero_display_subtitle_visible',
+    'show_public_phone',
+    'show_public_fax',
+    'show_public_email',
   ]
   for (const key of boolFields) {
     if (patch[key] != null) {
@@ -463,8 +485,17 @@ export async function patchAdvisorProfileForOwner(pool, userId, patch) {
     }
   }
 
+  if (patch.custom_contacts != null) {
+    await syncCustomContacts(pool, userId, patch.custom_contacts)
+  }
+
   if (sets.length === 0) {
-    return { ok: true, profile: current }
+    const refreshed = await systemQuery(
+      pool,
+      `SELECT * FROM advisor_public_profiles WHERE user_id = $1 LIMIT 1`,
+      [userId],
+    )
+    return { ok: true, profile: refreshed.rows[0] ?? current }
   }
 
   if (patch.is_published === true) {

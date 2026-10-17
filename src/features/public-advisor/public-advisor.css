@@ -2188,6 +2188,35 @@
   margin: 0 0 8px;
 }
 
+.pap-editor-subsection-title {
+  margin: 18px 0 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.pap-custom-contacts-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.pap-custom-contacts-editor__row {
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fafafa;
+  display: grid;
+  gap: 8px;
+}
+
+.pap-custom-contacts-editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .pap-hero-eyebrow--classic {
   margin: 0 0 6px;
   font-size: 0.72rem;

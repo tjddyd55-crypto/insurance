@@ -20,7 +20,9 @@ import { buildAdvisorPublicPath } from '../advisorPublicRoutes'
 import { AdvisorEditorMediaImage } from '../components/AdvisorEditorMediaImage'
 import { AdvisorMobileCardThemePicker } from '../components/AdvisorMobileCardThemePicker'
 import { AdvisorProfileQr } from '../components/AdvisorProfileQr'
+import { AdvisorCustomContactsEditor, type CustomContactDraft } from '../components/AdvisorCustomContactsEditor'
 import { AdvisorHeroEditorField } from '../components/AdvisorHeroEditorField'
+import { resolveAdvisorPublicPhone } from '../utils/resolveAdvisorPublicPhone'
 import { AdvisorPublicProfileView } from '../components/AdvisorPublicProfileView'
 import { normalizeProfileTheme, type AdvisorProfileTheme } from '../profileTheme'
 import { RECOMMENDED_ADVISOR_HASHTAGS } from '../recommendedHashtags'
@@ -85,7 +87,13 @@ export function MyPublicProfilePage() {
   const [hashtags, setHashtags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
   const [isPublished, setIsPublished] = useState(false)
-  const [showPhone, setShowPhone] = useState(true)
+  const [publicPhone, setPublicPhone] = useState('')
+  const [publicFax, setPublicFax] = useState('')
+  const [publicEmail, setPublicEmail] = useState('')
+  const [showPublicPhone, setShowPublicPhone] = useState(true)
+  const [showPublicFax, setShowPublicFax] = useState(false)
+  const [showPublicEmail, setShowPublicEmail] = useState(false)
+  const [customContacts, setCustomContacts] = useState<CustomContactDraft[]>([])
   const [allowConsultation, setAllowConsultation] = useState(true)
   const [profileTheme, setProfileTheme] = useState<AdvisorProfileTheme>('classic')
   const [address, setAddress] = useState<AddressSearchValue>(emptyAddress)
@@ -158,7 +166,21 @@ export function MyPublicProfilePage() {
       setHeroSubtitleVisible(p.hero_display_subtitle_visible !== false)
       setHashtags(Array.isArray(p.hashtags) ? (p.hashtags as string[]) : [])
       setIsPublished(Boolean(p.is_published))
-      setShowPhone(p.show_phone !== false)
+      setPublicPhone(loadProfileTextField(p.public_phone))
+      setPublicFax(loadProfileTextField(p.public_fax))
+      setPublicEmail(loadProfileTextField(p.public_email))
+      setShowPublicPhone(p.show_public_phone !== false)
+      setShowPublicFax(p.show_public_fax === true)
+      setShowPublicEmail(p.show_public_email === true)
+      setCustomContacts(
+        (data.customContacts ?? []).map((c) => ({
+          id: String(c.id),
+          label: String(c.label ?? ''),
+          value: String(c.value ?? ''),
+          contactType: (c.contactType as CustomContactDraft['contactType']) || 'text',
+          isVisible: c.isVisible !== false,
+        })),
+      )
       setAllowConsultation(p.allow_consultation !== false)
       setProfileTheme(normalizeProfileTheme(p.profile_theme))
       setAddress({
@@ -196,7 +218,19 @@ export function MyPublicProfilePage() {
           heroSubtitleVisible: p.hero_display_subtitle_visible !== false,
           hashtags: Array.isArray(p.hashtags) ? p.hashtags : [],
           isPublished: Boolean(p.is_published),
-          showPhone: p.show_phone !== false,
+          publicPhone: loadProfileTextField(p.public_phone),
+          publicFax: loadProfileTextField(p.public_fax),
+          publicEmail: loadProfileTextField(p.public_email),
+          showPublicPhone: p.show_public_phone !== false,
+          showPublicFax: p.show_public_fax === true,
+          showPublicEmail: p.show_public_email === true,
+          customContacts: (data.customContacts ?? []).map((c) => ({
+            id: String(c.id),
+            label: String(c.label ?? ''),
+            value: String(c.value ?? ''),
+            contactType: c.contactType,
+            isVisible: c.isVisible !== false,
+          })),
           allowConsultation: p.allow_consultation !== false,
           profileTheme: normalizeProfileTheme(p.profile_theme),
           address: {
@@ -253,8 +287,21 @@ export function MyPublicProfilePage() {
         hero_display_subtitle_visible: heroSubtitleVisible,
         hashtags,
         is_published: isPublished,
-        show_phone: showPhone,
+        public_phone: publicPhone,
+        public_fax: publicFax,
+        public_email: publicEmail,
+        show_public_phone: showPublicPhone,
+        show_public_fax: showPublicFax,
+        show_public_email: showPublicEmail,
+        show_phone: false,
         show_kakao: false,
+        custom_contacts: customContacts.map((c, index) => ({
+          label: c.label,
+          value: c.value,
+          contact_type: c.contactType,
+          is_visible: c.isVisible,
+          sort_order: index,
+        })),
         kakao_link: '',
         allow_consultation: allowConsultation,
         profile_theme: profileTheme,
@@ -290,7 +337,13 @@ export function MyPublicProfilePage() {
         heroSubtitleVisible,
         hashtags,
         isPublished,
-        showPhone,
+        publicPhone,
+        publicFax,
+        publicEmail,
+        showPublicPhone,
+        showPublicFax,
+        showPublicEmail,
+        customContacts,
         allowConsultation,
         profileTheme,
         address,
@@ -314,7 +367,6 @@ export function MyPublicProfilePage() {
       isPublished,
       profilePhotoObjectKey,
       profileTheme,
-      showPhone,
       slug,
     ],
   )
@@ -473,7 +525,11 @@ export function MyPublicProfilePage() {
   const officePreviewLine = [address.roadAddress, address.addressDetail].filter(Boolean).join(' ')
 
   const livePreviewModel = useMemo(() => {
-    const phoneForPreview = showPhone ? ownerPhone || '01000000000' : ''
+    const phoneForPreview = resolveAdvisorPublicPhone({
+      publicPhone,
+      showPublicPhone,
+      accountPhone: ownerPhone,
+    })
     return {
       displayName: ownerDisplayName || user?.displayName || '',
       gaName: ownerGaName,
@@ -505,6 +561,18 @@ export function MyPublicProfilePage() {
         teamName: ownerTeamName,
         careerText,
         officeLine: officePreviewLine,
+        publicPhone,
+        showPublicPhone,
+        publicFax,
+        showPublicFax,
+        publicEmail,
+        showPublicEmail,
+        customContacts: customContacts.map((c) => ({
+          label: c.label,
+          value: c.value,
+          contactType: c.contactType,
+          isVisible: c.isVisible,
+        })),
       }),
     }
   }, [
@@ -522,7 +590,13 @@ export function MyPublicProfilePage() {
     ownerPhone,
     ownerTeamName,
     profilePhotoPreviewUrl,
-    showPhone,
+    publicPhone,
+    publicFax,
+    publicEmail,
+    showPublicPhone,
+    showPublicFax,
+    showPublicEmail,
+    customContacts,
     heroEyebrowVisible,
     heroTitleVisible,
     heroSubtitleVisible,
@@ -772,11 +846,43 @@ export function MyPublicProfilePage() {
             }}
           />
 
+          <h2 className="pap-editor-section-title">연락처 정보</h2>
+          <p className="pap-editor-hint">모바일 명함에 표시할 연락처입니다. 계정 전화번호와 별도로 관리됩니다.</p>
+          <AdvisorHeroEditorField
+            label="전화번호"
+            hint="공개 전화번호"
+            placeholder="010-1234-5678"
+            value={publicPhone}
+            visible={showPublicPhone}
+            maxLength={40}
+            onChange={setPublicPhone}
+            onToggleVisible={() => setShowPublicPhone((v) => !v)}
+          />
+          <AdvisorHeroEditorField
+            label="팩스번호"
+            hint="표시만 (클릭 동작 없음)"
+            placeholder="02-1234-5678"
+            value={publicFax}
+            visible={showPublicFax}
+            maxLength={40}
+            onChange={setPublicFax}
+            onToggleVisible={() => setShowPublicFax((v) => !v)}
+          />
+          <AdvisorHeroEditorField
+            label="이메일 주소"
+            hint="클릭 시 메일 앱"
+            placeholder="example@email.com"
+            value={publicEmail}
+            visible={showPublicEmail}
+            maxLength={120}
+            onChange={setPublicEmail}
+            onToggleVisible={() => setShowPublicEmail((v) => !v)}
+          />
+
+          <h3 className="pap-editor-subsection-title">추가 연락처</h3>
+          <AdvisorCustomContactsEditor items={customContacts} max={8} onChange={setCustomContacts} />
+
           <h2 className="pap-editor-section-title">연락 기능 설정</h2>
-          <div className="pap-editor-toggle-row">
-            <span>전화번호 공개</span>
-            <input type="checkbox" checked={showPhone} onChange={(e) => setShowPhone(e.target.checked)} />
-          </div>
           <div className="pap-editor-toggle-row">
             <span>상담 신청 받기</span>
             <input type="checkbox" checked={allowConsultation} onChange={(e) => setAllowConsultation(e.target.checked)} />

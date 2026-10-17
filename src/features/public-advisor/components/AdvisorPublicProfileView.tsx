@@ -188,13 +188,23 @@ export function AdvisorPublicProfileView({
               <h2 className="pap-section__sr-only">소속 및 연락 정보</h2>
               <dl className="pap-facts">
                 {model.infoBlocks.map((block) => (
-                  <div key={block.label} className="pap-facts__row">
+                  <div key={`${block.label}-${block.value ?? block.lines?.join('|') ?? ''}`} className="pap-facts__row">
                     <dt>{block.label}</dt>
                     {block.lines ? (
                       <dd className="pap-facts__dd--stacked">
                         {block.lines.map((line) => (
                           <span key={line} className="pap-facts__line">{line}</span>
                         ))}
+                      </dd>
+                    ) : block.href && !isPreview ? (
+                      <dd>
+                        <a
+                          href={block.href}
+                          target={block.external ? '_blank' : undefined}
+                          rel={block.external ? 'noopener noreferrer' : undefined}
+                        >
+                          {block.value}
+                        </a>
                       </dd>
                     ) : (
                       <dd>{block.value}</dd>
