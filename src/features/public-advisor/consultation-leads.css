@@ -119,9 +119,21 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 8px;
-  margin: 12px 0;
+  justify-content: space-between;
+  gap: 8px 10px;
+  margin: 12px 0 4px;
   font-size: 0.9rem;
+}
+
+.pap-consult-privacy__check {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .pap-consult-privacy__required {
@@ -143,7 +155,7 @@
   white-space: pre-wrap;
   font-size: 0.9rem;
   line-height: 1.55;
-  max-height: 50vh;
   overflow-y: auto;
-  margin-bottom: 12px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }

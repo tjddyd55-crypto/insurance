@@ -341,10 +341,10 @@
 
 .pap-action-bar {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: center;
   gap: 2px;
-  padding: 8px 6px 12px;
+  padding: 6px 6px 10px;
   margin: 0;
   border-top: 1px solid #f3f4f6;
 }
@@ -353,12 +353,13 @@
   flex: 1;
   min-width: 0;
   max-width: 92px;
-  min-height: 44px;
-  padding: 4px 2px;
+  min-height: 76px;
+  padding: 8px 2px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  gap: 6px;
   border: none;
   background: transparent;
   font: inherit;
@@ -1367,6 +1368,59 @@
 .pap-modal--sheet {
   max-width: 720px;
   text-align: left;
+}
+
+.pap-modal--consult,
+.pap-consult-privacy-modal {
+  max-height: min(100dvh, var(--pap-modal-vh, 100dvh));
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.pap-modal--consult .pap-modal__header,
+.pap-consult-privacy-modal .pap-modal__header {
+  flex: none;
+  padding: 18px 16px 8px;
+}
+
+.pap-modal--consult .pap-modal__header h2,
+.pap-consult-privacy-modal .pap-modal__header h2 {
+  margin: 0 0 6px;
+  font-size: 1.15rem;
+}
+
+.pap-modal--consult .pap-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 16px 12px;
+}
+
+.pap-modal__footer {
+  flex: none;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid #f3f4f6;
+  background: #fff;
+}
+
+.pap-modal-backdrop--privacy {
+  z-index: 60;
+}
+
+.pap-modal-backdrop--consult {
+  z-index: 55;
+}
+
+.pap-consult-privacy-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  margin: 0;
+  padding: 0 16px 12px;
 }
 
 .pap-modal--sheet label {
