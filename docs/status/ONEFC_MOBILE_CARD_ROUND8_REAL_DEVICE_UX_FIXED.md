@@ -15,6 +15,11 @@ Development only. Production/main unchanged.
 - On narrow mobile widths the primary button could wrap to a second row; combined with modal `overflow: hidden` and full-height sheet, the second row was clipped or appeared as “닫기 only”.
 - Fix: `.pap-modal__footer--dual` 2-column grid, full-width buttons, explicit disabled opacity (not hidden).
 
+### D. 개인정보 row 깨짐 (추가)
+
+- `.pap-consult-privacy*` lived in `consultation-leads.css`, imported only on CRM `/consultation-leads`, **not** on public `/fc/:slug`.
+- Fix: move privacy row styles into `public-advisor.css` (loaded on FC page).
+
 ### C. Keyboard / 과도한 스크롤
 
 - `focusin` → `scrollIntoView({ block: 'nearest', behavior: 'smooth' })` fought mobile keyboard + `visualViewport` resize.
