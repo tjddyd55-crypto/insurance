@@ -180,15 +180,80 @@
   width: 100%;
   aspect-ratio: 4 / 5;
   max-height: min(52vh, 400px);
-  background: #e5e7eb;
+  background: #d1d5db;
   overflow: hidden;
 }
 
+.pap-hero--theme-classic .pap-hero-photo-wrap--portrait {
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+
+.pap-hero-photo-wrap__edge {
+  pointer-events: none;
+  position: absolute;
+  inset: auto 0 0;
+  height: 28%;
+  background: linear-gradient(180deg, transparent 0%, rgba(15, 23, 42, 0.12) 100%);
+}
+
+.pap-hero-portrait-slot {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.pap-hero-portrait-slot--classic {
+  min-height: 100%;
+}
+
+.pap-hero-portrait-slot--brand,
+.pap-hero-portrait-slot--premium {
+  position: absolute;
+  inset: 0;
+}
+
+.pap-hero-portrait-slot__placeholder {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: rgba(55, 65, 81, 0.55);
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.pap-hero-portrait-slot:has(.pap-img-fallback) .pap-hero-portrait-slot__placeholder {
+  display: block;
+}
+
+.pap-hero-portrait-slot:has(.pap-img-fallback)::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  transform: translate(-50%, -50%);
+  width: 42%;
+  max-width: 140px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #f8fafc 0%, #cbd5e1 55%, #94a3b8 100%);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
 .pap-hero--theme-classic .pap-hero-photo,
-.pap-hero--theme-classic .pap-hero-photo-wrap .pap-img-fallback {
+.pap-hero--theme-classic .pap-hero-photo-wrap .pap-img-fallback,
+.pap-hero-portrait-slot--classic .pap-hero-photo,
+.pap-hero-portrait-slot--classic .pap-img-fallback {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center 18%;
   display: block;
   border-radius: 0;
   margin: 0;
@@ -1198,22 +1263,36 @@
 .pap-hero-brand__photo-ring {
   position: relative;
   z-index: 1;
-  width: min(46vw, 172px);
-  height: min(46vw, 172px);
-  margin: -42px auto 0;
-  border: 4px solid #fff;
+  width: min(52vw, 196px);
+  height: min(52vw, 196px);
+  margin: -48px auto 0;
+  border: 5px solid #fff;
   border-radius: 50%;
   overflow: hidden;
-  background: #e5e7eb;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
+  background: #cbd5e1;
+  box-shadow:
+    0 12px 32px rgba(15, 23, 42, 0.18),
+    0 0 0 1px rgba(37, 99, 235, 0.12);
+}
+
+.pap-hero-brand__photo-ring--portrait {
+  isolation: isolate;
 }
 
 .pap-hero-brand__photo,
-.pap-hero-brand__photo-ring .pap-img-fallback {
+.pap-hero-brand__photo-ring .pap-img-fallback,
+.pap-hero-portrait-slot--brand .pap-hero-brand__photo,
+.pap-hero-portrait-slot--brand .pap-img-fallback {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center 15%;
   display: block;
+}
+
+.pap-hero-portrait-slot--brand:has(.pap-img-fallback)::before {
+  width: 58%;
+  top: 42%;
 }
 
 .pap-hero-brand__bottom {
@@ -1237,29 +1316,57 @@
   aspect-ratio: 4 / 5;
   max-height: min(56vh, 440px);
   overflow: hidden;
-  background: linear-gradient(165deg, #0f2744 0%, #1e3a5f 100%);
+  background: #1e293b;
+}
+
+.pap-hero-premium__media--portrait {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .pap-hero-premium__photo,
-.pap-hero-premium__media .pap-img-fallback {
+.pap-hero-premium__media .pap-img-fallback,
+.pap-hero-portrait-slot--premium .pap-hero-premium__photo,
+.pap-hero-portrait-slot--premium .pap-img-fallback {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center 12%;
   display: block;
 }
 
-.pap-hero--theme-premium .pap-hero-premium__overlay {
+.pap-hero-premium__scrim {
+  pointer-events: none;
   position: absolute;
-  inset: auto 0 0;
-  padding: 72px 18px 20px;
-  text-align: left;
-  color: #fff;
+  inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(15, 23, 42, 0) 0%,
-    rgba(15, 33, 64, 0.55) 42%,
-    rgba(8, 20, 40, 0.94) 100%
+    rgba(15, 23, 42, 0.05) 0%,
+    rgba(15, 23, 42, 0) 38%,
+    rgba(8, 20, 40, 0.35) 72%,
+    rgba(8, 20, 40, 0.72) 100%
   );
+}
+
+.pap-hero-premium__panel {
+  position: absolute;
+  inset: auto 10px 10px;
+  padding: 14px 14px 12px;
+  text-align: left;
+  color: #fff;
+  border-radius: 14px;
+  background: rgba(8, 20, 40, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+}
+
+.pap-hero-premium__panel-brand {
+  margin: 0 0 4px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .pap-name--premium {
@@ -1271,6 +1378,11 @@
   letter-spacing: -0.02em;
 }
 
+.pap-name--premium .pap-name__suffix {
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+}
+
 .pap-verify-line--on-dark {
   margin: 4px 0 0;
   font-size: 0.75rem;
@@ -1280,10 +1392,17 @@
 
 .pap-hero-premium__affiliation {
   margin: 4px 0 0;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 600;
   line-height: 1.4;
   color: rgba(255, 255, 255, 0.92);
+}
+
+.pap-hero-premium__office {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .pap-headline--premium {
@@ -1445,7 +1564,7 @@
 }
 
 .pap-theme-picker__live-preview {
-  height: 228px;
+  height: 252px;
   overflow: hidden;
   border-radius: 10px;
   border: 1px solid #e5e7eb;
@@ -1460,9 +1579,16 @@
   top: 0;
   width: 390px;
   margin-left: -195px;
-  transform: scale(0.54);
+  transform: scale(0.58);
   transform-origin: top center;
   pointer-events: none;
+}
+
+.pap-theme-picker__live-scale .pap-hero-photo-wrap--portrait,
+.pap-theme-picker__live-scale .pap-hero-brand__photo-ring--portrait,
+.pap-theme-picker__live-scale .pap-hero-premium__media--portrait {
+  /* CRM 카드에서도 대표사진 슬롯 비율이 Hero와 동일하게 보이도록 */
+  visibility: visible;
 }
 
 .pap-theme-preview-shell {

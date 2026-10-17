@@ -1,7 +1,7 @@
 import { AdvisorProfileActionBar } from '../AdvisorProfileActionBar'
-import { AdvisorPublicImage } from '../AdvisorPublicImage'
 import type { AdvisorProfileHeroProps } from './advisorProfileHeroTypes'
 import { AdvisorHeroTags } from './AdvisorHeroShared'
+import { AdvisorHeroPortraitSlot } from './AdvisorHeroPortraitSlot'
 
 export function AdvisorProfileHeroPremium(props: AdvisorProfileHeroProps) {
   const {
@@ -10,6 +10,7 @@ export function AdvisorProfileHeroPremium(props: AdvisorProfileHeroProps) {
     profilePhotoUrl,
     primaryBadgeLabel,
     affiliationLine,
+    officeLine,
     headline,
     publicTags,
     actionBarTheme,
@@ -18,18 +19,16 @@ export function AdvisorProfileHeroPremium(props: AdvisorProfileHeroProps) {
 
   return (
     <header className="pap-hero pap-hero--premium pap-fc-card pap-fc-card--hero pap-hero--theme-premium">
-      <div className="pap-hero-premium__media">
-        <AdvisorPublicImage
-          className="pap-hero-premium__photo"
-          src={profilePhotoUrl}
-          alt={displayName}
-          loading="eager"
-        />
-        <div className="pap-hero-premium__overlay">
+      <div className="pap-hero-premium__media pap-hero-premium__media--portrait">
+        <AdvisorHeroPortraitSlot variant="premium" src={profilePhotoUrl} alt={displayName} />
+        <div className="pap-hero-premium__scrim" aria-hidden />
+        <div className="pap-hero-premium__panel">
+          <p className="pap-hero-premium__panel-brand">ONE FC</p>
           <h1 className="pap-name pap-name--premium">
-            {displayName} {titleSuffix}
+            {displayName} <span className="pap-name__suffix">{titleSuffix}</span>
           </h1>
           {affiliationLine ? <p className="pap-hero-premium__affiliation">{affiliationLine}</p> : null}
+          {officeLine ? <p className="pap-hero-premium__office">{officeLine}</p> : null}
           {primaryBadgeLabel ? (
             <p className="pap-verify-line pap-verify-line--on-dark">{primaryBadgeLabel}</p>
           ) : null}

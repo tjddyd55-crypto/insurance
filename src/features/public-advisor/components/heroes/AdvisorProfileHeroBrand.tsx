@@ -1,7 +1,7 @@
 import { AdvisorProfileActionBar } from '../AdvisorProfileActionBar'
-import { AdvisorPublicImage } from '../AdvisorPublicImage'
 import type { AdvisorProfileHeroProps } from './advisorProfileHeroTypes'
 import { AdvisorHeroTags } from './AdvisorHeroShared'
+import { AdvisorHeroPortraitSlot } from './AdvisorHeroPortraitSlot'
 
 export function AdvisorProfileHeroBrand(props: AdvisorProfileHeroProps) {
   const {
@@ -30,13 +30,8 @@ export function AdvisorProfileHeroBrand(props: AdvisorProfileHeroProps) {
           <p className="pap-hero-brand__affiliation">{affiliationLine}</p>
         ) : null}
       </div>
-      <div className="pap-hero-brand__photo-ring">
-        <AdvisorPublicImage
-          className="pap-hero-brand__photo"
-          src={profilePhotoUrl}
-          alt={displayName}
-          loading="eager"
-        />
+      <div className="pap-hero-brand__photo-ring pap-hero-brand__photo-ring--portrait">
+        <AdvisorHeroPortraitSlot variant="brand" src={profilePhotoUrl} alt={displayName} />
       </div>
       <div className="pap-hero-brand__bottom">
         {officeLine ? <p className="pap-hero-line pap-hero-office">{officeLine}</p> : null}

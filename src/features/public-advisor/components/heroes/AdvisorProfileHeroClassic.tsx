@@ -1,7 +1,7 @@
 import { AdvisorProfileActionBar } from '../AdvisorProfileActionBar'
-import { AdvisorPublicImage } from '../AdvisorPublicImage'
 import type { AdvisorProfileHeroProps } from './advisorProfileHeroTypes'
 import { AdvisorHeroNameLine, AdvisorHeroTags } from './AdvisorHeroShared'
+import { AdvisorHeroPortraitSlot } from './AdvisorHeroPortraitSlot'
 
 export function AdvisorProfileHeroClassic(props: AdvisorProfileHeroProps) {
   const {
@@ -19,13 +19,9 @@ export function AdvisorProfileHeroClassic(props: AdvisorProfileHeroProps) {
 
   return (
     <header className="pap-hero pap-hero--billboard pap-fc-card pap-fc-card--hero pap-hero--theme-classic">
-      <div className="pap-hero-photo-wrap">
-        <AdvisorPublicImage
-          className="pap-hero-photo"
-          src={profilePhotoUrl}
-          alt={displayName}
-          loading="eager"
-        />
+      <div className="pap-hero-photo-wrap pap-hero-photo-wrap--portrait">
+        <AdvisorHeroPortraitSlot variant="classic" src={profilePhotoUrl} alt={displayName} />
+        <div className="pap-hero-photo-wrap__edge" aria-hidden />
       </div>
       <div className="pap-hero-body">
         <AdvisorHeroNameLine displayName={displayName} titleSuffix={titleSuffix} />
