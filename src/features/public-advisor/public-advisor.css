@@ -11,6 +11,9 @@
   --pap-sheet-footer-gap: 10px;
   --pap-sheet-footer-pad-y: 12px;
   --pap-sheet-max-height: 92dvh;
+  --pap-field-error: var(--danger, #dc2626);
+  --pap-field-error-bg: var(--danger-bg, #fef2f2);
+  --pap-field-error-border: var(--danger-border, #fecaca);
 }
 
 .public-advisor-page {
@@ -877,6 +880,7 @@
   font-weight: 600;
 }
 
+/* 상담 신청 실패는 .pap-consult-alert. 이 floating 은 접수 안내와 페이지 수준 오류만. */
 .pap-status--floating,
 .pap-error--floating {
   position: fixed;
@@ -1485,6 +1489,27 @@
   cursor: not-allowed;
 }
 
+.pap-consult-alert {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--pap-field-error);
+  background: var(--pap-field-error-bg);
+  border: 1px solid var(--pap-field-error-border);
+}
+
+.pap-consult-alert--system {
+  flex: none;
+  margin: 0 var(--pap-sheet-padding-x) 8px;
+}
+
+.pap-consult-footer .pap-consult-alert--business {
+  grid-column: 1 / -1;
+}
+
 .pap-modal-backdrop--privacy {
   z-index: 60;
 }
@@ -1584,6 +1609,24 @@
   resize: none;
   overflow: hidden;
   min-height: 96px;
+}
+
+.pap-modal--consult .pap-field-error {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--pap-field-error);
+}
+
+.pap-modal--consult input[aria-invalid='true'],
+.pap-modal--consult textarea[aria-invalid='true'],
+.pap-modal--consult select[aria-invalid='true'] {
+  border-color: var(--pap-field-error);
+}
+
+.pap-consult-privacy-block .pap-field-error {
+  margin: 0;
 }
 
 .pap-modal--qr .pap-qr-canvas {
