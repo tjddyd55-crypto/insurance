@@ -48,20 +48,23 @@ for (const [file, theme] of [
   console.log('saved', file)
 }
 
-const crmUser = process.env.QA_ADVISOR_USERNAME ?? 'qa_ai_user'
+const crmUser = process.env.DEV_TEST_USERNAME ?? process.env.QA_ADVISOR_USERNAME ?? 'qa_ai_user'
 const crmPass =
-  process.env.DEV_TEST_PASSWORD ?? process.env.INSURANCE_GA_QA_BOOTSTRAP_PASSWORD ?? process.env.QA_ADVISOR_PASSWORD ?? ''
-if (crmPass) {
+  process.env.DEV_TEST_PASSWORD ?? process.env.INSURANCE_GA_QA_BOOTSTRAP_PASSWORD ?? process.env.QA_ADVISOR_PASSWORD ?? '1234'
+if (crmUser && crmPass) {
   const crm = await browser.newContext({ viewport: { width: 1280, height: 900 } })
   const crmPage = await crm.newPage()
   await crmPage.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' })
-  await crmPage.locator('input[name="username"]').fill(crmUser)
-  await crmPage.locator('input[name="password"]').fill(crmPass)
+  await crmPage.locator('input[autocomplete="username"], input[name="username"]').fill(crmUser)
+  await crmPage.locator('input[type="password"]').fill(crmPass)
   await Promise.all([
     crmPage.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 60000 }),
-    crmPage.getByRole('button', { name: /로그인/i }).click(),
+    crmPage.locator('button[type="submit"]').click(),
   ])
-  await crmPage.goto(`${BASE}/profile/public-advisor`, { waitUntil: 'networkidle' })
+  const dismiss = crmPage.getByRole('button', { name: '닫기' }).first()
+  if (await dismiss.isVisible().catch(() => false)) await dismiss.click()
+  await crmPage.goto(`${BASE}/profile/public-advisor`, { waitUntil: 'domcontentloaded', timeout: 60000 })
+  await crmPage.locator('.pap-theme-picker').first().waitFor({ timeout: 60000 })
   const picker = crmPage.locator('.pap-theme-picker')
   if (await picker.count()) {
     await picker.screenshot({ path: join(OUT, '04-theme-picker-preview.png') })
