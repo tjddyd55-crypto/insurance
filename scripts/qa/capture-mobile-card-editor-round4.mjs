@@ -42,14 +42,14 @@ const heroSection = () =>
 await heroSection().locator('label').nth(0).locator('input').fill('')
 await heroSection().locator('label').nth(1).locator('input').fill('')
 await heroSection().locator('label').nth(2).locator('input').fill('')
-await page.locator('label').filter({ hasText: '호칭' }).locator('input').fill('')
+await page.locator('label').filter({ hasText: /^호칭/ }).locator('input').first().fill('')
 await page.waitForTimeout(300)
 
 const inputVals = await page.evaluate(() => {
   const labels = [...document.querySelectorAll('h2.pap-editor-section-title')]
     .find((h) => h.textContent?.includes('Hero 표시 문구'))
     ?.parentElement?.querySelectorAll('label input') ?? []
-  const honor = [...document.querySelectorAll('label')].find((l) => l.textContent?.includes('호칭'))?.querySelector('input')
+  const honor = [...document.querySelectorAll('label')].find((l) => /^호칭/.test(l.textContent?.trim() ?? ''))?.querySelector('input')
   return {
     hero: [...labels].map((i) => i.value),
     honorific: honor?.value ?? '',
