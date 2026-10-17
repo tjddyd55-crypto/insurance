@@ -1,19 +1,36 @@
 import { buildAdvisorContactHref, inferAdvisorContactType, type AdvisorContactType } from './advisorContactLink'
+import { formatKrPhoneNumberForDisplay } from './formatKrPhoneNumber'
 import { parseCareerDisplayLines } from './parseCareerDisplayLines'
 
 export type AdvisorPublicInfoBlock = {
   label: string
   value?: string
+  displayValue?: string
+  copyText?: string
+  copyable?: boolean
   lines?: string[]
   href?: string
   external?: boolean
 }
 
-function contactFact(label: string, value: string, type: AdvisorContactType): AdvisorPublicInfoBlock | null {
+function contactFact(
+  label: string,
+  value: string,
+  type: AdvisorContactType,
+  options?: { displayValue?: string; copyable?: boolean },
+): AdvisorPublicInfoBlock | null {
   const v = value.trim()
   if (!v) return null
   const link = buildAdvisorContactHref(v, type)
-  return { label, value: v, ...link }
+  const display = options?.displayValue ?? v
+  return {
+    label,
+    value: v,
+    displayValue: display,
+    copyText: display,
+    copyable: options?.copyable ?? true,
+    ...link,
+  }
 }
 
 export function buildAdvisorPublicInfoBlocks(input: {
@@ -51,11 +68,17 @@ export function buildAdvisorPublicInfoBlocks(input: {
   if (office) blocks.push({ label: '사무실', value: office })
 
   if (input.showPublicPhone !== false) {
-    const phone = contactFact('전화', String(input.publicPhone ?? ''), 'phone')
+    const raw = String(input.publicPhone ?? '')
+    const phone = contactFact('전화', raw, 'phone', {
+      displayValue: formatKrPhoneNumberForDisplay(raw),
+    })
     if (phone) blocks.push(phone)
   }
   if (input.showPublicFax === true) {
-    const fax = contactFact('팩스', String(input.publicFax ?? ''), 'text')
+    const raw = String(input.publicFax ?? '')
+    const fax = contactFact('팩스', raw, 'text', {
+      displayValue: formatKrPhoneNumberForDisplay(raw),
+    })
     if (fax) blocks.push(fax)
   }
   if (input.showPublicEmail === true) {
@@ -69,7 +92,8 @@ export function buildAdvisorPublicInfoBlocks(input: {
     const value = String(row.value ?? '').trim()
     if (!label || !value) continue
     const type = (row.contactType as AdvisorContactType) || inferAdvisorContactType(value)
-    const fact = contactFact(label, value, type)
+    const displayValue = type === 'phone' ? formatKrPhoneNumberForDisplay(value) : value
+    const fact = contactFact(label, value, type, { displayValue })
     if (fact) blocks.push(fact)
   }
 

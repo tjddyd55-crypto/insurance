@@ -9,7 +9,6 @@ export function AdvisorProfileHeroBrand(props: AdvisorProfileHeroProps) {
     heroSubtitleLine,
     heroEyebrowLine,
     profilePhotoUrl,
-    primaryBadgeLabel,
     officeLine,
     headline,
     publicTags,
@@ -28,7 +27,6 @@ export function AdvisorProfileHeroBrand(props: AdvisorProfileHeroProps) {
         <AdvisorHeroPortraitSlot variant="brand" src={profilePhotoUrl} alt={displayName} />
       </div>
       <div className="pap-hero-brand__bottom">
-        {primaryBadgeLabel ? <p className="pap-verify-line pap-verify-line--brand">{primaryBadgeLabel}</p> : null}
         {officeLine ? <p className="pap-hero-line pap-hero-office">{officeLine}</p> : null}
         {headline ? <p className="pap-headline pap-headline--brand">{headline}</p> : null}
         <AdvisorHeroTags tags={publicTags} />

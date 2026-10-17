@@ -20,7 +20,7 @@ export function buildAdvisorContactHref(
   if (!v) return {}
   switch (type) {
     case 'phone':
-      return { href: `tel:${v.replace(/\s/g, '')}` }
+      return { href: `tel:${v.replace(/\D/g, '')}` }
     case 'email':
       return { href: `mailto:${v}` }
     case 'url': {

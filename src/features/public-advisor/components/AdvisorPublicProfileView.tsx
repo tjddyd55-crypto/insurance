@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { ADVISOR_PUBLIC_EVENT, trackAdvisorPublicEvent } from '../api/publicAdvisorApi'
 import type { AdvisorProfileTheme } from '../profileTheme'
 import { AdvisorBusinessCardSection } from './AdvisorBusinessCardSection'
+import { AdvisorPublicFactsList } from './AdvisorPublicFactsList'
 import { AdvisorProfileHero } from './heroes/AdvisorProfileHero'
 import { AdvisorPublicImage } from './AdvisorPublicImage'
 import type { AdvisorPublicInfoBlock } from '../utils/buildAdvisorPublicInfoBlocks'
@@ -108,7 +109,7 @@ export function AdvisorPublicProfileView({
           heroSubtitleLine={heroDisplay.heroSubtitleLine}
           heroEyebrowLine={heroDisplay.heroEyebrowLine}
           profilePhotoUrl={model.profilePhotoUrl}
-          primaryBadgeLabel={model.primaryBadgeLabel ?? null}
+          primaryBadgeLabel={null}
           affiliationLine={heroDisplay.heroSubtitleLine ?? ''}
           officeLine={model.officeLine}
           headline={model.headline}
@@ -180,37 +181,7 @@ export function AdvisorPublicProfileView({
             </section>
           ) : null}
 
-          {model.infoBlocks.length ? (
-            <section className="pap-section pap-section--facts pap-fc-card">
-              <h2 className="pap-section__sr-only">소속 및 연락 정보</h2>
-              <dl className="pap-facts">
-                {model.infoBlocks.map((block) => (
-                  <div key={`${block.label}-${block.value ?? block.lines?.join('|') ?? ''}`} className="pap-facts__row">
-                    <dt>{block.label}</dt>
-                    {block.lines ? (
-                      <dd className="pap-facts__dd--stacked">
-                        {block.lines.map((line) => (
-                          <span key={line} className="pap-facts__line">{line}</span>
-                        ))}
-                      </dd>
-                    ) : block.href && !isPreview ? (
-                      <dd>
-                        <a
-                          href={block.href}
-                          target={block.external ? '_blank' : undefined}
-                          rel={block.external ? 'noopener noreferrer' : undefined}
-                        >
-                          {block.value}
-                        </a>
-                      </dd>
-                    ) : (
-                      <dd>{block.value}</dd>
-                    )}
-                  </div>
-                ))}
-              </dl>
-            </section>
-          ) : null}
+          <AdvisorPublicFactsList blocks={model.infoBlocks} isPreview={isPreview} />
 
           {model.allowConsultation ? (
             <section className="pap-section pap-section--contact pap-section--contact-copy-only pap-fc-card">

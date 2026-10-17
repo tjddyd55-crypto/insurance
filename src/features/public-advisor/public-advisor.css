@@ -786,6 +786,50 @@
   overflow-wrap: anywhere;
 }
 
+.pap-facts__dd--with-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pap-facts__value {
+  flex: 1;
+  min-width: 0;
+}
+
+.pap-facts__value a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pap-copy-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #4b5563;
+  cursor: pointer;
+}
+
+.pap-copy-btn:hover {
+  background: #f9fafb;
+  color: #111827;
+}
+
+.pap-copy-btn__ok {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #059669;
+}
+
 .pap-facts__dd--stacked {
   display: flex;
   flex-direction: column;

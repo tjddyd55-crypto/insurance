@@ -9,7 +9,6 @@ export function AdvisorProfileHeroPremium(props: AdvisorProfileHeroProps) {
     heroSubtitleLine,
     heroEyebrowLine,
     profilePhotoUrl,
-    primaryBadgeLabel,
     officeLine,
     headline,
     publicTags,
@@ -27,9 +26,6 @@ export function AdvisorProfileHeroPremium(props: AdvisorProfileHeroProps) {
           {heroTitleLine ? <h1 className="pap-name pap-name--premium">{heroTitleLine}</h1> : null}
           {heroSubtitleLine ? <p className="pap-hero-premium__affiliation">{heroSubtitleLine}</p> : null}
           {officeLine ? <p className="pap-hero-premium__office">{officeLine}</p> : null}
-          {primaryBadgeLabel ? (
-            <p className="pap-verify-line pap-verify-line--on-dark">{primaryBadgeLabel}</p>
-          ) : null}
           {headline ? <p className="pap-headline pap-headline--premium">{headline}</p> : null}
         </div>
       </div>

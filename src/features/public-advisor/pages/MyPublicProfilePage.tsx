@@ -28,6 +28,7 @@ import { normalizeProfileTheme, type AdvisorProfileTheme } from '../profileTheme
 import { RECOMMENDED_ADVISOR_HASHTAGS } from '../recommendedHashtags'
 import { advisorMediaUrlFromObjectKey, normalizeAdvisorMediaUrl } from '../utils/advisorMediaUrl'
 import { buildAdvisorPublicInfoBlocks } from '../utils/buildAdvisorPublicInfoBlocks'
+import { formatKrPhoneInputLive } from '../utils/formatKrPhoneNumber'
 import '../public-advisor.css'
 
 const GALLERY_MAX = 6
@@ -855,7 +856,7 @@ export function MyPublicProfilePage() {
             value={publicPhone}
             visible={showPublicPhone}
             maxLength={40}
-            onChange={setPublicPhone}
+            onChange={(v) => setPublicPhone(formatKrPhoneInputLive(v))}
             onToggleVisible={() => setShowPublicPhone((v) => !v)}
           />
           <AdvisorHeroEditorField
@@ -865,7 +866,7 @@ export function MyPublicProfilePage() {
             value={publicFax}
             visible={showPublicFax}
             maxLength={40}
-            onChange={setPublicFax}
+            onChange={(v) => setPublicFax(formatKrPhoneInputLive(v))}
             onToggleVisible={() => setShowPublicFax((v) => !v)}
           />
           <AdvisorHeroEditorField
@@ -879,7 +880,7 @@ export function MyPublicProfilePage() {
             onToggleVisible={() => setShowPublicEmail((v) => !v)}
           />
 
-          <h3 className="pap-editor-subsection-title">추가 연락처</h3>
+          <h3 className="pap-editor-subsection-title">추가정보 입력</h3>
           <AdvisorCustomContactsEditor items={customContacts} max={8} onChange={setCustomContacts} />
 
           <h2 className="pap-editor-section-title">연락 기능 설정</h2>

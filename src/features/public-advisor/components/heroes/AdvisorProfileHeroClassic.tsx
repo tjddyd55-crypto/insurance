@@ -10,7 +10,6 @@ export function AdvisorProfileHeroClassic(props: AdvisorProfileHeroProps) {
     heroSubtitleLine,
     heroEyebrowLine,
     profilePhotoUrl,
-    primaryBadgeLabel,
     officeLine,
     headline,
     publicTags,
@@ -27,7 +26,6 @@ export function AdvisorProfileHeroClassic(props: AdvisorProfileHeroProps) {
       <div className="pap-hero-body">
         {heroEyebrowLine ? <p className="pap-hero-eyebrow pap-hero-eyebrow--classic">{heroEyebrowLine}</p> : null}
         {heroTitleLine ? <AdvisorHeroNameLine title={heroTitleLine} /> : null}
-        {primaryBadgeLabel ? <p className="pap-verify-line">{primaryBadgeLabel}</p> : null}
         {heroSubtitleLine ? (
           <p className="pap-affiliation pap-affiliation--strong pap-hero-line">{heroSubtitleLine}</p>
         ) : null}

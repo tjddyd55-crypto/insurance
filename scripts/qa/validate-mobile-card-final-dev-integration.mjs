@@ -110,7 +110,7 @@ await page.getByPlaceholder('010-1234-5678').fill(phone)
 await page.getByPlaceholder('02-1234-5678').fill(fax)
 await page.getByPlaceholder('example@email.com').fill(email)
 
-const addCustom = page.getByRole('button', { name: '+ 연락처 추가' })
+const addCustom = page.getByRole('button', { name: '+ 추가정보 추가' })
 if (await addCustom.count()) {
   await addCustom.click()
   await addCustom.click()

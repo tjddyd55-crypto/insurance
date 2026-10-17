@@ -46,7 +46,6 @@ export async function buildAdvisorOgCardPng(pool, slug) {
     usedPhotoFallback = true
   }
 
-  const badge = resolved.verificationBadges?.[0]?.label ?? null
   const renderInput = {
     theme: resolved.profile.profileTheme ?? 'classic',
     photoBuffer,
@@ -56,7 +55,6 @@ export async function buildAdvisorOgCardPng(pool, slug) {
     heroDisplayEyebrowVisible: resolved.profile.heroDisplayEyebrowVisible,
     heroDisplayTitleVisible: resolved.profile.heroDisplayTitleVisible,
     heroDisplaySubtitleVisible: resolved.profile.heroDisplaySubtitleVisible,
-    verificationBadgeLabel: badge,
   }
 
   const renderStart = Date.now()

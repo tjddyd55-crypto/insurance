@@ -98,7 +98,7 @@ export function AdvisorCustomContactsEditor({ items, max, onChange }: Props) {
         </div>
       ))}
       <button type="button" className="pap-btn pap-btn--secondary" disabled={items.length >= max} onClick={add}>
-        + 연락처 추가
+        + 추가정보 추가
       </button>
     </div>
   )
