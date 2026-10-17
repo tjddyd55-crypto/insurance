@@ -132,6 +132,21 @@ export async function ensurePublicAdvisorProfileSchema(executor) {
   `)
 
   await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ADD COLUMN IF NOT EXISTS hero_display_eyebrow_visible BOOLEAN NOT NULL DEFAULT true
+  `)
+
+  await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ADD COLUMN IF NOT EXISTS hero_display_title_visible BOOLEAN NOT NULL DEFAULT true
+  `)
+
+  await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ADD COLUMN IF NOT EXISTS hero_display_subtitle_visible BOOLEAN NOT NULL DEFAULT true
+  `)
+
+  await executor.query(`
     DO $$
     BEGIN
       ALTER TABLE advisor_public_profiles

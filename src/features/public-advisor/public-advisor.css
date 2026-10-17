@@ -2139,6 +2139,55 @@
   padding: 2px 4px;
 }
 
+.pap-page--fc .pap-section--business-card-clean.pap-fc-card {
+  padding: 4px 2px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pap-page--fc .pap-section--business-card-clean .pap-business-card-tile {
+  border-left: none;
+  border-right: none;
+  border-radius: 0;
+}
+
+.pap-hero-editor-field {
+  display: block;
+  margin-bottom: 14px;
+}
+
+.pap-hero-editor-field__label {
+  display: block;
+  font-weight: 600;
+}
+
+.pap-hero-editor-field__row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin-top: 6px;
+}
+
+.pap-hero-editor-field__row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.pap-hero-editor-field__row input:disabled {
+  opacity: 0.55;
+}
+
+.pap-hero-editor-field__toggle {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding-inline: 12px;
+}
+
+.pap-verify-line--brand {
+  margin: 0 0 8px;
+}
+
 .pap-hero-eyebrow--classic {
   margin: 0 0 6px;
   font-size: 0.72rem;

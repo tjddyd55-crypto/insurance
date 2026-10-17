@@ -7,20 +7,21 @@ import {
   buildAdvisorOgTitle,
 } from './publicAdvisorOgMeta.js'
 
-test('buildAdvisorOgTitle uses name and title suffix', () => {
-  assert.equal(buildAdvisorOgTitle({ displayName: '홍길동', titleLabel: 'FC' }), '홍길동 FC | ONE FC')
-})
-
-test('buildAdvisorOgDescription joins affiliation and headline', () => {
+test('buildAdvisorOgTitle prefers visible hero title', () => {
   assert.equal(
-    buildAdvisorOgDescription({ gaName: '영진에셋', teamName: '테스트팀', headline: '한 줄 소개' }),
-    '영진에셋 · 테스트팀 · 한 줄 소개',
+    buildAdvisorOgTitle({ displayName: '홍길동', heroDisplayTitle: '박성용 FC', heroDisplayTitleVisible: true }),
+    '박성용 FC | ONE FC',
   )
 })
 
-test('buildAdvisorOgDescription uses fallback when headline empty', () => {
+test('buildAdvisorOgTitle falls back to display name when hero title hidden', () => {
   assert.equal(
-    buildAdvisorOgDescription({ gaName: '영진에셋', teamName: '', headline: '' }),
-    `영진에셋 · ${ADVISOR_OG_HEADLINE_FALLBACK}`,
+    buildAdvisorOgTitle({ displayName: '홍길동', heroDisplayTitle: '박성용 FC', heroDisplayTitleVisible: false }),
+    '홍길동 | ONE FC',
   )
+})
+
+test('buildAdvisorOgDescription uses headline or short fallback', () => {
+  assert.equal(buildAdvisorOgDescription({ headline: '한 줄 소개' }), '한 줄 소개')
+  assert.equal(buildAdvisorOgDescription({ headline: '' }), ADVISOR_OG_HEADLINE_FALLBACK)
 })

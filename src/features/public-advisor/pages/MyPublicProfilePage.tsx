@@ -20,6 +20,7 @@ import { buildAdvisorPublicPath } from '../advisorPublicRoutes'
 import { AdvisorEditorMediaImage } from '../components/AdvisorEditorMediaImage'
 import { AdvisorMobileCardThemePicker } from '../components/AdvisorMobileCardThemePicker'
 import { AdvisorProfileQr } from '../components/AdvisorProfileQr'
+import { AdvisorHeroEditorField } from '../components/AdvisorHeroEditorField'
 import { AdvisorPublicProfileView } from '../components/AdvisorPublicProfileView'
 import { normalizeProfileTheme, type AdvisorProfileTheme } from '../profileTheme'
 import { RECOMMENDED_ADVISOR_HASHTAGS } from '../recommendedHashtags'
@@ -56,9 +57,13 @@ function revokeBlobUrl(url: string | null | undefined) {
   if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
 }
 
-function loadProfileTextField(value: unknown): string | null {
-  if (value === null || value === undefined) return null
+function loadProfileTextField(value: unknown): string {
+  if (value === null || value === undefined) return ''
   return String(value)
+}
+
+function serializeEditorSnapshot(input: Record<string, unknown>): string {
+  return JSON.stringify(input)
 }
 
 export function MyPublicProfilePage() {
@@ -70,16 +75,17 @@ export function MyPublicProfilePage() {
   const [headline, setHeadline] = useState('')
   const [bio, setBio] = useState('')
   const [careerText, setCareerText] = useState('')
-  const [titleLabel, setTitleLabel] = useState<string | null>(null)
-  const [heroDisplayEyebrow, setHeroDisplayEyebrow] = useState<string | null>(null)
-  const [heroDisplayTitle, setHeroDisplayTitle] = useState<string | null>(null)
-  const [heroDisplaySubtitle, setHeroDisplaySubtitle] = useState<string | null>(null)
+  const [heroDisplayEyebrow, setHeroDisplayEyebrow] = useState('')
+  const [heroDisplayTitle, setHeroDisplayTitle] = useState('')
+  const [heroDisplaySubtitle, setHeroDisplaySubtitle] = useState('')
+  const [heroEyebrowVisible, setHeroEyebrowVisible] = useState(true)
+  const [heroTitleVisible, setHeroTitleVisible] = useState(true)
+  const [heroSubtitleVisible, setHeroSubtitleVisible] = useState(true)
+  const [savedSnapshot, setSavedSnapshot] = useState('')
   const [hashtags, setHashtags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
   const [isPublished, setIsPublished] = useState(false)
   const [showPhone, setShowPhone] = useState(true)
-  const [showKakao, setShowKakao] = useState(false)
-  const [kakaoLink, setKakaoLink] = useState('')
   const [allowConsultation, setAllowConsultation] = useState(true)
   const [profileTheme, setProfileTheme] = useState<AdvisorProfileTheme>('classic')
   const [address, setAddress] = useState<AddressSearchValue>(emptyAddress)
@@ -144,15 +150,15 @@ export function MyPublicProfilePage() {
       setHeadline(String(p.headline ?? ''))
       setBio(String(p.bio ?? ''))
       setCareerText(String(p.career_text ?? ''))
-      setTitleLabel(loadProfileTextField(p.title_label))
       setHeroDisplayEyebrow(loadProfileTextField(p.hero_display_eyebrow))
       setHeroDisplayTitle(loadProfileTextField(p.hero_display_title))
       setHeroDisplaySubtitle(loadProfileTextField(p.hero_display_subtitle))
+      setHeroEyebrowVisible(p.hero_display_eyebrow_visible !== false)
+      setHeroTitleVisible(p.hero_display_title_visible !== false)
+      setHeroSubtitleVisible(p.hero_display_subtitle_visible !== false)
       setHashtags(Array.isArray(p.hashtags) ? (p.hashtags as string[]) : [])
       setIsPublished(Boolean(p.is_published))
       setShowPhone(p.show_phone !== false)
-      setShowKakao(Boolean(p.show_kakao))
-      setKakaoLink(String(p.kakao_link ?? ''))
       setAllowConsultation(p.allow_consultation !== false)
       setProfileTheme(normalizeProfileTheme(p.profile_theme))
       setAddress({
@@ -176,6 +182,32 @@ export function MyPublicProfilePage() {
       setOwnerTeamName(data.user.teamName ?? '')
       setOwnerPhone(data.user.phoneNumber ?? '')
       setVerificationBadgeLabel(data.verificationBadges?.[0]?.label ?? null)
+      setSavedSnapshot(
+        serializeEditorSnapshot({
+          slug: String(p.public_slug ?? ''),
+          headline: String(p.headline ?? ''),
+          bio: String(p.bio ?? ''),
+          careerText: String(p.career_text ?? ''),
+          heroDisplayEyebrow: loadProfileTextField(p.hero_display_eyebrow),
+          heroDisplayTitle: loadProfileTextField(p.hero_display_title),
+          heroDisplaySubtitle: loadProfileTextField(p.hero_display_subtitle),
+          heroEyebrowVisible: p.hero_display_eyebrow_visible !== false,
+          heroTitleVisible: p.hero_display_title_visible !== false,
+          heroSubtitleVisible: p.hero_display_subtitle_visible !== false,
+          hashtags: Array.isArray(p.hashtags) ? p.hashtags : [],
+          isPublished: Boolean(p.is_published),
+          showPhone: p.show_phone !== false,
+          allowConsultation: p.allow_consultation !== false,
+          profileTheme: normalizeProfileTheme(p.profile_theme),
+          address: {
+            postalCode: String(p.office_postal_code ?? ''),
+            roadAddress: String(p.office_road_address ?? ''),
+            addressDetail: String(p.office_address_detail ?? ''),
+          },
+          profilePhotoObjectKey: String(p.profile_photo_object_key ?? '').trim() || null,
+          businessCardObjectKey: String(p.business_card_front_object_key ?? '').trim() || null,
+        }),
+      )
     } finally {
       setLoading(false)
     }
@@ -213,15 +245,17 @@ export function MyPublicProfilePage() {
         headline,
         bio,
         career_text: careerText,
-        title_label: titleLabel === null ? null : titleLabel,
-        hero_display_eyebrow: heroDisplayEyebrow === null ? null : heroDisplayEyebrow,
-        hero_display_title: heroDisplayTitle === null ? null : heroDisplayTitle,
-        hero_display_subtitle: heroDisplaySubtitle === null ? null : heroDisplaySubtitle,
+        hero_display_eyebrow: heroDisplayEyebrow,
+        hero_display_title: heroDisplayTitle,
+        hero_display_subtitle: heroDisplaySubtitle,
+        hero_display_eyebrow_visible: heroEyebrowVisible,
+        hero_display_title_visible: heroTitleVisible,
+        hero_display_subtitle_visible: heroSubtitleVisible,
         hashtags,
         is_published: isPublished,
         show_phone: showPhone,
-        show_kakao: showKakao,
-        kakao_link: kakaoLink,
+        show_kakao: false,
+        kakao_link: '',
         allow_consultation: allowConsultation,
         profile_theme: profileTheme,
         office_postal_code: address.postalCode,
@@ -241,7 +275,65 @@ export function MyPublicProfilePage() {
     }
   }
 
+  const editorSnapshot = useMemo(
+    () =>
+      serializeEditorSnapshot({
+        slug,
+        headline,
+        bio,
+        careerText,
+        heroDisplayEyebrow,
+        heroDisplayTitle,
+        heroDisplaySubtitle,
+        heroEyebrowVisible,
+        heroTitleVisible,
+        heroSubtitleVisible,
+        hashtags,
+        isPublished,
+        showPhone,
+        allowConsultation,
+        profileTheme,
+        address,
+        profilePhotoObjectKey,
+        businessCardObjectKey,
+      }),
+    [
+      address,
+      allowConsultation,
+      bio,
+      businessCardObjectKey,
+      careerText,
+      hashtags,
+      headline,
+      heroDisplayEyebrow,
+      heroDisplayTitle,
+      heroDisplaySubtitle,
+      heroEyebrowVisible,
+      heroTitleVisible,
+      heroSubtitleVisible,
+      isPublished,
+      profilePhotoObjectKey,
+      profileTheme,
+      showPhone,
+      slug,
+    ],
+  )
+
+  const isEditorDirty = savedSnapshot !== '' && editorSnapshot !== savedSnapshot
+
+  const shareGuardMessage = (): string | null => {
+    if (!slug.trim()) return '공개 주소를 먼저 저장해 주세요.'
+    if (!isPublished) return '모바일 명함을 공개한 후 공유할 수 있습니다.'
+    if (isEditorDirty) return '변경 사항을 저장한 후 공유해 주세요.'
+    return null
+  }
+
   const copyLink = async () => {
+    const block = shareGuardMessage()
+    if (block) {
+      setMessage(block)
+      return
+    }
     if (!canonicalPublicUrl) return
     try {
       await navigator.clipboard.writeText(canonicalPublicUrl)
@@ -253,6 +345,11 @@ export function MyPublicProfilePage() {
   }
 
   const shareLink = async () => {
+    const block = shareGuardMessage()
+    if (block) {
+      setMessage(block)
+      return
+    }
     if (!canonicalPublicUrl) return
     if (slug) trackAdvisorPublicEvent(slug, ADVISOR_PUBLIC_EVENT.SHARE_CLICK)
     if (typeof navigator.share === 'function') {
@@ -378,13 +475,15 @@ export function MyPublicProfilePage() {
   const livePreviewModel = useMemo(() => {
     const phoneForPreview = showPhone ? ownerPhone || '01000000000' : ''
     return {
-      displayName: ownerDisplayName || user.displayName || '',
-      titleSuffix: titleLabel,
+      displayName: ownerDisplayName || user?.displayName || '',
       gaName: ownerGaName,
       teamName: ownerTeamName,
-      heroDisplayEyebrow: heroDisplayEyebrow === null ? null : heroDisplayEyebrow,
-      heroDisplayTitle: heroDisplayTitle === null ? null : heroDisplayTitle,
-      heroDisplaySubtitle: heroDisplaySubtitle === null ? null : heroDisplaySubtitle,
+      heroDisplayEyebrow,
+      heroDisplayTitle,
+      heroDisplaySubtitle,
+      heroDisplayEyebrowVisible: heroEyebrowVisible,
+      heroDisplayTitleVisible: heroTitleVisible,
+      heroDisplaySubtitleVisible: heroSubtitleVisible,
       profilePhotoUrl: profilePhotoPreviewUrl,
       primaryBadgeLabel: verificationBadgeLabel,
       affiliationLine: gaLine,
@@ -392,7 +491,7 @@ export function MyPublicProfilePage() {
       headline: headline.trim(),
       publicTags: hashtags,
       phoneNumber: phoneForPreview,
-      kakaoLink: showKakao ? kakaoLink : '',
+      kakaoLink: '',
       allowConsultation,
       bio,
       businessCardFrontUrl: businessCardPreviewUrl,
@@ -417,20 +516,20 @@ export function MyPublicProfilePage() {
     hashtags,
     headline,
     gallery,
-    kakaoLink,
     officePreviewLine,
     ownerDisplayName,
     ownerGaName,
     ownerPhone,
     ownerTeamName,
     profilePhotoPreviewUrl,
-    showKakao,
     showPhone,
-    titleLabel,
+    heroEyebrowVisible,
+    heroTitleVisible,
+    heroSubtitleVisible,
     heroDisplayEyebrow,
     heroDisplayTitle,
     heroDisplaySubtitle,
-    user.displayName,
+    user?.displayName,
     verificationBadgeLabel,
   ])
 
@@ -559,51 +658,42 @@ export function MyPublicProfilePage() {
 
         <h2 className="pap-editor-section-title">Hero 표시 문구</h2>
         <p className="pap-editor-hint">
-          입력칸은 저장값만 표시합니다. 비우면 빈칸으로 저장되며, 미리보기·공개 페이지에서만 자동 문구가 적용됩니다.
+          입력한 문구만 Hero에 표시됩니다. 비노출을 선택하면 해당 슬롯만 숨기고, 문구는 그대로 유지됩니다.
         </p>
-        <label>
-          상단 라벨 / 브랜드 문구
-          <span className="pap-editor-field-hint">(비우면 자동 문구 또는 비노출)</span>
-          <input
-            value={heroDisplayEyebrow ?? ''}
-            onChange={(e) => setHeroDisplayEyebrow(e.target.value)}
-            placeholder="예: ONE FC"
-            maxLength={80}
-          />
-        </label>
-        <label>
-          대표 표시 이름
-          <span className="pap-editor-field-hint">(비우면 기본 이름·호칭 조합)</span>
-          <input
-            value={heroDisplayTitle ?? ''}
-            onChange={(e) => setHeroDisplayTitle(e.target.value)}
-            placeholder="예: 박성용 FC"
-            maxLength={120}
-          />
-        </label>
-        <label>
-          보조 소속/직책 문구
-          <span className="pap-editor-field-hint">(비우면 소속·팀 정보)</span>
-          <input
-            value={heroDisplaySubtitle ?? ''}
-            onChange={(e) => setHeroDisplaySubtitle(e.target.value)}
-            placeholder="예: 영진에셋 · 팀장"
-            maxLength={200}
-          />
-        </label>
+        <AdvisorHeroEditorField
+          label="상단 라벨 / 브랜드 문구"
+          hint="Hero 상단 라벨 슬롯"
+          placeholder="ONE FC"
+          value={heroDisplayEyebrow}
+          visible={heroEyebrowVisible}
+          maxLength={80}
+          onChange={setHeroDisplayEyebrow}
+          onToggleVisible={() => setHeroEyebrowVisible((v) => !v)}
+        />
+        <AdvisorHeroEditorField
+          label="대표 표시 이름"
+          hint="Hero 대표 이름 슬롯"
+          placeholder="홍길동 FC"
+          value={heroDisplayTitle}
+          visible={heroTitleVisible}
+          maxLength={120}
+          onChange={setHeroDisplayTitle}
+          onToggleVisible={() => setHeroTitleVisible((v) => !v)}
+        />
+        <AdvisorHeroEditorField
+          label="보조 소속/직책 문구"
+          hint="Hero 보조 문구 슬롯"
+          placeholder="영진에셋 · 팀장"
+          value={heroDisplaySubtitle}
+          visible={heroSubtitleVisible}
+          maxLength={200}
+          onChange={setHeroDisplaySubtitle}
+          onToggleVisible={() => setHeroSubtitleVisible((v) => !v)}
+        />
 
         <h2 className="pap-editor-section-title">기본 표시정보</h2>
         <p className="pap-affiliation"><strong>{ownerDisplayName || user.displayName}</strong>{gaLine ? ` · ${gaLine}` : ''}</p>
         <label>공개 주소 (영문·숫자·하이픈)<input value={slug} onChange={(e) => setSlug(e.target.value)} /></label>
-        <label>
-          호칭
-          <span className="pap-editor-field-hint">(비우면 기본값 사용)</span>
-          <input
-            value={titleLabel ?? ''}
-            onChange={(e) => setTitleLabel(e.target.value)}
-            placeholder="예: FC"
-          />
-        </label>
 
           <h2 className="pap-editor-section-title">사무실 위치</h2>
           <AddressSearchField label="사무실 주소" value={address} onChange={setAddress} />
@@ -687,11 +777,6 @@ export function MyPublicProfilePage() {
             <span>전화번호 공개</span>
             <input type="checkbox" checked={showPhone} onChange={(e) => setShowPhone(e.target.checked)} />
           </div>
-          <div className="pap-editor-toggle-row">
-            <span>카카오톡 링크 공개</span>
-            <input type="checkbox" checked={showKakao} onChange={(e) => setShowKakao(e.target.checked)} />
-          </div>
-          {showKakao ? <label>카카오톡 URL<input value={kakaoLink} onChange={(e) => setKakaoLink(e.target.value)} /></label> : null}
           <div className="pap-editor-toggle-row">
             <span>상담 신청 받기</span>
             <input type="checkbox" checked={allowConsultation} onChange={(e) => setAllowConsultation(e.target.checked)} />

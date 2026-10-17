@@ -93,8 +93,17 @@ export async function ensureAdvisorProfileRow(pool, userId) {
   const ins = await systemQuery(
     pool,
     `
-    INSERT INTO advisor_public_profiles (user_id, public_slug)
-    VALUES ($1, $2)
+    INSERT INTO advisor_public_profiles (
+      user_id,
+      public_slug,
+      hero_display_eyebrow,
+      hero_display_title,
+      hero_display_subtitle,
+      hero_display_eyebrow_visible,
+      hero_display_title_visible,
+      hero_display_subtitle_visible
+    )
+    VALUES ($1, $2, 'ONE FC', '홍길동 FC', '영진에셋 · 팀장', true, true, true)
     ON CONFLICT (user_id) DO NOTHING
     RETURNING *
     `,
@@ -236,6 +245,9 @@ export async function getPublishedAdvisorBySlug(pool, slug) {
       heroDisplayTitle: row.hero_display_title == null ? null : String(row.hero_display_title).trim(),
       heroDisplaySubtitle:
         row.hero_display_subtitle == null ? null : String(row.hero_display_subtitle).trim(),
+      heroDisplayEyebrowVisible: row.hero_display_eyebrow_visible !== false,
+      heroDisplayTitleVisible: row.hero_display_title_visible !== false,
+      heroDisplaySubtitleVisible: row.hero_display_subtitle_visible !== false,
     },
     user: publicUser,
     gallery,
@@ -250,14 +262,12 @@ export async function getAdvisorPublicMetaBySlug(pool, slug) {
   if (resolved.status !== 'ok') {
     return { indexable: false, slug: normalizeAdvisorPublicSlug(slug) }
   }
-  const titleLabel = String(resolved.profile.titleLabel ?? 'FC').trim() || 'FC'
   const title = buildAdvisorOgTitle({
     displayName: resolved.user.displayName,
-    titleLabel,
+    heroDisplayTitle: resolved.profile.heroDisplayTitle,
+    heroDisplayTitleVisible: resolved.profile.heroDisplayTitleVisible,
   })
   const description = buildAdvisorOgDescription({
-    gaName: resolved.user.gaName,
-    teamName: resolved.user.teamName,
     headline: resolved.profile.headline,
   })
   return {
@@ -437,7 +447,15 @@ export async function patchAdvisorProfileForOwner(pool, userId, patch) {
     values.push(normalizeAdvisorProfileTheme(patch.profile_theme))
   }
 
-  const boolFields = ['is_published', 'show_phone', 'show_kakao', 'allow_consultation']
+  const boolFields = [
+    'is_published',
+    'show_phone',
+    'show_kakao',
+    'allow_consultation',
+    'hero_display_eyebrow_visible',
+    'hero_display_title_visible',
+    'hero_display_subtitle_visible',
+  ]
   for (const key of boolFields) {
     if (patch[key] != null) {
       sets.push(`${key} = $${n++}`)

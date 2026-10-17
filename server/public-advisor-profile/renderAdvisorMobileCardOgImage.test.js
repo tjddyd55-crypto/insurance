@@ -12,10 +12,13 @@ const photo = await sharp({
   .toBuffer()
 
 const baseInput = {
-  displayName: 'QA 공개프로필',
-  titleSuffix: 'FC',
-  affiliationLine: '영진에셋 · 테스트팀',
-  headline: '가족의 보장을 먼저 생각하는 설계사입니다.',
+  heroDisplayEyebrow: 'ONE FC',
+  heroDisplayTitle: '홍길동 FC',
+  heroDisplaySubtitle: '영진에셋 · 팀장',
+  heroDisplayEyebrowVisible: true,
+  heroDisplayTitleVisible: true,
+  heroDisplaySubtitleVisible: true,
+  verificationBadgeLabel: '✓ ONE FC 확인',
   photoBuffer: photo,
 }
 

@@ -11,12 +11,14 @@ const MAX_PUBLIC_TAGS = 5
 
 export type AdvisorPublicProfileViewModel = {
   displayName: string
-  titleSuffix: string | null
   gaName?: string | null
   teamName?: string | null
   heroDisplayEyebrow?: string | null
   heroDisplayTitle?: string | null
   heroDisplaySubtitle?: string | null
+  heroDisplayEyebrowVisible?: boolean
+  heroDisplayTitleVisible?: boolean
+  heroDisplaySubtitleVisible?: boolean
   profilePhotoUrl: string | null
   primaryBadgeLabel?: string | null
   affiliationLine: string
@@ -72,11 +74,9 @@ export function AdvisorPublicProfileView({
         heroDisplayEyebrow: model.heroDisplayEyebrow,
         heroDisplayTitle: model.heroDisplayTitle,
         heroDisplaySubtitle: model.heroDisplaySubtitle,
-        displayName: model.displayName,
-        titleLabel: model.titleSuffix ?? null,
-        gaName: model.gaName,
-        teamName: model.teamName,
-        primaryBadgeLabel: model.primaryBadgeLabel,
+        heroDisplayEyebrowVisible: model.heroDisplayEyebrowVisible,
+        heroDisplayTitleVisible: model.heroDisplayTitleVisible,
+        heroDisplaySubtitleVisible: model.heroDisplaySubtitleVisible,
       }),
     [model],
   )
@@ -106,13 +106,12 @@ export function AdvisorPublicProfileView({
         <AdvisorProfileHero
           theme={theme}
           displayName={model.displayName}
-          titleSuffix={model.titleSuffix ?? ''}
+          titleSuffix=""
           heroTitleLine={heroDisplay.heroTitleLine}
           heroSubtitleLine={heroDisplay.heroSubtitleLine}
           heroEyebrowLine={heroDisplay.heroEyebrowLine}
-          heroDisplayEyebrowRaw={model.heroDisplayEyebrow}
           profilePhotoUrl={model.profilePhotoUrl}
-          primaryBadgeLabel={heroDisplay.primaryBadgeLabel}
+          primaryBadgeLabel={model.primaryBadgeLabel ?? null}
           affiliationLine={heroDisplay.heroSubtitleLine ?? ''}
           officeLine={model.officeLine}
           headline={model.headline}

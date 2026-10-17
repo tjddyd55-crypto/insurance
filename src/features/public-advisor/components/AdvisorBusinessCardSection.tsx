@@ -15,7 +15,7 @@ export function AdvisorBusinessCardSection({ frontUrl, onImageClick }: Props) {
   if (!hasFront) return null
 
   return (
-    <section className="pap-section pap-section--business-card pap-fc-card">
+    <section className="pap-section pap-section--business-card pap-fc-card pap-section--business-card-clean">
       <button
         type="button"
         className="pap-business-card-tile"
@@ -23,7 +23,6 @@ export function AdvisorBusinessCardSection({ frontUrl, onImageClick }: Props) {
       >
         <AdvisorPublicImage className="pap-business-card-img" src={frontUrl} alt="명함" />
       </button>
-      <p className="pap-business-card-hint">사진을 눌러 크게 볼 수 있습니다.</p>
     </section>
   )
 }

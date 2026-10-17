@@ -22,6 +22,9 @@ export type PublicAdvisorDetail = PublicAdvisorCard & {
   heroDisplayEyebrow?: string | null
   heroDisplayTitle?: string | null
   heroDisplaySubtitle?: string | null
+  heroDisplayEyebrowVisible?: boolean
+  heroDisplayTitleVisible?: boolean
+  heroDisplaySubtitleVisible?: boolean
   businessCardFrontUrl?: string | null
   businessCardBackUrl?: string | null
   bio: string

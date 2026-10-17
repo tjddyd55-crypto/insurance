@@ -1,72 +1,39 @@
 export type AdvisorHeroDisplayInput = {
-  /** null/undefined = 저장값 없음 → fallback, '' = 사용자가 비움 → 비노출 */
   heroDisplayEyebrow?: string | null
   heroDisplayTitle?: string | null
   heroDisplaySubtitle?: string | null
-  displayName: string
-  titleLabel?: string | null
-  gaName?: string | null
-  teamName?: string | null
-  primaryBadgeLabel?: string | null
+  heroDisplayEyebrowVisible?: boolean | null
+  heroDisplayTitleVisible?: boolean | null
+  heroDisplaySubtitleVisible?: boolean | null
 }
 
 export type ResolvedAdvisorHeroDisplay = {
   heroEyebrowLine: string | null
   heroTitleLine: string | null
   heroSubtitleLine: string | null
-  primaryBadgeLabel: string | null
 }
 
-function isUnset(value: string | null | undefined): boolean {
-  return value === null || value === undefined
+function lineText(value: string | null | undefined): string | null {
+  if (value == null) return null
+  const trimmed = String(value).trim()
+  return trimmed || null
 }
 
-function resolveTitleSuffix(titleLabel: string | null | undefined): string {
-  if (isUnset(titleLabel)) return 'FC'
-  return String(titleLabel).trim()
+function isVisible(flag: boolean | null | undefined): boolean {
+  return flag !== false
 }
 
 export function resolveAdvisorHeroDisplay(input: AdvisorHeroDisplayInput): ResolvedAdvisorHeroDisplay {
-  const displayName = String(input.displayName ?? '').trim()
-  const titleSuffix = resolveTitleSuffix(input.titleLabel)
-  const autoTitle = [displayName, titleSuffix].filter(Boolean).join(' ').trim() || 'ONE FC'
-  const autoSubtitle = [input.gaName, input.teamName].filter(Boolean).join(' · ').trim()
-
-  let heroTitleLine: string | null
-  if (isUnset(input.heroDisplayTitle)) {
-    heroTitleLine = autoTitle
-  } else if (input.heroDisplayTitle === '') {
-    heroTitleLine = null
-  } else {
-    heroTitleLine = String(input.heroDisplayTitle).trim() || null
-  }
-
-  let heroSubtitleLine: string | null
-  if (isUnset(input.heroDisplaySubtitle)) {
-    heroSubtitleLine = autoSubtitle || null
-  } else if (input.heroDisplaySubtitle === '') {
-    heroSubtitleLine = null
-  } else {
-    heroSubtitleLine = String(input.heroDisplaySubtitle).trim() || null
-  }
-
-  let heroEyebrowLine: string | null
-  let primaryBadgeLabel: string | null = String(input.primaryBadgeLabel ?? '').trim() || null
-
-  if (isUnset(input.heroDisplayEyebrow)) {
-    heroEyebrowLine = primaryBadgeLabel
-    primaryBadgeLabel = null
-  } else if (input.heroDisplayEyebrow === '') {
-    heroEyebrowLine = null
-  } else {
-    heroEyebrowLine = String(input.heroDisplayEyebrow).trim() || null
-    primaryBadgeLabel = null
-  }
-
   return {
-    heroEyebrowLine,
-    heroTitleLine,
-    heroSubtitleLine,
-    primaryBadgeLabel,
+    heroEyebrowLine: isVisible(input.heroDisplayEyebrowVisible) ? lineText(input.heroDisplayEyebrow) : null,
+    heroTitleLine: isVisible(input.heroDisplayTitleVisible) ? lineText(input.heroDisplayTitle) : null,
+    heroSubtitleLine: isVisible(input.heroDisplaySubtitleVisible) ? lineText(input.heroDisplaySubtitle) : null,
   }
 }
+
+/** 신규 프로필 편집용 예시값 (DB insert 시 서버와 동일 문자열 유지) */
+export const ADVISOR_HERO_EDITOR_SAMPLE_PRESET = {
+  heroDisplayEyebrow: 'ONE FC',
+  heroDisplayTitle: '홍길동 FC',
+  heroDisplaySubtitle: '영진에셋 · 팀장',
+} as const

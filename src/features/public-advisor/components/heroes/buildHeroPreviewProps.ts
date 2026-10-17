@@ -17,10 +17,9 @@ export function buildHeroPreviewProps(input: {
   actionBarTheme: 'classic' | 'brand' | 'premium'
 }): AdvisorProfileHeroProps {
   const hero = resolveAdvisorHeroDisplay({
-    displayName: input.displayName || '홍길동',
-    titleLabel: input.titleSuffix || 'FC',
-    gaName: input.affiliationLine,
-    primaryBadgeLabel: '✓ ONE FC 확인',
+    heroDisplayEyebrow: 'ONE FC',
+    heroDisplayTitle: '홍길동 FC',
+    heroDisplaySubtitle: input.affiliationLine || '영진에셋 · 팀장',
   })
   return {
     displayName: input.displayName || '홍길동',

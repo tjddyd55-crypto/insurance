@@ -36,7 +36,6 @@ import {
   recordAdvisorPublicEvent,
   searchPublishedAdvisors,
 } from './publicAdvisorProfileService.js'
-import { ADVISOR_OG_HEADLINE_FALLBACK } from './publicAdvisorOgMeta.js'
 import { renderAdvisorMobileCardOgPng } from './renderAdvisorMobileCardOgImage.js'
 import { resolveRequestPublicOrigin } from './requestPublicOrigin.js'
 
@@ -67,6 +66,9 @@ function mapPublicProfilePayload(resolved, req) {
     heroDisplayEyebrow: profile.heroDisplayEyebrow ?? null,
     heroDisplayTitle: profile.heroDisplayTitle ?? null,
     heroDisplaySubtitle: profile.heroDisplaySubtitle ?? null,
+    heroDisplayEyebrowVisible: profile.heroDisplayEyebrowVisible !== false,
+    heroDisplayTitleVisible: profile.heroDisplayTitleVisible !== false,
+    heroDisplaySubtitleVisible: profile.heroDisplaySubtitleVisible !== false,
     profilePhotoUrl: publicMediaUrl(profile.profilePhotoObjectKey, req),
     businessCardFrontUrl: publicMediaUrl(profile.businessCardFrontObjectKey, req),
     businessCardBackUrl: null,
@@ -173,16 +175,17 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
         res.status(404).end()
         return
       }
-      const affiliationLine = [resolved.user.gaName, resolved.user.teamName].filter(Boolean).join(' · ')
-      const headline = String(resolved.profile.headline ?? '').trim() || ADVISOR_OG_HEADLINE_FALLBACK
-      const titleSuffix = String(resolved.profile.titleLabel ?? 'FC').trim() || 'FC'
+      const badge = resolved.verificationBadges?.[0]?.label ?? null
       const png = await renderAdvisorMobileCardOgPng({
         theme: resolved.profile.profileTheme ?? 'classic',
-        displayName: resolved.user.displayName,
-        titleSuffix,
-        affiliationLine,
-        headline,
         photoBuffer,
+        heroDisplayEyebrow: resolved.profile.heroDisplayEyebrow,
+        heroDisplayTitle: resolved.profile.heroDisplayTitle,
+        heroDisplaySubtitle: resolved.profile.heroDisplaySubtitle,
+        heroDisplayEyebrowVisible: resolved.profile.heroDisplayEyebrowVisible,
+        heroDisplayTitleVisible: resolved.profile.heroDisplayTitleVisible,
+        heroDisplaySubtitleVisible: resolved.profile.heroDisplaySubtitleVisible,
+        verificationBadgeLabel: badge,
       })
       res.setHeader('Content-Type', 'image/png')
       res.setHeader('Cache-Control', 'public, max-age=600, stale-while-revalidate=86400')
