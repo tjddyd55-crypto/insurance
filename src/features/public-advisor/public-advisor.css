@@ -2103,6 +2103,14 @@
 .pap-page--fc .pap-hero--theme-premium .pap-hero-premium__media {
   aspect-ratio: 3 / 4;
   max-height: min(64vh, 520px);
+  border-radius: 0;
+}
+
+@media (min-width: 768px) {
+  .pap-page--fc .pap-hero--theme-premium .pap-hero-premium__media {
+    border-radius: 0;
+    max-height: min(64vh, 520px);
+  }
 }
 
 .pap-home-sections .pap-section--business-card.pap-fc-card {

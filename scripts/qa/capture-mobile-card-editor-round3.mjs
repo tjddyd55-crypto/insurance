@@ -66,13 +66,15 @@ const sticky = await page.evaluate(() => {
 await page.screenshot({ path: join(OUT, '06-preview-sticky-inside-phone.png'), fullPage: false })
 await page.locator('.pap-editor-live-preview__frame').screenshot({ path: join(OUT, '08-live-preview-scroll-sticky.png') })
 
+const publishOn = page.locator('.pap-editor-toolbar input[type="checkbox"]').first()
+if (!(await publishOn.isChecked())) await publishOn.click({ force: true })
 await page.locator('form.pap-editor-form .pap-cta-row button').filter({ hasText: '저장' }).click()
 await page.waitForTimeout(2500)
 await page.screenshot({ path: join(OUT, '05-editor-save-success.png') })
 
 const pub = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true })).newPage()
-await pub.goto(`${BASE}/fc/${SLUG}`, { waitUntil: 'domcontentloaded', timeout: 90000 })
-await pub.locator('.pap-hero').first().waitFor({ timeout: 45000 })
+await pub.goto(`${BASE}/fc/${SLUG}`, { waitUntil: 'networkidle', timeout: 90000 }).catch(() => pub.goto(`${BASE}/fc/${SLUG}`))
+await pub.locator('.pap-hero, .pap-page--fc').first().waitFor({ timeout: 60000 })
 await pub.screenshot({ path: join(OUT, '07-public-page-after-save-round3.png'), fullPage: true })
 
 console.log(JSON.stringify({ heroRadius, sticky }, null, 2))
