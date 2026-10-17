@@ -17,6 +17,7 @@ import {
   isConsultDraftValid,
   type ConsultSubmitError,
 } from '../utils/consultFormValidation'
+import { PUBLIC_ADVISOR_CONSULT_SUCCESS_TOAST, showPublicAdvisorToast } from '../toast/publicAdvisorToast'
 import '../public-advisor.css'
 
 const MAX_PUBLIC_TAGS = 5
@@ -27,7 +28,6 @@ export function PublicAdvisorProfilePage() {
   const [loadError, setLoadError] = useState('')
   const [consultOpen, setConsultOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [submitDone, setSubmitDone] = useState(false)
   const [submitError, setSubmitError] = useState<ConsultSubmitError | null>(null)
 
   useEffect(() => {
@@ -59,9 +59,9 @@ export function PublicAdvisorProfilePage() {
     setSubmitError(null)
     try {
       await submitAdvisorConsultation(slug, payload)
-      setSubmitDone(true)
       setSubmitError(null)
       setConsultOpen(false)
+      showPublicAdvisorToast(PUBLIC_ADVISOR_CONSULT_SUCCESS_TOAST)
     } catch (error) {
       setSubmitError(classifyConsultSubmitError(error))
     } finally {
@@ -161,10 +161,6 @@ export function PublicAdvisorProfilePage() {
         variant="public"
         onConsultClick={openConsult}
       />
-
-      {submitDone ? (
-        <p className="pap-status pap-status--floating" role="status">상담 신청이 접수되었습니다.</p>
-      ) : null}
 
       <AdvisorConsultationRequestModal
         open={consultOpen}

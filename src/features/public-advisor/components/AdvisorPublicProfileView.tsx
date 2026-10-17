@@ -5,6 +5,7 @@ import { AdvisorBusinessCardSection } from './AdvisorBusinessCardSection'
 import { AdvisorPublicFactsList } from './AdvisorPublicFactsList'
 import { AdvisorProfileHero } from './heroes/AdvisorProfileHero'
 import { AdvisorPublicImage } from './AdvisorPublicImage'
+import { PublicAdvisorToast } from './PublicAdvisorToast'
 import type { AdvisorPublicInfoBlock } from '../utils/buildAdvisorPublicInfoBlocks'
 import { resolveAdvisorHeroDisplay } from '../utils/resolveAdvisorHeroDisplay'
 
@@ -212,6 +213,8 @@ export function AdvisorPublicProfileView({
           ) : null}
         </div>
       ) : null}
+
+      <PublicAdvisorToast />
 
       {lightbox ? (
         <div className="pap-lightbox" role="dialog" aria-modal="true" onClick={() => setLightbox(null)}>
