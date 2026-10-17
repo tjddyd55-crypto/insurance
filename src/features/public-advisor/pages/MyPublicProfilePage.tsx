@@ -623,7 +623,9 @@ export function MyPublicProfilePage() {
           </div>
 
           <div className="pap-cta-row pap-cta-row--left" style={{ marginTop: 24 }}>
-            <FormButton type="submit" disabled={saving || mediaBusy}>{saving ? '저장 중…' : '저장'}</FormButton>
+            <FormButton htmlType="submit" variant="primary" disabled={saving || mediaBusy}>
+              {saving ? '저장 중…' : '저장'}
+            </FormButton>
           </div>
           {publicUrl ? <p className="pap-affiliation"><code>{publicUrl}</code></p> : null}
           {message ? <p role="status">{message}</p> : null}
