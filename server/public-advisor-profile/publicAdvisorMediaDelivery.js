@@ -101,6 +101,44 @@ export async function assertAdvisorPublicMediaIsPublished(pool, objectKey) {
 }
 
 /**
+ * 공개(발행) 프로필 또는 DB에 연결된 미디어(미발행 편집·갤러리) 스트리밍 허용.
+ * @param {import('pg').Pool} pool
+ * @param {string} objectKey
+ */
+export async function assertAdvisorPublicMediaDeliverable(pool, objectKey) {
+  if (await assertAdvisorPublicMediaIsPublished(pool, objectKey)) return true
+
+  const variants = advisorMediaKeyVariants(objectKey)
+  if (variants.length === 0) return false
+
+  const profileLinked = await systemQuery(
+    pool,
+    `
+    SELECT 1
+    FROM advisor_public_profiles p
+    WHERE p.profile_photo_object_key = ANY($1::text[])
+       OR p.business_card_front_object_key = ANY($1::text[])
+       OR p.business_card_back_object_key = ANY($1::text[])
+    LIMIT 1
+    `,
+    [variants],
+  )
+  if (profileLinked.rowCount > 0) return true
+
+  const galleryLinked = await systemQuery(
+    pool,
+    `
+    SELECT 1
+    FROM advisor_public_profile_gallery g
+    WHERE g.object_key = ANY($1::text[])
+    LIMIT 1
+    `,
+    [variants],
+  )
+  return galleryLinked.rowCount > 0
+}
+
+/**
  * @param {string} objectKey
  */
 export async function readAdvisorPublicMediaBuffer(objectKey) {

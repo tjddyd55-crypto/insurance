@@ -518,15 +518,35 @@
   background: #fafafa;
 }
 
+.pap-editor-business-card-thumb,
 .pap-editor-business-card-slot img {
   display: block;
-  width: 100%;
+  width: min(320px, 100%);
+  max-width: 100%;
   aspect-ratio: 90 / 50;
   object-fit: contain;
   background: #fff;
   border-radius: 0;
   border: 1px solid #e5e7eb;
   box-sizing: border-box;
+  overflow: hidden;
+}
+
+.pap-editor-media-placeholder {
+  background: #e5e7eb;
+}
+
+.pap-editor-avatar.pap-editor-media-placeholder {
+  border-radius: 12px;
+}
+
+.pap-editor-gallery-item__img {
+  display: block;
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #e5e7eb;
 }
 
 .pap-editor-toggle-row {
@@ -1953,4 +1973,103 @@
 
 .pap-dev-theme-review__segment--selected .pap-dev-theme-review__segment-hint {
   color: #3b82f6;
+}
+
+/* CRM — 2-column editor + live mobile preview */
+.pap-editor-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.pap-editor-layout__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 720px;
+}
+
+.pap-editor-layout__preview {
+  display: none;
+}
+
+.pap-editor-preview-fallback {
+  display: inline-flex;
+}
+
+.pap-editor-live-preview__title {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.pap-editor-live-preview__frame {
+  width: 390px;
+  max-width: 100%;
+}
+
+.pap-editor-live-preview__scroll {
+  width: 390px;
+  max-width: 100%;
+  height: calc(100vh - 128px);
+  min-height: 480px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid #d1d5db;
+  background: #f3f4f6;
+  box-sizing: border-box;
+}
+
+.pap-editor-live-preview__scroll .public-advisor-page {
+  min-height: 0;
+}
+
+@media (min-width: 1100px) {
+  .pap-editor-layout {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 28px;
+    max-width: 1240px;
+  }
+
+  .pap-editor-layout__preview {
+    display: block;
+    width: 420px;
+    flex: 0 0 420px;
+    position: sticky;
+    top: 72px;
+    align-self: flex-start;
+  }
+
+  .pap-editor-preview-fallback {
+    display: none;
+  }
+}
+
+.pap-theme-picker--compact .pap-theme-picker__card--compact {
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.pap-theme-picker__thumb {
+  display: block;
+  width: 100%;
+  height: 52px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+}
+
+.pap-theme-picker__thumb--classic {
+  background: linear-gradient(180deg, #dbeafe 0%, #fff 55%);
+}
+
+.pap-theme-picker__thumb--brand {
+  background: linear-gradient(135deg, #1e3a5f 0%, #3b82f6 100%);
+}
+
+.pap-theme-picker__thumb--premium {
+  background: linear-gradient(180deg, #64748b 0%, #0f172a 70%);
 }

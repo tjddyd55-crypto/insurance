@@ -7,32 +7,15 @@ import {
   trackAdvisorPublicEvent,
   type PublicAdvisorDetail,
 } from '../api/publicAdvisorApi'
-import { AdvisorBusinessCardSection } from '../components/AdvisorBusinessCardSection'
-import { AdvisorProfileHero } from '../components/heroes/AdvisorProfileHero'
-import { AdvisorPublicImage } from '../components/AdvisorPublicImage'
+import { AdvisorPublicProfileView } from '../components/AdvisorPublicProfileView'
 import { AdvisorThemeDevSwitcher } from '../components/AdvisorThemeDevSwitcher'
 import { isAdvisorThemeDevReviewEnabled } from '../config/advisorThemeDevReviewGate'
 import { normalizeProfileTheme, type AdvisorProfileTheme } from '../profileTheme'
-import { parseCareerDisplayLines } from '../utils/parseCareerDisplayLines'
+import { buildAdvisorPublicInfoBlocks } from '../utils/buildAdvisorPublicInfoBlocks'
+import { normalizeAdvisorMediaUrl } from '../utils/advisorMediaUrl'
 import '../public-advisor.css'
 
-type InfoFactBlock =
-  | { label: string; value: string; lines?: undefined }
-  | { label: string; lines: string[]; value?: undefined }
-
 const MAX_PUBLIC_TAGS = 5
-
-export type PublicAdvisorLightboxMediaType = 'gallery' | 'businessCardFront'
-
-type PublicAdvisorLightboxState = {
-  mediaType: PublicAdvisorLightboxMediaType
-  url: string
-  caption: string
-}
-
-function isBusinessCardLightbox(mediaType: PublicAdvisorLightboxMediaType): boolean {
-  return mediaType === 'businessCardFront'
-}
 
 export function PublicAdvisorProfilePage() {
   const { slug = '' } = useParams()
@@ -41,8 +24,6 @@ export function PublicAdvisorProfilePage() {
   const [consultOpen, setConsultOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitDone, setSubmitDone] = useState(false)
-  const [lightbox, setLightbox] = useState<PublicAdvisorLightboxState | null>(null)
-  /** DEV REVIEW: Hero 미리보기 테마만 오버라이드. API/DB `profile_theme` 은 변경하지 않음. */
   const [devReviewHeroTheme, setDevReviewHeroTheme] = useState<AdvisorProfileTheme | null>(null)
   const showDevThemeReviewBar = isAdvisorThemeDevReviewEnabled()
 
@@ -94,25 +75,6 @@ export function PublicAdvisorProfilePage() {
     setConsultOpen(true)
   }
 
-  const sharePage = async () => {
-    if (!data) return
-    trackAdvisorPublicEvent(slug, ADVISOR_PUBLIC_EVENT.SHARE_CLICK)
-    const url = window.location.href
-    if (typeof navigator.share === 'function') {
-      try {
-        await navigator.share({ title: `${data.displayName} | ONE FC`, url })
-        return
-      } catch {
-        /* cancel */
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(url)
-    } catch {
-      /* ignore */
-    }
-  }
-
   const affiliationLine = useMemo(() => {
     if (!data) return ''
     return [data.gaName, data.teamName].filter(Boolean).join(' · ')
@@ -120,20 +82,40 @@ export function PublicAdvisorProfilePage() {
 
   const publicTags = useMemo(() => (data?.hashtags ?? []).slice(0, MAX_PUBLIC_TAGS), [data?.hashtags])
 
-  const infoBlocks = useMemo((): InfoFactBlock[] => {
+  const infoBlocks = useMemo(() => {
     if (!data) return []
-    const blocks: InfoFactBlock[] = []
-    const affiliation = [data.gaName, data.teamName].filter(Boolean).join(' ')
-    if (affiliation) blocks.push({ label: '소속', value: affiliation })
-    const careerLines = parseCareerDisplayLines(data.careerText, data.gaName, data.teamName)
-    if (careerLines.length === 1) {
-      blocks.push({ label: '경력', value: careerLines[0] })
-    } else if (careerLines.length > 1) {
-      blocks.push({ label: '경력', lines: careerLines })
-    }
-    if (data.officeLine?.trim()) blocks.push({ label: '사무실', value: data.officeLine.trim() })
-    return blocks
+    return buildAdvisorPublicInfoBlocks({
+      gaName: data.gaName,
+      teamName: data.teamName,
+      careerText: data.careerText,
+      officeLine: data.officeLine,
+    })
   }, [data])
+
+  const viewModel = useMemo(() => {
+    if (!data) return null
+    return {
+      displayName: data.displayName,
+      titleSuffix: data.titleLabel?.trim() || 'FC',
+      profilePhotoUrl: normalizeAdvisorMediaUrl(data.profilePhotoUrl),
+      primaryBadgeLabel: data.verificationBadges?.[0]?.label ?? null,
+      affiliationLine,
+      officeLine: data.officeLine,
+      headline: data.headline,
+      publicTags,
+      phoneNumber: data.phoneNumber,
+      kakaoLink: data.kakaoLink,
+      allowConsultation: data.allowConsultation,
+      bio: data.bio,
+      businessCardFrontUrl: normalizeAdvisorMediaUrl(data.businessCardFrontUrl ?? null),
+      gallery: (data.gallery ?? []).map((g) => ({
+        id: g.id,
+        caption: g.caption,
+        imageUrl: normalizeAdvisorMediaUrl(g.imageUrl),
+      })),
+      infoBlocks,
+    }
+  }, [affiliationLine, data, infoBlocks, publicTags])
 
   if (error && !data) {
     return (
@@ -142,7 +124,7 @@ export function PublicAdvisorProfilePage() {
       </div>
     )
   }
-  if (!data) {
+  if (!data || !viewModel) {
     return (
       <div className="public-advisor-page pap-page--fc">
         <div className="public-advisor-shell pap-shell--fc pap-shell--fc-state"><p>불러오는 중…</p></div>
@@ -150,148 +132,28 @@ export function PublicAdvisorProfilePage() {
     )
   }
 
-  const titleSuffix = data.titleLabel?.trim() || 'FC'
-  const primaryBadge = data.verificationBadges?.[0]
   const savedProfileTheme = normalizeProfileTheme(data.profileTheme)
   const profileTheme = devReviewHeroTheme ?? savedProfileTheme
-  const businessCardFrontUrl = data.businessCardFrontUrl ?? null
-  const hasBusinessCard = Boolean(businessCardFrontUrl?.trim())
-
-  const openBusinessCardLightbox = () => {
-    const url = businessCardFrontUrl?.trim()
-    if (!url) return
-    setLightbox({
-      mediaType: 'businessCardFront',
-      url,
-      caption: '명함',
-    })
-  }
 
   return (
-    <div className={`public-advisor-page pap-page--fc pap-page-theme--${profileTheme}`}>
-      <div className="public-advisor-shell pap-shell--fc">
-        {showDevThemeReviewBar ? (
-          <AdvisorThemeDevSwitcher value={profileTheme} onChange={setDevReviewHeroTheme} />
-        ) : null}
-        <AdvisorProfileHero
-          theme={profileTheme}
-          displayName={data.displayName}
-          titleSuffix={titleSuffix}
-          profilePhotoUrl={data.profilePhotoUrl}
-          primaryBadgeLabel={primaryBadge?.label ?? null}
-          affiliationLine={affiliationLine}
-          officeLine={data.officeLine}
-          headline={data.headline}
-          publicTags={publicTags}
-          phoneNumber={data.phoneNumber}
-          kakaoLink={data.kakaoLink}
-          allowConsultation={data.allowConsultation}
-          actionBarTheme={profileTheme}
-          onPhoneClick={() => trackAdvisorPublicEvent(slug, ADVISOR_PUBLIC_EVENT.PHONE_CLICK)}
-          onKakaoClick={() => trackAdvisorPublicEvent(slug, ADVISOR_PUBLIC_EVENT.CONTACT_CLICK)}
-          onConsultClick={openConsult}
-          onShareClick={() => void sharePage()}
-          hasBusinessCard={hasBusinessCard}
-          onBusinessCardClick={openBusinessCardLightbox}
-        />
+    <>
+      <AdvisorPublicProfileView
+        theme={profileTheme}
+        model={viewModel}
+        slug={slug}
+        variant="public"
+        onConsultClick={openConsult}
+        topSlot={
+          showDevThemeReviewBar ? (
+            <AdvisorThemeDevSwitcher value={profileTheme} onChange={setDevReviewHeroTheme} />
+          ) : null
+        }
+      />
 
-        <div className="pap-home-sections">
-          {data.bio ? (
-            <section className="pap-section pap-section--intro pap-fc-card">
-              <p className="pap-body pap-body--intro">{data.bio}</p>
-            </section>
-          ) : null}
-
-          <AdvisorBusinessCardSection
-            frontUrl={businessCardFrontUrl}
-            onImageClick={(payload) =>
-              setLightbox({
-                mediaType: payload.mediaType,
-                url: payload.url,
-                caption: '명함',
-              })
-            }
-          />
-
-          {data.gallery?.length ? (
-            <section className="pap-section pap-section--gallery pap-fc-card">
-              <div className="pap-gallery pap-gallery--photos-only">
-                {data.gallery.map((g) => (
-                  <button
-                    key={g.id}
-                    type="button"
-                    className="pap-gallery-tile"
-                    onClick={() =>
-                      g.imageUrl &&
-                      setLightbox({
-                        mediaType: 'gallery',
-                        url: g.imageUrl,
-                        caption: String(g.caption ?? '').trim(),
-                      })
-                    }
-                  >
-                    <AdvisorPublicImage
-                      className="pap-gallery-img"
-                      src={g.imageUrl}
-                      alt="활동 사진"
-                    />
-                  </button>
-                ))}
-              </div>
-            </section>
-          ) : null}
-
-          {infoBlocks.length ? (
-            <section className="pap-section pap-section--facts pap-fc-card">
-              <h2 className="pap-section__sr-only">소속 및 연락 정보</h2>
-              <dl className="pap-facts">
-                {infoBlocks.map((block) => (
-                  <div key={block.label} className="pap-facts__row">
-                    <dt>{block.label}</dt>
-                    {block.lines ? (
-                      <dd className="pap-facts__dd--stacked">
-                        {block.lines.map((line) => (
-                          <span key={line} className="pap-facts__line">{line}</span>
-                        ))}
-                      </dd>
-                    ) : (
-                      <dd>{block.value}</dd>
-                    )}
-                  </div>
-                ))}
-              </dl>
-            </section>
-          ) : null}
-
-          {data.allowConsultation ? (
-            <section className="pap-section pap-section--contact pap-section--contact-copy-only pap-fc-card">
-              <p className="pap-contact-lead">궁금한 점이 있으면 편하게 문의해주세요.</p>
-            </section>
-          ) : null}
-
-          {submitDone ? <p className="pap-status" role="status">상담 신청이 접수되었습니다.</p> : null}
-          {error && data ? <p className="pap-error" role="alert">{error}</p> : null}
-        </div>
-      </div>
-
-      {(data.phoneNumber || data.allowConsultation) ? (
-        <div className="pap-sticky-cta">
-          {data.phoneNumber ? (
-            <a
-              className="pap-btn pap-btn--primary"
-              href={`tel:${data.phoneNumber.replace(/\s/g, '')}`}
-              onClick={() => trackAdvisorPublicEvent(slug, ADVISOR_PUBLIC_EVENT.PHONE_CLICK)}
-            >
-              전화
-            </a>
-          ) : null}
-          {data.allowConsultation ? (
-            <button type="button" className="pap-btn pap-btn--secondary" onClick={openConsult}>
-              상담하기
-            </button>
-          ) : null}
-        </div>
+      {submitDone ? (
+        <p className="pap-status pap-status--floating" role="status">상담 신청이 접수되었습니다.</p>
       ) : null}
+      {error && data ? <p className="pap-error pap-error--floating" role="alert">{error}</p> : null}
 
       {consultOpen ? (
         <div className="pap-modal-backdrop">
@@ -321,24 +183,7 @@ export function PublicAdvisorProfilePage() {
           </form>
         </div>
       ) : null}
-
-      {lightbox ? (
-        <div className="pap-lightbox" role="dialog" aria-modal="true" onClick={() => setLightbox(null)}>
-          <button type="button" className="pap-lightbox-close" onClick={() => setLightbox(null)}>닫기</button>
-          <figure
-            className={`pap-lightbox-figure${isBusinessCardLightbox(lightbox.mediaType) ? ' pap-lightbox-figure--business-card' : ''}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img
-              src={lightbox.url}
-              alt={lightbox.caption || '활동 사진'}
-              className={isBusinessCardLightbox(lightbox.mediaType) ? 'pap-lightbox-img--business-card' : undefined}
-            />
-            {lightbox.caption ? <figcaption className="pap-lightbox-caption">{lightbox.caption}</figcaption> : null}
-          </figure>
-        </div>
-      ) : null}
-    </div>
+    </>
   )
 }
 

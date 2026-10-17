@@ -24,7 +24,7 @@ import {
 } from './publicAdvisorMedia.js'
 import {
   advisorPublicMediaUrl,
-  assertAdvisorPublicMediaIsPublished,
+  assertAdvisorPublicMediaDeliverable,
   guessAdvisorPublicMediaContentType,
   readAdvisorPublicMediaBuffer,
 } from './publicAdvisorMediaDelivery.js'
@@ -38,11 +38,12 @@ import {
 } from './publicAdvisorProfileService.js'
 import { ADVISOR_OG_HEADLINE_FALLBACK } from './publicAdvisorOgMeta.js'
 import { renderAdvisorMobileCardOgPng } from './renderAdvisorMobileCardOgImage.js'
+import { resolveRequestPublicOrigin } from './requestPublicOrigin.js'
 
 const PUBLIC_EVENT_WHITELIST = new Set(Object.values(ADVISOR_PUBLIC_EVENT_TYPES))
 
 function publicMediaUrl(objectKey, req) {
-  const origin = req ? `${req.protocol}://${req.get('host')}` : ''
+  const origin = req ? resolveRequestPublicOrigin(req) : ''
   return advisorPublicMediaUrl(objectKey, origin)
 }
 
@@ -120,7 +121,7 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
         res.status(400).json({ message: 'key가 필요합니다.' })
         return
       }
-      const allowed = await assertAdvisorPublicMediaIsPublished(pool, objectKey)
+      const allowed = await assertAdvisorPublicMediaDeliverable(pool, objectKey)
       if (!allowed) {
         res.status(404).end()
         return

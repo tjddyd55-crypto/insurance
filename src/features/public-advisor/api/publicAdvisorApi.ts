@@ -132,11 +132,16 @@ export type AdvisorMediaUploadKind =
   | 'business-card-front'
   | 'business-card-back'
 
+export type AdvisorImageUploadResult = {
+  objectKey: string
+  publicUrl: string | null
+}
+
 export async function uploadAdvisorImageFile(
   token: string,
   kind: AdvisorMediaUploadKind,
   file: File,
-): Promise<string> {
+): Promise<AdvisorImageUploadResult> {
   const contentType = file.type || 'image/jpeg'
   const presign = await presignAdvisorMedia(token, {
     kind,
@@ -154,7 +159,10 @@ export async function uploadAdvisorImageFile(
   } catch {
     await uploadAdvisorImageViaProxy(token, presign.objectKey, kind, file, presign.contentType)
   }
-  return presign.objectKey
+  return {
+    objectKey: presign.objectKey,
+    publicUrl: presign.publicUrl ?? null,
+  }
 }
 
 export async function addAdvisorGalleryItem(token: string, objectKey: string, caption?: string) {
