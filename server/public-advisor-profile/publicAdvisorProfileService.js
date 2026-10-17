@@ -293,6 +293,7 @@ export async function getAdvisorPublicMetaBySlug(pool, slug) {
     title,
     description,
     profilePhotoObjectKey: resolved.profile.profilePhotoObjectKey,
+    // 대표사진 patch는 updated_at = NOW()를 같이 기록하므로 og-card.png?v= 가 사진 교체 때 바뀐다.
     ogImageCacheVersion: resolved.profile.updatedAt,
   }
 }
