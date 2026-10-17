@@ -602,7 +602,7 @@ export function ProfilePage() {
       <h1 className="profile-page__title">{pageTitle}</h1>
       {user.role === 'USER' ? (
         <p className="profile-page__status">
-          <Link to="/profile/public-advisor">내 공개 프로필 · 모바일 명함</Link>
+          <Link to="/profile/mobile-card">모바일 명함</Link>
         </p>
       ) : null}
       <SubscriptionStatusCard subscription={user?.subscription ?? null} />

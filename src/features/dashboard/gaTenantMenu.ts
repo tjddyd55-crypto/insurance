@@ -328,6 +328,9 @@ export function buildGaTenantDashboardMenu(
     ...workConvenienceLinks,
 
     { type: 'section', label: '내정보' },
+    ...(menuRole === 'USER'
+      ? ([{ type: 'link' as const, label: '모바일 명함', path: '/profile/mobile-card' }] as const)
+      : []),
     { type: 'link', label: '내 저장공간', path: '/storage' },
     { type: 'link', label: '내정보관리', path: '/profile' },
     ...(isBillingUiVisibleForUser({ gaCode })

@@ -18,6 +18,8 @@ import {
 import { buildAdvisorPublicPath } from '../advisorPublicRoutes'
 import { AdvisorMobileCardThemePicker } from '../components/AdvisorMobileCardThemePicker'
 import { AdvisorProfileQr } from '../components/AdvisorProfileQr'
+import { AdvisorProfileHero } from '../components/heroes/AdvisorProfileHero'
+import { buildHeroPreviewProps } from '../components/heroes/buildHeroPreviewProps'
 import { normalizeProfileTheme, type AdvisorProfileTheme } from '../profileTheme'
 import { RECOMMENDED_ADVISOR_HASHTAGS } from '../recommendedHashtags'
 import '../public-advisor.css'
@@ -68,13 +70,18 @@ export function MyPublicProfilePage() {
   const [profileTheme, setProfileTheme] = useState<AdvisorProfileTheme>('classic')
   const [address, setAddress] = useState<AddressSearchValue>(emptyAddress)
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null)
+  const [businessCardFrontUrl, setBusinessCardFrontUrl] = useState<string | null>(null)
+  const [businessCardBackUrl, setBusinessCardBackUrl] = useState<string | null>(null)
   const [gallery, setGallery] = useState<OwnerGalleryItem[]>([])
   const [ownerGaName, setOwnerGaName] = useState('')
   const [ownerTeamName, setOwnerTeamName] = useState('')
   const [ownerDisplayName, setOwnerDisplayName] = useState('')
   const [qrOpen, setQrOpen] = useState(false)
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false)
   const [mediaBusy, setMediaBusy] = useState(false)
   const profileInputRef = useRef<HTMLInputElement>(null)
+  const businessCardFrontInputRef = useRef<HTMLInputElement>(null)
+  const businessCardBackInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
@@ -103,6 +110,8 @@ export function MyPublicProfilePage() {
       })
       setPublicUrl(data.publicUrl)
       setProfilePhotoUrl(data.profilePhotoUrl)
+      setBusinessCardFrontUrl(data.businessCardFrontUrl)
+      setBusinessCardBackUrl(data.businessCardBackUrl)
       setGallery(data.gallery)
       setOwnerDisplayName(data.user.displayName ?? '')
       setOwnerGaName(data.user.gaName ?? '')
@@ -205,6 +214,39 @@ export function MyPublicProfilePage() {
     }
   }
 
+  const onBusinessCardPick = async (side: 'front' | 'back', file: File | null) => {
+    if (!file || !token) return
+    setMediaBusy(true)
+    setMessage('')
+    const kind = side === 'front' ? 'business-card-front' : 'business-card-back'
+    const patchKey = side === 'front' ? 'business_card_front_object_key' : 'business_card_back_object_key'
+    try {
+      const objectKey = await uploadAdvisorImageFile(token, kind, file)
+      await patchMyPublicProfile(token, { [patchKey]: objectKey })
+      setMessage(side === 'front' ? '명함 앞면이 저장되었습니다.' : '명함 뒷면이 저장되었습니다.')
+      await load()
+    } catch {
+      setMessage('명함 사진 업로드에 실패했습니다.')
+    } finally {
+      setMediaBusy(false)
+    }
+  }
+
+  const removeBusinessCard = async (side: 'front' | 'back') => {
+    if (!token) return
+    setMediaBusy(true)
+    const patchKey = side === 'front' ? 'business_card_front_object_key' : 'business_card_back_object_key'
+    try {
+      await patchMyPublicProfile(token, { [patchKey]: '' })
+      setMessage(side === 'front' ? '명함 앞면을 삭제했습니다.' : '명함 뒷면을 삭제했습니다.')
+      await load()
+    } catch {
+      setMessage('명함 사진 삭제에 실패했습니다.')
+    } finally {
+      setMediaBusy(false)
+    }
+  }
+
   const removeProfilePhoto = async () => {
     if (!token) return
     setMediaBusy(true)
@@ -267,6 +309,20 @@ export function MyPublicProfilePage() {
 
   const gaLine = [ownerGaName, ownerTeamName].filter(Boolean).join(' · ')
   const officePreviewLine = [address.roadAddress, address.addressDetail].filter(Boolean).join(' ')
+  const mobilePreviewHeroProps = buildHeroPreviewProps({
+    displayName: ownerDisplayName || user.displayName || '',
+    titleSuffix: titleLabel.trim() || 'FC',
+    profilePhotoUrl,
+    affiliationLine: gaLine,
+    officeLine: officePreviewLine,
+    headline: headline.trim() || '한 줄 소개',
+    publicTags: hashtags,
+    phoneNumber: showPhone ? '01000000000' : '',
+    kakaoLink: showKakao ? kakaoLink : '',
+    allowConsultation,
+    actionBarTheme: profileTheme,
+  })
+
   const heroThemePreviewSource = {
     displayName: ownerDisplayName || user.displayName || '',
     titleSuffix: titleLabel.trim() || 'FC',
@@ -282,8 +338,8 @@ export function MyPublicProfilePage() {
 
   return (
     <div className="page-shell pap-editor-page">
-      <h1>내 공개 프로필</h1>
-      <p>모바일 명함·QR·설계사 찾기에 동일한 페이지가 사용됩니다.</p>
+      <h1>내 모바일 명함</h1>
+      <p className="pap-editor-hint">고객에게 공유할 모바일 명함과 소개 페이지를 꾸밀 수 있습니다.</p>
 
       <section className="pap-editor-toolbar">
         <label className="pap-editor-toggle">
@@ -293,9 +349,12 @@ export function MyPublicProfilePage() {
         <div className="pap-cta-row pap-cta-row--left">
           {slug ? (
             <Link className="pap-btn pap-btn--secondary" to={buildAdvisorPublicPath(slug)} target="_blank" rel="noopener noreferrer">
-              내 페이지 보기
+              내 명함 보기
             </Link>
           ) : null}
+          <button type="button" className="pap-btn pap-btn--secondary" onClick={() => setMobilePreviewOpen(true)}>
+            미리보기
+          </button>
           <button type="button" className="pap-btn pap-btn--secondary" onClick={() => void shareLink()}>공유</button>
           <button type="button" className="pap-btn pap-btn--secondary" onClick={() => setQrOpen(true)} disabled={!publicUrl}>QR</button>
           <button type="button" className="pap-btn pap-btn--secondary" onClick={() => void copyLink()} disabled={!publicUrl}>링크 복사</button>
@@ -305,7 +364,16 @@ export function MyPublicProfilePage() {
       {loading ? <p>불러오는 중…</p> : null}
 
       <form className="pap-editor-form" onSubmit={(e) => void onSubmit(e)}>
-        <h2 className="pap-editor-section-title">대표사진</h2>
+        <h2 className="pap-editor-section-title">명함 디자인</h2>
+        <p className="pap-editor-hint">1안 · 2안 · 3안 중 공개 페이지 Hero 디자인을 선택합니다.</p>
+        <AdvisorMobileCardThemePicker
+          value={profileTheme}
+          onChange={setProfileTheme}
+          previewSource={heroThemePreviewSource}
+          disabled={saving || mediaBusy}
+        />
+
+        <h2 className="pap-editor-section-title">프로필 대표사진</h2>
         <div className="pap-editor-photo-row">
           {profilePhotoUrl ? (
             <img className="pap-editor-avatar" src={profilePhotoUrl} alt="대표사진 미리보기" />
@@ -336,16 +404,64 @@ export function MyPublicProfilePage() {
           />
         </div>
 
-        <h2 className="pap-editor-section-title">모바일 명함 디자인</h2>
-        <p className="pap-editor-hint">공개 페이지 상단 Hero만 변경됩니다. 소개·사진·상담 영역은 동일합니다.</p>
-        <AdvisorMobileCardThemePicker
-          value={profileTheme}
-          onChange={setProfileTheme}
-          previewSource={heroThemePreviewSource}
-          disabled={saving || mediaBusy}
-        />
+        <h2 className="pap-editor-section-title">실제 명함 사진</h2>
+        <p className="pap-editor-hint">사용 중인 종이 명함을 촬영하거나 이미지 파일로 등록해 주세요.</p>
+        <div className="pap-editor-business-card-row">
+          <div className="pap-editor-business-card-slot">
+            <strong>앞면</strong>
+            {businessCardFrontUrl ? <img src={businessCardFrontUrl} alt="명함 앞면" /> : <p className="pap-affiliation">등록된 앞면이 없습니다.</p>}
+            <div className="pap-cta-row pap-cta-row--left">
+              <button type="button" className="pap-btn pap-btn--secondary" disabled={mediaBusy} onClick={() => businessCardFrontInputRef.current?.click()}>
+                {businessCardFrontUrl ? '변경' : '+ 명함 앞면 추가'}
+              </button>
+              {businessCardFrontUrl ? (
+                <button type="button" className="pap-btn pap-btn--secondary" disabled={mediaBusy} onClick={() => void removeBusinessCard('front')}>
+                  삭제
+                </button>
+              ) : null}
+            </div>
+            <input
+              ref={businessCardFrontInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              className="pap-hidden-input"
+              onChange={(e) => {
+                const f = e.target.files?.[0] ?? null
+                e.target.value = ''
+                void onBusinessCardPick('front', f)
+              }}
+            />
+          </div>
+          <div className="pap-editor-business-card-slot">
+            <strong>뒷면 (선택)</strong>
+            {businessCardBackUrl ? <img src={businessCardBackUrl} alt="명함 뒷면" /> : <p className="pap-affiliation">등록된 뒷면이 없습니다.</p>}
+            <div className="pap-cta-row pap-cta-row--left">
+              <button type="button" className="pap-btn pap-btn--secondary" disabled={mediaBusy} onClick={() => businessCardBackInputRef.current?.click()}>
+                {businessCardBackUrl ? '변경' : '+ 명함 뒷면 추가'}
+              </button>
+              {businessCardBackUrl ? (
+                <button type="button" className="pap-btn pap-btn--secondary" disabled={mediaBusy} onClick={() => void removeBusinessCard('back')}>
+                  삭제
+                </button>
+              ) : null}
+            </div>
+            <input
+              ref={businessCardBackInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              className="pap-hidden-input"
+              onChange={(e) => {
+                const f = e.target.files?.[0] ?? null
+                e.target.value = ''
+                void onBusinessCardPick('back', f)
+              }}
+            />
+          </div>
+        </div>
 
-        <h2 className="pap-editor-section-title">기본정보</h2>
+        <h2 className="pap-editor-section-title">기본 표시정보</h2>
         <p className="pap-affiliation"><strong>{ownerDisplayName || user.displayName}</strong>{gaLine ? ` · ${gaLine}` : ''}</p>
         <label>공개 주소 (영문·숫자·하이픈)<input value={slug} onChange={(e) => setSlug(e.target.value)} /></label>
         <label>호칭<input value={titleLabel} onChange={(e) => setTitleLabel(e.target.value)} placeholder="FC" /></label>
@@ -397,7 +513,7 @@ export function MyPublicProfilePage() {
           />
         </label>
 
-        <h2 className="pap-editor-section-title">나를 보여주는 사진 (최대 {GALLERY_MAX}장)</h2>
+        <h2 className="pap-editor-section-title">활동 사진 (최대 {GALLERY_MAX}장)</h2>
         <div className="pap-editor-gallery">
           {gallery.map((g, index) => (
             <div key={g.id} className="pap-editor-gallery-item">
@@ -427,11 +543,20 @@ export function MyPublicProfilePage() {
           }}
         />
 
-        <h2 className="pap-editor-section-title">연락 설정</h2>
-        <label><input type="checkbox" checked={showPhone} onChange={(e) => setShowPhone(e.target.checked)} /> 전화번호 공개</label>
-        <label><input type="checkbox" checked={showKakao} onChange={(e) => setShowKakao(e.target.checked)} /> 카카오톡 링크 공개</label>
+        <h2 className="pap-editor-section-title">연락 기능 설정</h2>
+        <div className="pap-editor-toggle-row">
+          <span>전화번호 공개</span>
+          <input type="checkbox" checked={showPhone} onChange={(e) => setShowPhone(e.target.checked)} />
+        </div>
+        <div className="pap-editor-toggle-row">
+          <span>카카오톡 링크 공개</span>
+          <input type="checkbox" checked={showKakao} onChange={(e) => setShowKakao(e.target.checked)} />
+        </div>
         {showKakao ? <label>카카오톡 URL<input value={kakaoLink} onChange={(e) => setKakaoLink(e.target.value)} /></label> : null}
-        <label><input type="checkbox" checked={allowConsultation} onChange={(e) => setAllowConsultation(e.target.checked)} /> 상담 신청 받기</label>
+        <div className="pap-editor-toggle-row">
+          <span>상담 신청 받기</span>
+          <input type="checkbox" checked={allowConsultation} onChange={(e) => setAllowConsultation(e.target.checked)} />
+        </div>
 
         <div className="pap-cta-row pap-cta-row--left" style={{ marginTop: 24 }}>
           <FormButton type="submit" disabled={saving || mediaBusy}>{saving ? '저장 중…' : '저장'}</FormButton>
@@ -448,6 +573,23 @@ export function MyPublicProfilePage() {
           if (slug) trackAdvisorPublicEvent(slug, ADVISOR_PUBLIC_EVENT.QR_VIEW)
         }}
       />
+
+      {mobilePreviewOpen ? (
+        <div className="pap-theme-preview-modal" role="dialog" aria-modal="true" aria-label="모바일 명함 미리보기">
+          <button type="button" className="pap-theme-preview-modal__backdrop" aria-label="닫기" onClick={() => setMobilePreviewOpen(false)} />
+          <div className="pap-theme-preview-modal__panel">
+            <div className="pap-theme-preview-modal__toolbar">
+              <strong>390px 미리보기</strong>
+              <button type="button" className="pap-btn pap-btn--secondary" onClick={() => setMobilePreviewOpen(false)}>
+                닫기
+              </button>
+            </div>
+            <div className={`pap-theme-preview-modal__viewport pap-theme-preview-shell pap-page-theme--${profileTheme}`}>
+              <AdvisorProfileHero theme={profileTheme} {...mobilePreviewHeroProps} />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

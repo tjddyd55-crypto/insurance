@@ -10,6 +10,8 @@ type ActionBarProps = {
   onKakaoClick: () => void
   onConsultClick: () => void
   onShareClick: () => void
+  hasBusinessCard?: boolean
+  onBusinessCardClick?: () => void
 }
 
 function IconPhone() {
@@ -48,6 +50,15 @@ function IconConsult() {
   )
 }
 
+function IconBusinessCard() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M8 10h8M8 13.5h5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function IconShare() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -71,12 +82,18 @@ export function AdvisorProfileActionBar({
   onKakaoClick,
   onConsultClick,
   onShareClick,
+  hasBusinessCard = false,
+  onBusinessCardClick,
 }: ActionBarProps) {
   const tel = phoneNumber.replace(/\s/g, '')
   const showKakao = Boolean(kakaoLink?.trim())
+  const showBusinessCard = hasBusinessCard && typeof onBusinessCardClick === 'function'
 
   return (
-    <nav className={`pap-action-bar pap-action-bar--theme-${theme}`} aria-label="연락 및 공유">
+    <nav
+      className={`pap-action-bar pap-action-bar--theme-${theme}${showBusinessCard ? ' pap-action-bar--with-card' : ''}`}
+      aria-label="연락 및 공유"
+    >
       {tel ? (
         <a
           className="pap-action-bar__item pap-action-bar__item--phone"
@@ -103,6 +120,16 @@ export function AdvisorProfileActionBar({
         <button type="button" className="pap-action-bar__item pap-action-bar__item--consult" onClick={onConsultClick}>
           <span className="pap-action-bar__icon"><IconConsult /></span>
           <span className="pap-action-bar__label">상담</span>
+        </button>
+      ) : null}
+      {showBusinessCard ? (
+        <button
+          type="button"
+          className="pap-action-bar__item pap-action-bar__item--business-card"
+          onClick={onBusinessCardClick}
+        >
+          <span className="pap-action-bar__icon"><IconBusinessCard /></span>
+          <span className="pap-action-bar__label">명함</span>
         </button>
       ) : null}
       <button type="button" className="pap-action-bar__item pap-action-bar__item--share" onClick={onShareClick}>

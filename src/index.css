@@ -291,6 +291,12 @@ body:has(.app-root--external-account-vault){
   }
 }
 
+/* 공개 설계사 명함(/fc, /experts) — 비로그인 포함 상단 여백 제거 */
+.app-root.app-root--advisor-public .main-container {
+  padding: 0;
+  margin: 0;
+}
+
 /* 웹 전용 상단 프로그램 느낌 바 (Electron 은 ElectronTitleBar 사용) */
 .web-program-top-bar{
   display: none;

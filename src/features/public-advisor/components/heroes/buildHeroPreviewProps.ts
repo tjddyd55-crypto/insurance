@@ -32,5 +32,7 @@ export function buildHeroPreviewProps(input: {
     onKakaoClick: noop,
     onConsultClick: noop,
     onShareClick: noop,
+    hasBusinessCard: false,
+    onBusinessCardClick: noop,
   }
 }

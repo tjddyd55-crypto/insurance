@@ -57,7 +57,22 @@ export function buildAdvisorPublicObjectKey(userId, kind, originalName) {
   if (kind === 'profile') {
     return `${ADVISOR_PUBLIC_OBJECT_PREFIX}/${uid}/profile/photo-${id}${safeExt}`
   }
+  if (kind === 'business-card-front') {
+    return `${ADVISOR_PUBLIC_OBJECT_PREFIX}/${uid}/business-card/front-${id}${safeExt}`
+  }
+  if (kind === 'business-card-back') {
+    return `${ADVISOR_PUBLIC_OBJECT_PREFIX}/${uid}/business-card/back-${id}${safeExt}`
+  }
   return `${ADVISOR_PUBLIC_OBJECT_PREFIX}/${uid}/gallery/${id}${safeExt}`
+}
+
+export function normalizeAdvisorPublicMediaKind(raw) {
+  const kind = String(raw ?? '').trim().toLowerCase()
+  if (kind === 'gallery') return 'gallery'
+  if (kind === 'profile') return 'profile'
+  if (kind === 'business-card-front' || kind === 'business_card_front') return 'business-card-front'
+  if (kind === 'business-card-back' || kind === 'business_card_back') return 'business-card-back'
+  return 'profile'
 }
 
 function ownedKeyPrefixesForUser(uid) {
@@ -84,7 +99,8 @@ export async function createAdvisorPresignedUpload({ userId, kind, fileName, con
     return { ok: false, status: 400, message: 'JPG, PNG, WebP 이미지만 업로드할 수 있습니다.' }
   }
   const size = Number(sizeBytes)
-  const max = kind === 'profile' ? ADVISOR_PROFILE_MEDIA_MAX_BYTES : ADVISOR_PUBLIC_MEDIA_MAX_BYTES
+  const max =
+    kind === 'profile' ? ADVISOR_PROFILE_MEDIA_MAX_BYTES : ADVISOR_PUBLIC_MEDIA_MAX_BYTES
   if (!Number.isFinite(size) || size < 1 || size > max) {
     return { ok: false, status: 400, message: `파일 크기는 ${Math.floor(max / (1024 * 1024))}MB 이하여야 합니다.` }
   }

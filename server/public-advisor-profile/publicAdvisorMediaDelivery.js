@@ -61,6 +61,26 @@ export async function assertAdvisorPublicMediaIsPublished(pool, objectKey) {
   )
   if (profile.rowCount > 0) return true
 
+  const businessCard = await systemQuery(
+    pool,
+    `
+    SELECT 1
+    FROM advisor_public_profiles p
+    INNER JOIN users u ON u.id = p.user_id
+    WHERE p.is_published = true
+      AND u.is_deleted = false
+      AND u.role = 'USER'
+      AND u.status = 'active'
+      AND (
+        p.business_card_front_object_key = ANY($1::text[])
+        OR p.business_card_back_object_key = ANY($1::text[])
+      )
+    LIMIT 1
+    `,
+    [variants],
+  )
+  if (businessCard.rowCount > 0) return true
+
   const gallery = await systemQuery(
     pool,
     `

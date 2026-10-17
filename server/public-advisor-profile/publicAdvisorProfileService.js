@@ -226,6 +226,8 @@ export async function getPublishedAdvisorBySlug(pool, slug) {
       officeAddressDetail: row.office_address_detail,
       officePostalCode: row.office_postal_code,
       profilePhotoObjectKey: row.profile_photo_object_key,
+      businessCardFrontObjectKey: row.business_card_front_object_key,
+      businessCardBackObjectKey: row.business_card_back_object_key,
       allowConsultation: row.allow_consultation,
       profileTheme: normalizeAdvisorProfileTheme(row.profile_theme),
     },
@@ -368,18 +370,24 @@ export async function patchAdvisorProfileForOwner(pool, userId, patch) {
     values.push(slug)
   }
 
-  if (patch.profile_photo_object_key != null) {
-    const photoKey = String(patch.profile_photo_object_key ?? '').trim()
-    if (!photoKey) {
-      sets.push(`profile_photo_object_key = $${n++}`)
+  const objectKeyPatchFields = [
+    { patchKey: 'profile_photo_object_key', column: 'profile_photo_object_key', label: '대표사진' },
+    { patchKey: 'business_card_front_object_key', column: 'business_card_front_object_key', label: '명함 앞면' },
+    { patchKey: 'business_card_back_object_key', column: 'business_card_back_object_key', label: '명함 뒷면' },
+  ]
+  for (const { patchKey, column, label } of objectKeyPatchFields) {
+    if (patch[patchKey] == null) continue
+    const mediaKey = String(patch[patchKey] ?? '').trim()
+    if (!mediaKey) {
+      sets.push(`${column} = $${n++}`)
       values.push(null)
-    } else if (!assertAdvisorPublicObjectKeyOwned(userId, photoKey)) {
-      return { ok: false, status: 400, message: '대표사진 경로가 올바르지 않습니다.' }
-    } else if (!(await r2StorageObjectExists(photoKey))) {
-      return { ok: false, status: 400, message: '대표사진 업로드가 완료되지 않았습니다. 다시 시도해 주세요.' }
+    } else if (!assertAdvisorPublicObjectKeyOwned(userId, mediaKey)) {
+      return { ok: false, status: 400, message: `${label} 경로가 올바르지 않습니다.` }
+    } else if (!(await r2StorageObjectExists(mediaKey))) {
+      return { ok: false, status: 400, message: `${label} 업로드가 완료되지 않았습니다. 다시 시도해 주세요.` }
     } else {
-      sets.push(`profile_photo_object_key = $${n++}`)
-      values.push(photoKey)
+      sets.push(`${column} = $${n++}`)
+      values.push(mediaKey)
     }
   }
 

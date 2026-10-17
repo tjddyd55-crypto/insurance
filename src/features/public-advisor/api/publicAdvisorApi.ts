@@ -19,6 +19,8 @@ export type AdvisorProfileTheme = 'classic' | 'brand' | 'premium'
 
 export type PublicAdvisorDetail = PublicAdvisorCard & {
   profileTheme?: AdvisorProfileTheme
+  businessCardFrontUrl?: string | null
+  businessCardBackUrl?: string | null
   bio: string
   titleLabel: string
   careerText: string
@@ -61,6 +63,8 @@ export type OwnerPublicProfileResponse = {
   verificationBadges: Array<{ id: string; label: string }>
   publicUrl: string
   profilePhotoUrl: string | null
+  businessCardFrontUrl: string | null
+  businessCardBackUrl: string | null
 }
 
 export async function fetchMyPublicProfile(token: string): Promise<OwnerPublicProfileResponse> {
@@ -77,7 +81,12 @@ export async function patchMyPublicProfile(token: string, body: Record<string, u
 
 export async function presignAdvisorMedia(
   token: string,
-  body: { kind: 'profile' | 'gallery'; fileName: string; contentType: string; sizeBytes: number },
+  body: {
+    kind: 'profile' | 'gallery' | 'business-card-front' | 'business-card-back'
+    fileName: string
+    contentType: string
+    sizeBytes: number
+  },
 ) {
   return apiRequest<{
     uploadUrl: string
@@ -95,7 +104,7 @@ export async function presignAdvisorMedia(
 async function uploadAdvisorImageViaProxy(
   token: string,
   objectKey: string,
-  kind: 'profile' | 'gallery',
+  kind: 'profile' | 'gallery' | 'business-card-front' | 'business-card-back',
   file: File,
   contentType: string,
 ): Promise<void> {
@@ -117,9 +126,15 @@ async function uploadAdvisorImageViaProxy(
   }
 }
 
+export type AdvisorMediaUploadKind =
+  | 'profile'
+  | 'gallery'
+  | 'business-card-front'
+  | 'business-card-back'
+
 export async function uploadAdvisorImageFile(
   token: string,
-  kind: 'profile' | 'gallery',
+  kind: AdvisorMediaUploadKind,
   file: File,
 ): Promise<string> {
   const contentType = file.type || 'image/jpeg'

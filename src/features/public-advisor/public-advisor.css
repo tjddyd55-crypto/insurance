@@ -116,6 +116,13 @@
   display: block;
   min-height: 0;
   flex: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pap-page--fc .public-advisor-shell.pap-shell--fc {
+  padding-top: 0;
+  margin-top: 0;
 }
 
 .pap-shell--fc {
@@ -126,6 +133,19 @@
   padding-top: 0;
   padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   padding-inline: 0;
+}
+
+.pap-page--fc .pap-shell--fc > .pap-fc-card--hero:first-child,
+.pap-page--fc .pap-dev-theme-review + .pap-fc-card--hero {
+  margin-top: 0;
+}
+
+.pap-page--fc .pap-dev-theme-review {
+  margin: 0;
+}
+
+.pap-page--fc .pap-hero.pap-fc-card--hero {
+  padding-top: 0;
 }
 
 .pap-shell--fc-state {
@@ -391,6 +411,101 @@
   line-height: 1.2;
 }
 
+.pap-action-bar--with-card .pap-action-bar__item {
+  max-width: 76px;
+  font-size: 0.68rem;
+}
+
+.pap-action-bar__item--business-card .pap-action-bar__icon {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.pap-section--business-card .pap-business-card-hint {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  color: #6b7280;
+  text-align: center;
+}
+
+.pap-business-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pap-business-cards--duo {
+  gap: 12px;
+}
+
+.pap-business-card-tile {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+}
+
+.pap-business-card-tile__label {
+  display: block;
+  padding: 6px 10px 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #6b7280;
+}
+
+.pap-business-card-img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  object-position: center;
+  background: #fff;
+  padding: 8px 10px 10px;
+  box-sizing: border-box;
+}
+
+.pap-lightbox-figure img.pap-lightbox-img--business-card {
+  max-height: min(88vh, 720px);
+  object-fit: contain;
+  background: #fff;
+}
+
+.pap-editor-business-card-row {
+  display: grid;
+  gap: 16px;
+}
+
+.pap-editor-business-card-slot {
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fafafa;
+}
+
+.pap-editor-business-card-slot img {
+  display: block;
+  width: 100%;
+  max-height: 160px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.pap-editor-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
 @media (min-width: 390px) and (max-width: 430px) {
   .pap-hero--theme-classic .pap-hero-photo-wrap {
     max-height: min(50vh, 380px);
@@ -405,7 +520,7 @@
 
 @media (min-width: 768px) {
   .pap-shell--fc {
-    padding-top: 12px;
+    padding-top: 0;
     padding-inline: 16px;
   }
 
@@ -1340,10 +1455,10 @@
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(15, 23, 42, 0.05) 0%,
-    rgba(15, 23, 42, 0) 38%,
-    rgba(8, 20, 40, 0.35) 72%,
-    rgba(8, 20, 40, 0.72) 100%
+    rgba(15, 23, 42, 0.02) 0%,
+    rgba(15, 23, 42, 0) 42%,
+    rgba(8, 20, 40, 0.22) 78%,
+    rgba(8, 20, 40, 0.45) 100%
   );
 }
 
@@ -1354,11 +1469,11 @@
   text-align: left;
   color: #fff;
   border-radius: 14px;
-  background: rgba(8, 20, 40, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(10, 30, 55, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
 .pap-hero-premium__panel-brand {

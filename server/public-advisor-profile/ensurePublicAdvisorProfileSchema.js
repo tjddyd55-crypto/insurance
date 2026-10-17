@@ -28,6 +28,8 @@ export async function ensurePublicAdvisorProfileSchema(executor) {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       profile_theme TEXT NOT NULL DEFAULT 'classic',
+      business_card_front_object_key TEXT,
+      business_card_back_object_key TEXT,
       CONSTRAINT advisor_public_profiles_hashtags_max5
         CHECK (cardinality(hashtags) <= 5),
       CONSTRAINT advisor_public_profiles_profile_theme_check
@@ -38,6 +40,16 @@ export async function ensurePublicAdvisorProfileSchema(executor) {
   await executor.query(`
     ALTER TABLE advisor_public_profiles
     ADD COLUMN IF NOT EXISTS profile_theme TEXT NOT NULL DEFAULT 'classic'
+  `)
+
+  await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ADD COLUMN IF NOT EXISTS business_card_front_object_key TEXT
+  `)
+
+  await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ADD COLUMN IF NOT EXISTS business_card_back_object_key TEXT
   `)
 
   await executor.query(`

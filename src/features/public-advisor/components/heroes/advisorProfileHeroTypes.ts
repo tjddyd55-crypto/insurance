@@ -15,4 +15,6 @@ export type AdvisorProfileHeroProps = {
   onKakaoClick: () => void
   onConsultClick: () => void
   onShareClick: () => void
+  hasBusinessCard?: boolean
+  onBusinessCardClick?: () => void
 }

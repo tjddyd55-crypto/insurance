@@ -20,6 +20,7 @@ import {
   assertAdvisorPublicObjectKeyOwned,
   createAdvisorPresignedUpload,
   isAdvisorImageContentType,
+  normalizeAdvisorPublicMediaKind,
 } from './publicAdvisorMedia.js'
 import {
   advisorPublicMediaUrl,
@@ -61,6 +62,8 @@ function mapPublicProfilePayload(resolved, req) {
     allowConsultation: profile.allowConsultation,
     profileTheme: profile.profileTheme,
     profilePhotoUrl: publicMediaUrl(profile.profilePhotoObjectKey, req),
+    businessCardFrontUrl: publicMediaUrl(profile.businessCardFrontObjectKey, req),
+    businessCardBackUrl: publicMediaUrl(profile.businessCardBackObjectKey, req),
     gallery: gallery.map((g) => ({
       id: g.id,
       caption: g.caption,
@@ -224,6 +227,8 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
         verificationBadges: data.verificationBadges,
         publicUrl: `${baseUrl}/fc/${data.profile.public_slug}`,
         profilePhotoUrl: publicMediaUrl(data.profile.profile_photo_object_key, req),
+        businessCardFrontUrl: publicMediaUrl(data.profile.business_card_front_object_key, req),
+        businessCardBackUrl: publicMediaUrl(data.profile.business_card_back_object_key, req),
       })
     } catch (e) {
       handleDbError(res, e)
@@ -249,7 +254,7 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
     try {
       if (!requireUserRole(req, res)) return
       const body = req.body ?? {}
-      const kind = String(body.kind ?? '').trim() === 'gallery' ? 'gallery' : 'profile'
+      const kind = normalizeAdvisorPublicMediaKind(body.kind)
       const result = await createAdvisorPresignedUpload({
         userId: req.user.id,
         kind,
@@ -281,7 +286,7 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
         return
       }
       const objectKey = String(req.query.objectKey ?? req.query.object_key ?? '').trim()
-      const kind = String(req.query.kind ?? '').trim() === 'gallery' ? 'gallery' : 'profile'
+      const kind = normalizeAdvisorPublicMediaKind(req.query.kind)
       const maxBytes =
         kind === 'profile' ? ADVISOR_PROFILE_MEDIA_MAX_BYTES : ADVISOR_PUBLIC_MEDIA_MAX_BYTES
       const contentTypeRaw = String(req.query.contentType ?? req.query.content_type ?? '').trim()

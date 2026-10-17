@@ -7,6 +7,7 @@ import {
   trackAdvisorPublicEvent,
   type PublicAdvisorDetail,
 } from '../api/publicAdvisorApi'
+import { AdvisorBusinessCardSection } from '../components/AdvisorBusinessCardSection'
 import { AdvisorProfileHero } from '../components/heroes/AdvisorProfileHero'
 import { AdvisorPublicImage } from '../components/AdvisorPublicImage'
 import { AdvisorThemeDevSwitcher } from '../components/AdvisorThemeDevSwitcher'
@@ -141,6 +142,16 @@ export function PublicAdvisorProfilePage() {
   const primaryBadge = data.verificationBadges?.[0]
   const savedProfileTheme = normalizeProfileTheme(data.profileTheme)
   const profileTheme = devReviewHeroTheme ?? savedProfileTheme
+  const businessCardFrontUrl = data.businessCardFrontUrl ?? null
+  const businessCardBackUrl = data.businessCardBackUrl ?? null
+  const hasBusinessCard = Boolean(businessCardFrontUrl?.trim() || businessCardBackUrl?.trim())
+
+  const openBusinessCardLightbox = () => {
+    const url = businessCardFrontUrl?.trim() || businessCardBackUrl?.trim()
+    if (!url) return
+    const label = businessCardFrontUrl?.trim() ? '명함 앞면' : '명함 뒷면'
+    setLightbox({ url, caption: label })
+  }
 
   return (
     <div className={`public-advisor-page pap-page--fc pap-page-theme--${profileTheme}`}>
@@ -166,6 +177,8 @@ export function PublicAdvisorProfilePage() {
           onKakaoClick={() => trackAdvisorPublicEvent(slug, ADVISOR_PUBLIC_EVENT.CONTACT_CLICK)}
           onConsultClick={openConsult}
           onShareClick={() => void sharePage()}
+          hasBusinessCard={hasBusinessCard}
+          onBusinessCardClick={openBusinessCardLightbox}
         />
 
         <div className="pap-home-sections">
@@ -175,6 +188,12 @@ export function PublicAdvisorProfilePage() {
               <p className="pap-body pap-body--intro">{data.bio}</p>
             </section>
           ) : null}
+
+          <AdvisorBusinessCardSection
+            frontUrl={businessCardFrontUrl}
+            backUrl={businessCardBackUrl}
+            onImageClick={(url, label) => setLightbox({ url, caption: label })}
+          />
 
           {data.gallery?.length ? (
             <section className="pap-section pap-section--gallery pap-fc-card">
@@ -287,7 +306,11 @@ export function PublicAdvisorProfilePage() {
         <div className="pap-lightbox" role="dialog" aria-modal="true" onClick={() => setLightbox(null)}>
           <button type="button" className="pap-lightbox-close" onClick={() => setLightbox(null)}>닫기</button>
           <figure className="pap-lightbox-figure" onClick={(e) => e.stopPropagation()}>
-            <img src={lightbox.url} alt={lightbox.caption || '활동 사진'} />
+            <img
+              src={lightbox.url}
+              alt={lightbox.caption || '활동 사진'}
+              className={lightbox.caption.includes('명함') ? 'pap-lightbox-img--business-card' : undefined}
+            />
             {lightbox.caption ? <figcaption className="pap-lightbox-caption">{lightbox.caption}</figcaption> : null}
           </figure>
         </div>

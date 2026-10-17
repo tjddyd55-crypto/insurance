@@ -659,6 +659,7 @@ export const appRouter = createBrowserRouter([
               },
               { path: 'profile', element: <ProfilePage /> },
               { path: 'profile/public-advisor', element: <MyPublicProfilePage /> },
+              { path: 'profile/mobile-card', element: <MyPublicProfilePage /> },
               { path: 'account/billing', element: <FreeLaunchBillingGuard><AccountBillingPage /></FreeLaunchBillingGuard> },
               { path: 'account/reset', element: <AccountResetPage /> },
               { path: 'feature-request', element: <FeatureRequestPage /> },
