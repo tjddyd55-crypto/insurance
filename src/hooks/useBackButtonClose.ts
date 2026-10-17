@@ -3,6 +3,7 @@ import { useEffect, useId, useRef } from 'react'
 import {
   buildUiLayerPushState,
   isOwnUiLayerTop,
+  modalLayerStack,
   shouldStripSyntheticEntryOnDismiss,
   stripOwnUiLayerMarker,
 } from './backButtonCloseHistory'
@@ -54,21 +55,23 @@ export function useBackButtonClose(
     }
 
     closedByPopRef.current = false
+    modalLayerStack.push(layerId)
     const nextState = buildUiLayerPushState(window.history.state, layerKind, layerId)
     window.history.pushState(nextState, '', window.location.href)
     pushedRef.current = true
 
     const onPopState = () => {
-      if (!pushedRef.current) {
+      if (!pushedRef.current || !modalLayerStack.isTop(layerId)) {
         return
       }
       pushedRef.current = false
       closedByPopRef.current = true
+      modalLayerStack.remove(layerId)
       onCloseRef.current()
     }
 
     const onBeforeGlobalBack = (event: Event) => {
-      if (!pushedRef.current) {
+      if (!pushedRef.current || !modalLayerStack.isTop(layerId)) {
         return
       }
       event.preventDefault()
@@ -80,6 +83,7 @@ export function useBackButtonClose(
       }
       pushedRef.current = false
       closedByPopRef.current = true
+      modalLayerStack.remove(layerId)
       onCloseRef.current()
     }
 
@@ -96,6 +100,7 @@ export function useBackButtonClose(
         return
       }
 
+      modalLayerStack.remove(layerId)
       const shouldStrip = shouldStripSyntheticEntryOnDismiss({
         pushed: pushedRef.current,
         top: window.history.state,
