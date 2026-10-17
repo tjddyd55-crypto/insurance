@@ -248,24 +248,48 @@ export async function consentPutInsurerAttachment(key, body, contentType) {
   await consentPutObject(key, body, contentType)
 }
 
-export async function consentGetBuffer(key) {
-  const c = r2Credentials()
-  const client = getS3()
-  if (client && c) {
-    const out = await client.send(
-      new GetObjectCommand({
-        Bucket: c.bucket,
-        Key: key,
-      }),
-    )
-    const chunks = []
-    for await (const chunk of out.Body) {
-      chunks.push(chunk)
+const DEFAULT_CONSENT_GET_MAX_BYTES = 20 * 1024 * 1024
+
+/**
+ * @param {string} key
+ * @param {{ timeoutMs?: number, maxBytes?: number }} [options]
+ */
+export async function consentGetBuffer(key, options = {}) {
+  const timeoutMs = options.timeoutMs ?? 60_000
+  const maxBytes = options.maxBytes ?? DEFAULT_CONSENT_GET_MAX_BYTES
+
+  const readTask = async () => {
+    const c = r2Credentials()
+    const client = getS3()
+    if (client && c) {
+      const out = await client.send(
+        new GetObjectCommand({
+          Bucket: c.bucket,
+          Key: key,
+        }),
+      )
+      const chunks = []
+      let total = 0
+      for await (const chunk of out.Body) {
+        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+        total += buf.length
+        if (total > maxBytes) {
+          throw new Error(`R2 object exceeds maxBytes (${maxBytes})`)
+        }
+        chunks.push(buf)
+      }
+      return Buffer.concat(chunks)
     }
-    return Buffer.concat(chunks)
+    const full = path.join(LOCAL_ROOT, key)
+    const body = await readFile(full)
+    if (body.length > maxBytes) {
+      throw new Error(`Local object exceeds maxBytes (${maxBytes})`)
+    }
+    return body
   }
-  const full = path.join(LOCAL_ROOT, key)
-  return readFile(full)
+
+  const { promiseWithTimeout } = await import('./promiseWithTimeout.js')
+  return promiseWithTimeout(readTask(), timeoutMs, 'consentGetBuffer')
 }
 
 /**

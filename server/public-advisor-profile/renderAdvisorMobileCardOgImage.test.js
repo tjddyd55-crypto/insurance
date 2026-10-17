@@ -31,3 +31,22 @@ for (const theme of ['classic', 'brand', 'premium']) {
     assert.equal(meta.format, 'png')
   })
 }
+
+test('renderAdvisorMobileCardOgPng uses fallback for corrupt tiny photo buffer', async () => {
+  const corrupt = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FABJADveWkH6oAAAAAElFTkSuQmCC',
+    'base64',
+  )
+  const t0 = Date.now()
+  const png = await renderAdvisorMobileCardOgPng({ ...baseInput, theme: 'classic', photoBuffer: corrupt })
+  assert.ok(Date.now() - t0 < 15_000)
+  const meta = await sharp(png).metadata()
+  assert.equal(meta.width, ADVISOR_OG_IMAGE_WIDTH)
+  assert.equal(meta.height, ADVISOR_OG_IMAGE_HEIGHT)
+})
+
+test('renderAdvisorMobileCardOgPng renders without photo buffer', async () => {
+  const png = await renderAdvisorMobileCardOgPng({ ...baseInput, theme: 'brand', photoBuffer: null })
+  const meta = await sharp(png).metadata()
+  assert.equal(meta.format, 'png')
+})

@@ -1,9 +1,65 @@
 import sharp from 'sharp'
+import { promiseWithTimeout } from '../lib/promiseWithTimeout.js'
 import { ADVISOR_OG_IMAGE_HEIGHT, ADVISOR_OG_IMAGE_WIDTH } from './publicAdvisorOgMeta.js'
 import { resolveAdvisorHeroDisplayLines } from './resolveAdvisorHeroDisplayLines.js'
 
 const W = ADVISOR_OG_IMAGE_WIDTH
 const H = ADVISOR_OG_IMAGE_HEIGHT
+const OG_PHOTO_META_TIMEOUT_MS = 3_000
+const OG_PHOTO_PREPARE_TIMEOUT_MS = 8_000
+const MIN_OG_PHOTO_BYTES = 256
+
+/** @type {Promise<Buffer> | null} */
+let defaultOgPhotoPromise = null
+
+function getDefaultOgPhotoBuffer() {
+  if (!defaultOgPhotoPromise) {
+    defaultOgPhotoPromise = sharp({
+      create: { width: 480, height: 600, channels: 3, background: { r: 148, g: 163, b: 184 } },
+    })
+      .png()
+      .toBuffer()
+  }
+  return defaultOgPhotoPromise
+}
+
+/**
+ * @param {Buffer | null | undefined} photoBuffer
+ * @param {boolean} [forceFallback]
+ */
+async function resolveOgPhotoBuffer(photoBuffer, forceFallback = false) {
+  if (forceFallback || !photoBuffer || photoBuffer.length < MIN_OG_PHOTO_BYTES) {
+    return getDefaultOgPhotoBuffer()
+  }
+  try {
+    const meta = await promiseWithTimeout(
+      sharp(photoBuffer).rotate().metadata(),
+      OG_PHOTO_META_TIMEOUT_MS,
+      'ogPhotoMetadata',
+    )
+    if (!meta.width || !meta.height || meta.width < 32 || meta.height < 32) {
+      return getDefaultOgPhotoBuffer()
+    }
+    return photoBuffer
+  } catch {
+    return getDefaultOgPhotoBuffer()
+  }
+}
+
+/**
+ * @param {Buffer} source
+ */
+async function prepareOgCoverPhoto(source) {
+  return promiseWithTimeout(
+    sharp(source)
+      .rotate()
+      .resize(1400, 1400, { fit: 'inside', withoutEnlargement: false })
+      .jpeg({ quality: 88, mozjpeg: true })
+      .toBuffer(),
+    OG_PHOTO_PREPARE_TIMEOUT_MS,
+    'ogPhotoPrepare',
+  )
+}
 
 function escapeXml(value) {
   return String(value ?? '')
@@ -30,6 +86,7 @@ function truncate(value, max) {
  *   heroDisplayTitleVisible?: boolean | null
  *   heroDisplaySubtitleVisible?: boolean | null
  *   verificationBadgeLabel?: string | null
+ *   forcePhotoFallback?: boolean
  * }} input
  */
 export async function renderAdvisorMobileCardOgPng(input) {
@@ -40,9 +97,10 @@ export async function renderAdvisorMobileCardOgPng(input) {
   const subtitle = truncate(hero.subtitle, 42)
   const verify = truncate(input.verificationBadgeLabel, 24)
 
-  const photo = await sharp(input.photoBuffer)
-    .rotate()
-    .resize(W, H, { fit: 'cover', position: 'attention' })
+  const source = await resolveOgPhotoBuffer(input.photoBuffer, Boolean(input.forcePhotoFallback))
+  const prepared = await prepareOgCoverPhoto(source)
+  const photo = await sharp(prepared)
+    .resize(W, H, { fit: 'cover', position: 'top' })
     .png()
     .toBuffer()
 

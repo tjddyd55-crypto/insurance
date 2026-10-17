@@ -138,17 +138,25 @@ export async function assertAdvisorPublicMediaDeliverable(pool, objectKey) {
   return galleryLinked.rowCount > 0
 }
 
+/** @typedef {{ timeoutMs?: number }} ReadAdvisorPublicMediaOptions */
+
+const ADVISOR_PUBLIC_MEDIA_READ_TIMEOUT_MS = 5_000
+const ADVISOR_PUBLIC_MEDIA_MAX_BYTES = 12 * 1024 * 1024
+
 /**
  * @param {string} objectKey
+ * @param {ReadAdvisorPublicMediaOptions} [options]
  */
-export async function readAdvisorPublicMediaBuffer(objectKey) {
+export async function readAdvisorPublicMediaBuffer(objectKey, options = {}) {
+  const timeoutMs = options.timeoutMs ?? ADVISOR_PUBLIC_MEDIA_READ_TIMEOUT_MS
+  const readOpts = { timeoutMs, maxBytes: ADVISOR_PUBLIC_MEDIA_MAX_BYTES }
   const key = normalizeAdvisorPublicObjectKeyForCdn(objectKey)
   const legacy = String(objectKey ?? '').trim().replace(/^\//, '')
   try {
-    return await consentGetBuffer(key)
+    return await consentGetBuffer(key, readOpts)
   } catch (e) {
     if (legacy && legacy !== key) {
-      return await consentGetBuffer(legacy)
+      return await consentGetBuffer(legacy, readOpts)
     }
     throw e
   }

@@ -36,7 +36,7 @@ import {
   recordAdvisorPublicEvent,
   searchPublishedAdvisors,
 } from './publicAdvisorProfileService.js'
-import { renderAdvisorMobileCardOgPng } from './renderAdvisorMobileCardOgImage.js'
+import { buildAdvisorOgCardPng } from './advisorOgCardBuilder.js'
 import { resolveRequestPublicOrigin } from './requestPublicOrigin.js'
 
 const PUBLIC_EVENT_WHITELIST = new Set(Object.values(ADVISOR_PUBLIC_EVENT_TYPES))
@@ -165,38 +165,18 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
 
   apiRouter.get('/public/advisors/:slug/og-card.png', async (req, res) => {
     try {
-      const resolved = await getPublishedAdvisorBySlug(pool, req.params.slug)
-      if (resolved.status !== 'ok') {
+      const built = await buildAdvisorOgCardPng(pool, req.params.slug)
+      if (built.status !== 'ok' || !built.png) {
         res.status(404).end()
         return
       }
-      const photoKey = resolved.profile.profilePhotoObjectKey
-      if (!photoKey) {
-        res.status(404).end()
-        return
-      }
-      let photoBuffer
-      try {
-        photoBuffer = await readAdvisorPublicMediaBuffer(photoKey)
-      } catch {
-        res.status(404).end()
-        return
-      }
-      const badge = resolved.verificationBadges?.[0]?.label ?? null
-      const png = await renderAdvisorMobileCardOgPng({
-        theme: resolved.profile.profileTheme ?? 'classic',
-        photoBuffer,
-        heroDisplayEyebrow: resolved.profile.heroDisplayEyebrow,
-        heroDisplayTitle: resolved.profile.heroDisplayTitle,
-        heroDisplaySubtitle: resolved.profile.heroDisplaySubtitle,
-        heroDisplayEyebrowVisible: resolved.profile.heroDisplayEyebrowVisible,
-        heroDisplayTitleVisible: resolved.profile.heroDisplayTitleVisible,
-        heroDisplaySubtitleVisible: resolved.profile.heroDisplaySubtitleVisible,
-        verificationBadgeLabel: badge,
-      })
       res.setHeader('Content-Type', 'image/png')
       res.setHeader('Cache-Control', 'public, max-age=600, stale-while-revalidate=86400')
-      res.send(png)
+      if (built.timing) {
+        res.setHeader('X-Advisor-Og-Total-Ms', String(built.timing.totalMs ?? ''))
+        res.setHeader('X-Advisor-Og-Photo-Fallback', built.timing.usedPhotoFallback ? '1' : '0')
+      }
+      res.send(built.png)
     } catch (e) {
       handleDbError(res, e)
     }
