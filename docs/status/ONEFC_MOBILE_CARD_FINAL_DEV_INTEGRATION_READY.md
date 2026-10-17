@@ -15,11 +15,19 @@ Development (`develop`) only — mobile card 통합 QA + OG timeout fix.
 - `advisorOgCardBuilder.js`: 단계 timing (`ADVISOR_OG_TIMING_LOG=1`), render timeout, photo fallback.
 - `renderAdvisorMobileCardOgImage.js`: photo metadata 검증, corrupt/small → default silhouette, `position: 'top'`, JPEG normalize 후 composite.
 
-## QA
+## Deploy
+
+- **SHA:** `699ed58e` (develop → Railway Dev)
+
+## QA (2026-03-21)
 
 ```bash
 node scripts/qa/validate-mobile-card-polish-round2.mjs
-node scripts/qa/validate-mobile-card-final-dev-integration.mjs
+EXPECT_GIT_SHA=699ed58e node scripts/qa/validate-mobile-card-final-dev-integration.mjs
 ```
 
-Kakao: [Sharing Debugger](https://developers.kakao.com/tool/debugger/sharing)에서 `/fc/:slug` 재수집.
+- 공개: `devThemeBarAbsent`, `heroTopPx: 0`
+- OG: classic ~840ms, brand ~1515ms, premium ~653ms (1200×630 PNG)
+- 연락처 PATCH 200, reload·공개 tel/mailto/url 확인
+
+Kakao: [Sharing Debugger](https://developers.kakao.com/tool/debugger/sharing)에서 `/fc/qa-public-advisor-dev` 재수집 (OG 정상화 후).

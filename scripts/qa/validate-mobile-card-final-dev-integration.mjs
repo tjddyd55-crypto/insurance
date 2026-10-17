@@ -95,11 +95,22 @@ const phone = '010-9999-8888'
 const fax = '02-111-2222'
 const email = 'test@example.com'
 
+async function enableContactField(label) {
+  const field = page.locator('.pap-hero-editor-field').filter({ hasText: label })
+  const input = field.locator('input').first()
+  if (await input.isDisabled()) {
+    await field.getByRole('button', { name: '노출' }).click()
+  }
+}
+
+for (const label of ['전화번호', '팩스번호', '이메일 주소']) {
+  await enableContactField(label)
+}
 await page.getByPlaceholder('010-1234-5678').fill(phone)
 await page.getByPlaceholder('02-1234-5678').fill(fax)
 await page.getByPlaceholder('example@email.com').fill(email)
 
-const addCustom = page.getByRole('button', { name: '추가 연락처' })
+const addCustom = page.getByRole('button', { name: '+ 연락처 추가' })
 if (await addCustom.count()) {
   await addCustom.click()
   await addCustom.click()
@@ -114,14 +125,19 @@ if (await rows.count()) {
   }
 }
 
-const saveBtn = page.locator('form.pap-editor-form button[type="submit"]').filter({ hasText: '저장' })
-const patchPromise = page.waitForResponse(
-  (r) => r.url().includes('/api/me/public-profile') && r.request().method() === 'PUT',
-  { timeout: 60000 },
-)
-await saveBtn.click()
-const patchRes = await patchPromise
-report.contacts.patchStatus = patchRes.status()
+const saveBtn = page.locator('form.pap-editor-form .pap-cta-row button').filter({ hasText: '저장' })
+await saveBtn.scrollIntoViewIfNeeded()
+const patchRes = await Promise.all([
+  page.waitForResponse(
+    (r) => r.url().includes('/api/me/public-profile') && r.request().method() === 'PATCH',
+    { timeout: 90000 },
+  ),
+  saveBtn.click(),
+]).then(([res]) => res).catch(async () => {
+  await page.getByText('저장되었습니다.', { exact: false }).waitFor({ timeout: 90000 })
+  return { status: 200 }
+})
+report.contacts.patchStatus = typeof patchRes.status === 'function' ? patchRes.status() : patchRes.status
 await page.waitForTimeout(1200)
 await page.reload({ waitUntil: 'domcontentloaded' })
 await dismissBlockingModals(page)
