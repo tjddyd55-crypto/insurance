@@ -97,6 +97,11 @@ export function PublicAdvisorProfilePage() {
     return {
       displayName: data.displayName,
       titleSuffix: data.titleLabel?.trim() || 'FC',
+      gaName: data.gaName,
+      teamName: data.teamName,
+      heroDisplayEyebrow: data.heroDisplayEyebrow,
+      heroDisplayTitle: data.heroDisplayTitle,
+      heroDisplaySubtitle: data.heroDisplaySubtitle,
       profilePhotoUrl: normalizeAdvisorMediaUrl(data.profilePhotoUrl),
       primaryBadgeLabel: data.verificationBadges?.[0]?.label ?? null,
       affiliationLine,

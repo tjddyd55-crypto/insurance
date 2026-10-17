@@ -6,10 +6,11 @@ import { AdvisorHeroPortraitSlot } from './AdvisorHeroPortraitSlot'
 export function AdvisorProfileHeroBrand(props: AdvisorProfileHeroProps) {
   const {
     displayName,
-    titleSuffix,
+    heroTitleLine,
+    heroSubtitleLine,
+    heroEyebrowLine,
     profilePhotoUrl,
     primaryBadgeLabel,
-    affiliationLine,
     officeLine,
     headline,
     publicTags,
@@ -20,15 +21,13 @@ export function AdvisorProfileHeroBrand(props: AdvisorProfileHeroProps) {
   return (
     <header className="pap-hero pap-hero--brand pap-fc-card pap-fc-card--hero pap-hero--theme-brand">
       <div className="pap-hero-brand__top">
-        <p className="pap-hero-brand__eyebrow">ONE FC</p>
-        <h1 className="pap-name pap-name--brand">
-          {displayName}
-          <span className="pap-name__suffix">{titleSuffix}</span>
-        </h1>
-        {primaryBadgeLabel ? <p className="pap-verify-line pap-verify-line--on-accent">{primaryBadgeLabel}</p> : null}
-        {affiliationLine ? (
-          <p className="pap-hero-brand__affiliation">{affiliationLine}</p>
-        ) : null}
+        {heroEyebrowLine || primaryBadgeLabel ? (
+          <p className="pap-hero-brand__eyebrow">{heroEyebrowLine || primaryBadgeLabel}</p>
+        ) : (
+          <p className="pap-hero-brand__eyebrow">ONE FC</p>
+        )}
+        <h1 className="pap-name pap-name--brand">{heroTitleLine}</h1>
+        {heroSubtitleLine ? <p className="pap-hero-brand__affiliation">{heroSubtitleLine}</p> : null}
       </div>
       <div className="pap-hero-brand__photo-ring pap-hero-brand__photo-ring--portrait">
         <AdvisorHeroPortraitSlot variant="brand" src={profilePhotoUrl} alt={displayName} />

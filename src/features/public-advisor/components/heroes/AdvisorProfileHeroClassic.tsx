@@ -6,10 +6,11 @@ import { AdvisorHeroPortraitSlot } from './AdvisorHeroPortraitSlot'
 export function AdvisorProfileHeroClassic(props: AdvisorProfileHeroProps) {
   const {
     displayName,
-    titleSuffix,
+    heroTitleLine,
+    heroSubtitleLine,
+    heroEyebrowLine,
     profilePhotoUrl,
     primaryBadgeLabel,
-    affiliationLine,
     officeLine,
     headline,
     publicTags,
@@ -24,10 +25,11 @@ export function AdvisorProfileHeroClassic(props: AdvisorProfileHeroProps) {
         <div className="pap-hero-photo-wrap__edge" aria-hidden />
       </div>
       <div className="pap-hero-body">
-        <AdvisorHeroNameLine displayName={displayName} titleSuffix={titleSuffix} />
+        {heroEyebrowLine ? <p className="pap-hero-eyebrow pap-hero-eyebrow--classic">{heroEyebrowLine}</p> : null}
+        <AdvisorHeroNameLine title={heroTitleLine} />
         {primaryBadgeLabel ? <p className="pap-verify-line">{primaryBadgeLabel}</p> : null}
-        {affiliationLine ? (
-          <p className="pap-affiliation pap-affiliation--strong pap-hero-line">{affiliationLine}</p>
+        {heroSubtitleLine ? (
+          <p className="pap-affiliation pap-affiliation--strong pap-hero-line">{heroSubtitleLine}</p>
         ) : null}
         {officeLine ? <p className="pap-affiliation pap-hero-line pap-hero-office">{officeLine}</p> : null}
         {headline ? <p className="pap-headline pap-headline--billboard">{headline}</p> : null}

@@ -67,6 +67,9 @@ export function MyPublicProfilePage() {
   const [bio, setBio] = useState('')
   const [careerText, setCareerText] = useState('')
   const [titleLabel, setTitleLabel] = useState('FC')
+  const [heroDisplayEyebrow, setHeroDisplayEyebrow] = useState('')
+  const [heroDisplayTitle, setHeroDisplayTitle] = useState('')
+  const [heroDisplaySubtitle, setHeroDisplaySubtitle] = useState('')
   const [hashtags, setHashtags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
   const [isPublished, setIsPublished] = useState(false)
@@ -138,6 +141,9 @@ export function MyPublicProfilePage() {
       setBio(String(p.bio ?? ''))
       setCareerText(String(p.career_text ?? ''))
       setTitleLabel(String(p.title_label ?? 'FC'))
+      setHeroDisplayEyebrow(String(p.hero_display_eyebrow ?? ''))
+      setHeroDisplayTitle(String(p.hero_display_title ?? ''))
+      setHeroDisplaySubtitle(String(p.hero_display_subtitle ?? ''))
       setHashtags(Array.isArray(p.hashtags) ? (p.hashtags as string[]) : [])
       setIsPublished(Boolean(p.is_published))
       setShowPhone(p.show_phone !== false)
@@ -213,6 +219,9 @@ export function MyPublicProfilePage() {
         office_address_detail: address.addressDetail,
         profile_photo_object_key: profilePhotoObjectKey ?? '',
         business_card_front_object_key: businessCardObjectKey ?? '',
+        hero_display_eyebrow: heroDisplayEyebrow,
+        hero_display_title: heroDisplayTitle,
+        hero_display_subtitle: heroDisplaySubtitle,
       })
       setMessage('저장되었습니다.')
       await load()
@@ -364,6 +373,11 @@ export function MyPublicProfilePage() {
     return {
       displayName: ownerDisplayName || user.displayName || '',
       titleSuffix: titleLabel.trim() || 'FC',
+      gaName: ownerGaName,
+      teamName: ownerTeamName,
+      heroDisplayEyebrow,
+      heroDisplayTitle,
+      heroDisplaySubtitle,
       profilePhotoUrl: profilePhotoPreviewUrl,
       primaryBadgeLabel: verificationBadgeLabel,
       affiliationLine: gaLine,
@@ -406,6 +420,9 @@ export function MyPublicProfilePage() {
     showKakao,
     showPhone,
     titleLabel,
+    heroDisplayEyebrow,
+    heroDisplayTitle,
+    heroDisplaySubtitle,
     user.displayName,
     verificationBadgeLabel,
   ])
@@ -413,8 +430,8 @@ export function MyPublicProfilePage() {
   const livePreviewPanel = (
     <aside className="pap-editor-layout__preview" aria-label="모바일 미리보기">
       <h2 className="pap-editor-live-preview__title">모바일 미리보기</h2>
-      <div className="pap-editor-live-preview__frame">
-        <div className="pap-editor-live-preview__scroll pap-theme-preview-shell">
+      <div className="pap-editor-live-preview__frame pap-editor-live-preview__frame--phone">
+        <div className="pap-editor-live-preview__scroll pap-theme-preview-shell pap-editor-live-preview__scroll--phone">
           <AdvisorPublicProfileView theme={profileTheme} model={livePreviewModel} variant="preview" />
         </div>
       </div>
@@ -525,10 +542,40 @@ export function MyPublicProfilePage() {
             </div>
           </div>
 
-          <h2 className="pap-editor-section-title">기본 표시정보</h2>
-          <p className="pap-affiliation"><strong>{ownerDisplayName || user.displayName}</strong>{gaLine ? ` · ${gaLine}` : ''}</p>
-          <label>공개 주소 (영문·숫자·하이픈)<input value={slug} onChange={(e) => setSlug(e.target.value)} /></label>
-          <label>호칭<input value={titleLabel} onChange={(e) => setTitleLabel(e.target.value)} placeholder="FC" /></label>
+        <h2 className="pap-editor-section-title">Hero 표시 문구</h2>
+        <p className="pap-editor-hint">비워 두면 계정·소속 정보로 자동 표시됩니다. 입력한 값이 Hero에 우선 적용됩니다.</p>
+        <label>
+          상단 라벨 / 브랜드 문구
+          <input
+            value={heroDisplayEyebrow}
+            onChange={(e) => setHeroDisplayEyebrow(e.target.value)}
+            placeholder="ONE FC"
+            maxLength={80}
+          />
+        </label>
+        <label>
+          대표 표시 이름
+          <input
+            value={heroDisplayTitle}
+            onChange={(e) => setHeroDisplayTitle(e.target.value)}
+            placeholder="박성용 FC"
+            maxLength={120}
+          />
+        </label>
+        <label>
+          보조 소속/직책 문구
+          <input
+            value={heroDisplaySubtitle}
+            onChange={(e) => setHeroDisplaySubtitle(e.target.value)}
+            placeholder="영진에셋 · 팀장"
+            maxLength={200}
+          />
+        </label>
+
+        <h2 className="pap-editor-section-title">기본 표시정보</h2>
+        <p className="pap-affiliation"><strong>{ownerDisplayName || user.displayName}</strong>{gaLine ? ` · ${gaLine}` : ''}</p>
+        <label>공개 주소 (영문·숫자·하이픈)<input value={slug} onChange={(e) => setSlug(e.target.value)} /></label>
+        <label>호칭 (자동 표시 fallback)<input value={titleLabel} onChange={(e) => setTitleLabel(e.target.value)} placeholder="FC" /></label>
 
           <h2 className="pap-editor-section-title">사무실 위치</h2>
           <AddressSearchField label="사무실 주소" value={address} onChange={setAddress} />

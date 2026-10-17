@@ -231,6 +231,9 @@ export async function getPublishedAdvisorBySlug(pool, slug) {
       businessCardBackObjectKey: row.business_card_back_object_key,
       allowConsultation: row.allow_consultation,
       profileTheme: normalizeAdvisorProfileTheme(row.profile_theme),
+      heroDisplayEyebrow: String(row.hero_display_eyebrow ?? '').trim(),
+      heroDisplayTitle: String(row.hero_display_title ?? '').trim(),
+      heroDisplaySubtitle: String(row.hero_display_subtitle ?? '').trim(),
     },
     user: publicUser,
     gallery,
@@ -407,6 +410,9 @@ export async function patchAdvisorProfileForOwner(pool, userId, patch) {
     'office_address_sido',
     'office_address_sigungu',
     'kakao_link',
+    'hero_display_eyebrow',
+    'hero_display_title',
+    'hero_display_subtitle',
   ]
   for (const key of textFields) {
     if (patch[key] != null) {

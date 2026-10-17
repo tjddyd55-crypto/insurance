@@ -6,10 +6,11 @@ import { AdvisorHeroPortraitSlot } from './AdvisorHeroPortraitSlot'
 export function AdvisorProfileHeroPremium(props: AdvisorProfileHeroProps) {
   const {
     displayName,
-    titleSuffix,
+    heroTitleLine,
+    heroSubtitleLine,
+    heroEyebrowLine,
     profilePhotoUrl,
     primaryBadgeLabel,
-    affiliationLine,
     officeLine,
     headline,
     publicTags,
@@ -23,11 +24,9 @@ export function AdvisorProfileHeroPremium(props: AdvisorProfileHeroProps) {
         <AdvisorHeroPortraitSlot variant="premium" src={profilePhotoUrl} alt={displayName} />
         <div className="pap-hero-premium__scrim" aria-hidden />
         <div className="pap-hero-premium__panel">
-          <p className="pap-hero-premium__panel-brand">ONE FC</p>
-          <h1 className="pap-name pap-name--premium">
-            {displayName} <span className="pap-name__suffix">{titleSuffix}</span>
-          </h1>
-          {affiliationLine ? <p className="pap-hero-premium__affiliation">{affiliationLine}</p> : null}
+          <p className="pap-hero-premium__panel-brand">{heroEyebrowLine || 'ONE FC'}</p>
+          <h1 className="pap-name pap-name--premium">{heroTitleLine}</h1>
+          {heroSubtitleLine ? <p className="pap-hero-premium__affiliation">{heroSubtitleLine}</p> : null}
           {officeLine ? <p className="pap-hero-premium__office">{officeLine}</p> : null}
           {primaryBadgeLabel ? (
             <p className="pap-verify-line pap-verify-line--on-dark">{primaryBadgeLabel}</p>

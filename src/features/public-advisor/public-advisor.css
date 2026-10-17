@@ -583,13 +583,13 @@
     margin-inline: auto;
   }
 
-  .pap-fc-card--hero {
-    border-radius: 16px;
+  .pap-page--fc .pap-fc-card--hero {
+    border-radius: 0;
     border-top: 1px solid #e5e7eb;
   }
 
-  .pap-hero--theme-classic .pap-hero-photo-wrap {
-    border-radius: 16px 16px 0 0;
+  .pap-page--fc .pap-hero--theme-classic .pap-hero-photo-wrap {
+    border-radius: 0;
     max-height: 440px;
   }
 
@@ -2072,4 +2072,110 @@
 
 .pap-theme-picker__thumb--premium {
   background: linear-gradient(180deg, #64748b 0%, #0f172a 70%);
+}
+
+/* Round 3 — Hero 사각형, 오버레이형 높이, 명함 full-width, preview phone canvas */
+.pap-page--fc .pap-hero-photo-wrap,
+.pap-page--fc .pap-hero-photo-wrap--portrait,
+.pap-page--fc .pap-hero-portrait-slot,
+.pap-page--fc .pap-hero-portrait-slot--classic .pap-hero-photo,
+.pap-page--fc .pap-hero-portrait-slot--brand,
+.pap-page--fc .pap-hero-portrait-slot--premium {
+  border-radius: 0;
+}
+
+.pap-page--fc .pap-fc-card--hero {
+  border-radius: 0;
+}
+
+.pap-page--fc .pap-hero-brand__photo-ring {
+  width: 100%;
+  max-width: none;
+  height: auto;
+  margin: 0;
+  aspect-ratio: 4 / 5;
+  max-height: min(58vh, 460px);
+  border-radius: 0;
+  border-width: 0;
+  box-shadow: none;
+}
+
+.pap-page--fc .pap-hero--theme-premium .pap-hero-premium__media {
+  aspect-ratio: 3 / 4;
+  max-height: min(64vh, 520px);
+}
+
+.pap-home-sections .pap-section--business-card.pap-fc-card {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.pap-section--business-card .pap-business-card-tile {
+  width: 100%;
+  max-width: none;
+}
+
+.pap-hero-eyebrow--classic {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+.pap-editor-live-preview__frame--phone {
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  padding: 10px 8px;
+  background: #111827;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+}
+
+.pap-editor-live-preview__scroll--phone {
+  border-radius: 12px;
+  background: #f3f4f6;
+  overflow-x: hidden;
+  overflow-y: auto;
+  position: relative;
+}
+
+.pap-public-profile-view--in-editor-preview {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.pap-public-profile-view--in-editor-preview .public-advisor-shell {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.pap-public-profile-view--in-editor-preview .pap-sticky-cta {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  margin-top: auto;
+  transform: none;
+  z-index: 3;
+}
+
+.pap-public-profile-view--in-editor-preview.pap-page--fc .pap-sticky-cta {
+  left: 0;
+  right: 0;
+  width: 100%;
+  transform: none;
+  padding-inline: 10px;
+}
+
+@media (min-width: 768px) {
+  .pap-public-profile-view--in-editor-preview.pap-page--fc .pap-sticky-cta {
+    left: 0;
+    right: 0;
+    width: 100%;
+    transform: none;
+  }
 }

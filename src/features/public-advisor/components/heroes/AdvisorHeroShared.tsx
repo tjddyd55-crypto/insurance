@@ -9,10 +9,6 @@ export function AdvisorHeroTags({ tags }: { tags: string[] }) {
   )
 }
 
-export function AdvisorHeroNameLine({ displayName, titleSuffix }: { displayName: string; titleSuffix: string }) {
-  return (
-    <h1 className="pap-name pap-name--billboard">
-      {displayName} {titleSuffix}
-    </h1>
-  )
+export function AdvisorHeroNameLine({ title }: { title: string }) {
+  return <h1 className="pap-name pap-name--billboard">{title}</h1>
 }

@@ -5,12 +5,18 @@ import { AdvisorBusinessCardSection } from './AdvisorBusinessCardSection'
 import { AdvisorProfileHero } from './heroes/AdvisorProfileHero'
 import { AdvisorPublicImage } from './AdvisorPublicImage'
 import type { AdvisorPublicInfoBlock } from '../utils/buildAdvisorPublicInfoBlocks'
+import { resolveAdvisorHeroDisplay } from '../utils/resolveAdvisorHeroDisplay'
 
 const MAX_PUBLIC_TAGS = 5
 
 export type AdvisorPublicProfileViewModel = {
   displayName: string
   titleSuffix: string
+  gaName?: string | null
+  teamName?: string | null
+  heroDisplayEyebrow?: string
+  heroDisplayTitle?: string
+  heroDisplaySubtitle?: string
   profilePhotoUrl: string | null
   primaryBadgeLabel?: string | null
   affiliationLine: string
@@ -58,6 +64,21 @@ export function AdvisorPublicProfileView({
   const hasBusinessCard = Boolean(model.businessCardFrontUrl?.trim())
   const showSticky = Boolean(model.phoneNumber?.trim() || model.allowConsultation)
 
+  const heroDisplay = useMemo(
+    () =>
+      resolveAdvisorHeroDisplay({
+        heroDisplayEyebrow: model.heroDisplayEyebrow,
+        heroDisplayTitle: model.heroDisplayTitle,
+        heroDisplaySubtitle: model.heroDisplaySubtitle,
+        displayName: model.displayName,
+        titleLabel: model.titleSuffix,
+        gaName: model.gaName,
+        teamName: model.teamName,
+        primaryBadgeLabel: model.primaryBadgeLabel,
+      }),
+    [model],
+  )
+
   const track = (event: string) => {
     if (!isPreview && slug) trackAdvisorPublicEvent(slug, event)
   }
@@ -76,7 +97,7 @@ export function AdvisorPublicProfileView({
 
   return (
     <div
-      className={`public-advisor-page pap-page--fc pap-page-theme--${theme}${className ? ` ${className}` : ''}`}
+      className={`public-advisor-page pap-page--fc pap-page-theme--${theme}${isPreview ? ' pap-public-profile-view--in-editor-preview' : ''}${className ? ` ${className}` : ''}`}
     >
       <div className="public-advisor-shell pap-shell--fc">
         {topSlot}
@@ -84,9 +105,12 @@ export function AdvisorPublicProfileView({
           theme={theme}
           displayName={model.displayName}
           titleSuffix={model.titleSuffix}
+          heroTitleLine={heroDisplay.heroTitleLine}
+          heroSubtitleLine={heroDisplay.heroSubtitleLine}
+          heroEyebrowLine={heroDisplay.heroEyebrowLine}
           profilePhotoUrl={model.profilePhotoUrl}
-          primaryBadgeLabel={model.primaryBadgeLabel ?? null}
-          affiliationLine={model.affiliationLine}
+          primaryBadgeLabel={heroDisplay.primaryBadgeLabel}
+          affiliationLine={heroDisplay.heroSubtitleLine}
           officeLine={model.officeLine}
           headline={model.headline}
           publicTags={publicTags}
