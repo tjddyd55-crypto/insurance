@@ -2,6 +2,7 @@ import { AdvisorProfileActionBar } from '../AdvisorProfileActionBar'
 import type { AdvisorProfileHeroProps } from './advisorProfileHeroTypes'
 import { AdvisorHeroTags } from './AdvisorHeroShared'
 import { AdvisorHeroPortraitSlot } from './AdvisorHeroPortraitSlot'
+import { resolveHeroEyebrowWithDefault } from './resolveHeroEyebrowDisplay'
 
 export function AdvisorProfileHeroBrand(props: AdvisorProfileHeroProps) {
   const {
@@ -9,6 +10,7 @@ export function AdvisorProfileHeroBrand(props: AdvisorProfileHeroProps) {
     heroTitleLine,
     heroSubtitleLine,
     heroEyebrowLine,
+    heroDisplayEyebrowRaw,
     profilePhotoUrl,
     primaryBadgeLabel,
     officeLine,
@@ -18,18 +20,20 @@ export function AdvisorProfileHeroBrand(props: AdvisorProfileHeroProps) {
     ...actionProps
   } = props
 
+  const brandEyebrow = resolveHeroEyebrowWithDefault(
+    heroEyebrowLine,
+    primaryBadgeLabel,
+    heroDisplayEyebrowRaw,
+  )
+
   return (
     <header className="pap-hero pap-hero--brand pap-fc-card pap-fc-card--hero pap-hero--theme-brand">
       <div className="pap-hero-brand__top">
-        {heroEyebrowLine || primaryBadgeLabel ? (
-          <p className="pap-hero-brand__eyebrow">{heroEyebrowLine || primaryBadgeLabel}</p>
-        ) : (
-          <p className="pap-hero-brand__eyebrow">ONE FC</p>
-        )}
-        <h1 className="pap-name pap-name--brand">{heroTitleLine}</h1>
+        {brandEyebrow ? <p className="pap-hero-brand__eyebrow">{brandEyebrow}</p> : null}
+        {heroTitleLine ? <h1 className="pap-name pap-name--brand">{heroTitleLine}</h1> : null}
         {heroSubtitleLine ? <p className="pap-hero-brand__affiliation">{heroSubtitleLine}</p> : null}
       </div>
-      <div className="pap-hero-brand__photo-ring pap-hero-brand__photo-ring--portrait">
+      <div className="pap-hero-brand__photo-ring">
         <AdvisorHeroPortraitSlot variant="brand" src={profilePhotoUrl} alt={displayName} />
       </div>
       <div className="pap-hero-brand__bottom">

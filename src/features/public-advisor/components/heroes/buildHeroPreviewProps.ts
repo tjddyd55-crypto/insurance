@@ -25,8 +25,8 @@ export function buildHeroPreviewProps(input: {
   return {
     displayName: input.displayName || '홍길동',
     titleSuffix: input.titleSuffix || 'FC',
-    heroTitleLine: hero.heroTitleLine,
-    heroSubtitleLine: hero.heroSubtitleLine,
+    heroTitleLine: hero.heroTitleLine ?? '홍길동 FC',
+    heroSubtitleLine: hero.heroSubtitleLine ?? '',
     heroEyebrowLine: hero.heroEyebrowLine,
     profilePhotoUrl: input.profilePhotoUrl,
     primaryBadgeLabel: hero.primaryBadgeLabel,

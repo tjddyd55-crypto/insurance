@@ -19,13 +19,13 @@ export type AdvisorProfileTheme = 'classic' | 'brand' | 'premium'
 
 export type PublicAdvisorDetail = PublicAdvisorCard & {
   profileTheme?: AdvisorProfileTheme
-  heroDisplayEyebrow?: string
-  heroDisplayTitle?: string
-  heroDisplaySubtitle?: string
+  heroDisplayEyebrow?: string | null
+  heroDisplayTitle?: string | null
+  heroDisplaySubtitle?: string | null
   businessCardFrontUrl?: string | null
   businessCardBackUrl?: string | null
   bio: string
-  titleLabel: string
+  titleLabel: string | null
   careerText: string
   phoneNumber: string
   kakaoLink: string

@@ -1,9 +1,11 @@
 export type AdvisorProfileHeroProps = {
   displayName: string
   titleSuffix: string
-  heroTitleLine: string
-  heroSubtitleLine: string
+  heroTitleLine: string | null
+  heroSubtitleLine: string | null
   heroEyebrowLine: string | null
+  /** null=미설정, ''=사용자가 비움 */
+  heroDisplayEyebrowRaw?: string | null
   profilePhotoUrl: string | null
   primaryBadgeLabel: string | null
   affiliationLine: string

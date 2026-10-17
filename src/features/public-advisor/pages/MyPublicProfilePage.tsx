@@ -56,20 +56,24 @@ function revokeBlobUrl(url: string | null | undefined) {
   if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
 }
 
+function loadProfileTextField(value: unknown): string | null {
+  if (value === null || value === undefined) return null
+  return String(value)
+}
+
 export function MyPublicProfilePage() {
   const { token, user, isAuthenticated } = useAuth()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
-  const [publicUrl, setPublicUrl] = useState('')
   const [slug, setSlug] = useState('')
   const [headline, setHeadline] = useState('')
   const [bio, setBio] = useState('')
   const [careerText, setCareerText] = useState('')
-  const [titleLabel, setTitleLabel] = useState('FC')
-  const [heroDisplayEyebrow, setHeroDisplayEyebrow] = useState('')
-  const [heroDisplayTitle, setHeroDisplayTitle] = useState('')
-  const [heroDisplaySubtitle, setHeroDisplaySubtitle] = useState('')
+  const [titleLabel, setTitleLabel] = useState<string | null>(null)
+  const [heroDisplayEyebrow, setHeroDisplayEyebrow] = useState<string | null>(null)
+  const [heroDisplayTitle, setHeroDisplayTitle] = useState<string | null>(null)
+  const [heroDisplaySubtitle, setHeroDisplaySubtitle] = useState<string | null>(null)
   const [hashtags, setHashtags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
   const [isPublished, setIsPublished] = useState(false)
@@ -140,10 +144,10 @@ export function MyPublicProfilePage() {
       setHeadline(String(p.headline ?? ''))
       setBio(String(p.bio ?? ''))
       setCareerText(String(p.career_text ?? ''))
-      setTitleLabel(String(p.title_label ?? 'FC'))
-      setHeroDisplayEyebrow(String(p.hero_display_eyebrow ?? ''))
-      setHeroDisplayTitle(String(p.hero_display_title ?? ''))
-      setHeroDisplaySubtitle(String(p.hero_display_subtitle ?? ''))
+      setTitleLabel(loadProfileTextField(p.title_label))
+      setHeroDisplayEyebrow(loadProfileTextField(p.hero_display_eyebrow))
+      setHeroDisplayTitle(loadProfileTextField(p.hero_display_title))
+      setHeroDisplaySubtitle(loadProfileTextField(p.hero_display_subtitle))
       setHashtags(Array.isArray(p.hashtags) ? (p.hashtags as string[]) : [])
       setIsPublished(Boolean(p.is_published))
       setShowPhone(p.show_phone !== false)
@@ -157,7 +161,6 @@ export function MyPublicProfilePage() {
         jibunAddress: '',
         addressDetail: String(p.office_address_detail ?? ''),
       })
-      setPublicUrl(data.publicUrl)
       const photoKey = String(p.profile_photo_object_key ?? '').trim() || null
       const cardKey = String(p.business_card_front_object_key ?? '').trim() || null
       applyProfilePhotoFromServer(photoKey, data.profilePhotoUrl)
@@ -182,8 +185,12 @@ export function MyPublicProfilePage() {
     void load()
   }, [load])
 
-  if (!isAuthenticated || !user) return <Navigate to="/login" replace />
-  if (!canAccessSelfProfilePage(user.role)) return <Navigate to="/dashboard" replace />
+  const canonicalPublicUrl = useMemo(() => {
+    const normalized = slug.trim()
+    if (!normalized) return ''
+    if (typeof window === 'undefined') return ''
+    return `${window.location.origin}${buildAdvisorPublicPath(normalized)}`
+  }, [slug])
 
   const addTag = (raw: string) => {
     const next = parseHashtags([...hashtags, raw].join(' '))
@@ -206,7 +213,10 @@ export function MyPublicProfilePage() {
         headline,
         bio,
         career_text: careerText,
-        title_label: titleLabel,
+        title_label: titleLabel === null ? null : titleLabel,
+        hero_display_eyebrow: heroDisplayEyebrow === null ? null : heroDisplayEyebrow,
+        hero_display_title: heroDisplayTitle === null ? null : heroDisplayTitle,
+        hero_display_subtitle: heroDisplaySubtitle === null ? null : heroDisplaySubtitle,
         hashtags,
         is_published: isPublished,
         show_phone: showPhone,
@@ -219,9 +229,6 @@ export function MyPublicProfilePage() {
         office_address_detail: address.addressDetail,
         profile_photo_object_key: profilePhotoObjectKey ?? '',
         business_card_front_object_key: businessCardObjectKey ?? '',
-        hero_display_eyebrow: heroDisplayEyebrow,
-        hero_display_title: heroDisplayTitle,
-        hero_display_subtitle: heroDisplaySubtitle,
       })
       setMessage('저장되었습니다.')
       await load()
@@ -235,9 +242,9 @@ export function MyPublicProfilePage() {
   }
 
   const copyLink = async () => {
-    if (!publicUrl) return
+    if (!canonicalPublicUrl) return
     try {
-      await navigator.clipboard.writeText(publicUrl)
+      await navigator.clipboard.writeText(canonicalPublicUrl)
       setMessage('공개 링크를 복사했습니다.')
       if (slug) trackAdvisorPublicEvent(slug, ADVISOR_PUBLIC_EVENT.SHARE_CLICK)
     } catch {
@@ -246,13 +253,13 @@ export function MyPublicProfilePage() {
   }
 
   const shareLink = async () => {
-    if (!publicUrl) return
+    if (!canonicalPublicUrl) return
     if (slug) trackAdvisorPublicEvent(slug, ADVISOR_PUBLIC_EVENT.SHARE_CLICK)
     if (typeof navigator.share === 'function') {
       try {
         await navigator.share({
           title: `${user.displayName ?? 'ONE FC'} 공개 프로필`,
-          url: publicUrl,
+          url: canonicalPublicUrl,
         })
         return
       } catch {
@@ -372,17 +379,17 @@ export function MyPublicProfilePage() {
     const phoneForPreview = showPhone ? ownerPhone || '01000000000' : ''
     return {
       displayName: ownerDisplayName || user.displayName || '',
-      titleSuffix: titleLabel.trim() || 'FC',
+      titleSuffix: titleLabel,
       gaName: ownerGaName,
       teamName: ownerTeamName,
-      heroDisplayEyebrow,
-      heroDisplayTitle,
-      heroDisplaySubtitle,
+      heroDisplayEyebrow: heroDisplayEyebrow === null ? null : heroDisplayEyebrow,
+      heroDisplayTitle: heroDisplayTitle === null ? null : heroDisplayTitle,
+      heroDisplaySubtitle: heroDisplaySubtitle === null ? null : heroDisplaySubtitle,
       profilePhotoUrl: profilePhotoPreviewUrl,
       primaryBadgeLabel: verificationBadgeLabel,
       affiliationLine: gaLine,
       officeLine: officePreviewLine,
-      headline: headline.trim() || '한 줄 소개',
+      headline: headline.trim(),
       publicTags: hashtags,
       phoneNumber: phoneForPreview,
       kakaoLink: showKakao ? kakaoLink : '',
@@ -427,12 +434,20 @@ export function MyPublicProfilePage() {
     verificationBadgeLabel,
   ])
 
+  if (!isAuthenticated || !user) return <Navigate to="/login" replace />
+  if (!canAccessSelfProfilePage(user.role)) return <Navigate to="/dashboard" replace />
+
   const livePreviewPanel = (
     <aside className="pap-editor-layout__preview" aria-label="모바일 미리보기">
       <h2 className="pap-editor-live-preview__title">모바일 미리보기</h2>
       <div className="pap-editor-live-preview__frame pap-editor-live-preview__frame--phone">
         <div className="pap-editor-live-preview__scroll pap-theme-preview-shell pap-editor-live-preview__scroll--phone">
-          <AdvisorPublicProfileView theme={profileTheme} model={livePreviewModel} variant="preview" />
+          <AdvisorPublicProfileView
+            theme={profileTheme}
+            model={livePreviewModel}
+            variant="preview"
+            onShareClick={() => void shareLink()}
+          />
         </div>
       </div>
     </aside>
@@ -458,8 +473,8 @@ export function MyPublicProfilePage() {
             미리보기
           </button>
           <button type="button" className="pap-btn pap-btn--secondary" onClick={() => void shareLink()}>공유</button>
-          <button type="button" className="pap-btn pap-btn--secondary" onClick={() => setQrOpen(true)} disabled={!publicUrl}>QR</button>
-          <button type="button" className="pap-btn pap-btn--secondary" onClick={() => void copyLink()} disabled={!publicUrl}>링크 복사</button>
+          <button type="button" className="pap-btn pap-btn--secondary" onClick={() => setQrOpen(true)} disabled={!canonicalPublicUrl}>QR</button>
+          <button type="button" className="pap-btn pap-btn--secondary" onClick={() => void copyLink()} disabled={!canonicalPublicUrl}>링크 복사</button>
         </div>
       </section>
 
@@ -543,31 +558,36 @@ export function MyPublicProfilePage() {
           </div>
 
         <h2 className="pap-editor-section-title">Hero 표시 문구</h2>
-        <p className="pap-editor-hint">비워 두면 계정·소속 정보로 자동 표시됩니다. 입력한 값이 Hero에 우선 적용됩니다.</p>
+        <p className="pap-editor-hint">
+          입력칸은 저장값만 표시합니다. 비우면 빈칸으로 저장되며, 미리보기·공개 페이지에서만 자동 문구가 적용됩니다.
+        </p>
         <label>
           상단 라벨 / 브랜드 문구
+          <span className="pap-editor-field-hint">(비우면 자동 문구 또는 비노출)</span>
           <input
-            value={heroDisplayEyebrow}
+            value={heroDisplayEyebrow ?? ''}
             onChange={(e) => setHeroDisplayEyebrow(e.target.value)}
-            placeholder="ONE FC"
+            placeholder="예: ONE FC"
             maxLength={80}
           />
         </label>
         <label>
           대표 표시 이름
+          <span className="pap-editor-field-hint">(비우면 기본 이름·호칭 조합)</span>
           <input
-            value={heroDisplayTitle}
+            value={heroDisplayTitle ?? ''}
             onChange={(e) => setHeroDisplayTitle(e.target.value)}
-            placeholder="박성용 FC"
+            placeholder="예: 박성용 FC"
             maxLength={120}
           />
         </label>
         <label>
           보조 소속/직책 문구
+          <span className="pap-editor-field-hint">(비우면 소속·팀 정보)</span>
           <input
-            value={heroDisplaySubtitle}
+            value={heroDisplaySubtitle ?? ''}
             onChange={(e) => setHeroDisplaySubtitle(e.target.value)}
-            placeholder="영진에셋 · 팀장"
+            placeholder="예: 영진에셋 · 팀장"
             maxLength={200}
           />
         </label>
@@ -575,7 +595,15 @@ export function MyPublicProfilePage() {
         <h2 className="pap-editor-section-title">기본 표시정보</h2>
         <p className="pap-affiliation"><strong>{ownerDisplayName || user.displayName}</strong>{gaLine ? ` · ${gaLine}` : ''}</p>
         <label>공개 주소 (영문·숫자·하이픈)<input value={slug} onChange={(e) => setSlug(e.target.value)} /></label>
-        <label>호칭 (자동 표시 fallback)<input value={titleLabel} onChange={(e) => setTitleLabel(e.target.value)} placeholder="FC" /></label>
+        <label>
+          호칭
+          <span className="pap-editor-field-hint">(비우면 기본값 사용)</span>
+          <input
+            value={titleLabel ?? ''}
+            onChange={(e) => setTitleLabel(e.target.value)}
+            placeholder="예: FC"
+          />
+        </label>
 
           <h2 className="pap-editor-section-title">사무실 위치</h2>
           <AddressSearchField label="사무실 주소" value={address} onChange={setAddress} />
@@ -674,7 +702,7 @@ export function MyPublicProfilePage() {
               {saving ? '저장 중…' : '저장'}
             </FormButton>
           </div>
-          {publicUrl ? <p className="pap-affiliation"><code>{publicUrl}</code></p> : null}
+          {canonicalPublicUrl ? <p className="pap-affiliation"><code>{canonicalPublicUrl}</code></p> : null}
           {message ? <p role="status">{message}</p> : null}
         </form>
 
@@ -682,7 +710,7 @@ export function MyPublicProfilePage() {
       </div>
 
       <AdvisorProfileQr
-        url={publicUrl}
+        url={canonicalPublicUrl}
         open={qrOpen}
         onClose={() => setQrOpen(false)}
         onView={() => {
@@ -701,7 +729,12 @@ export function MyPublicProfilePage() {
               </button>
             </div>
             <div className={`pap-theme-preview-modal__viewport pap-theme-preview-shell pap-page-theme--${profileTheme}`}>
-              <AdvisorPublicProfileView theme={profileTheme} model={livePreviewModel} variant="preview" />
+              <AdvisorPublicProfileView
+            theme={profileTheme}
+            model={livePreviewModel}
+            variant="preview"
+            onShareClick={() => void shareLink()}
+          />
             </div>
           </div>
         </div>

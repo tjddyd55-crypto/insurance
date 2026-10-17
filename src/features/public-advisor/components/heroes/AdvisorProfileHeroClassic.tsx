@@ -26,7 +26,7 @@ export function AdvisorProfileHeroClassic(props: AdvisorProfileHeroProps) {
       </div>
       <div className="pap-hero-body">
         {heroEyebrowLine ? <p className="pap-hero-eyebrow pap-hero-eyebrow--classic">{heroEyebrowLine}</p> : null}
-        <AdvisorHeroNameLine title={heroTitleLine} />
+        {heroTitleLine ? <AdvisorHeroNameLine title={heroTitleLine} /> : null}
         {primaryBadgeLabel ? <p className="pap-verify-line">{primaryBadgeLabel}</p> : null}
         {heroSubtitleLine ? (
           <p className="pap-affiliation pap-affiliation--strong pap-hero-line">{heroSubtitleLine}</p>

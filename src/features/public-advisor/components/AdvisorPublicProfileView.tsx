@@ -11,12 +11,12 @@ const MAX_PUBLIC_TAGS = 5
 
 export type AdvisorPublicProfileViewModel = {
   displayName: string
-  titleSuffix: string
+  titleSuffix: string | null
   gaName?: string | null
   teamName?: string | null
-  heroDisplayEyebrow?: string
-  heroDisplayTitle?: string
-  heroDisplaySubtitle?: string
+  heroDisplayEyebrow?: string | null
+  heroDisplayTitle?: string | null
+  heroDisplaySubtitle?: string | null
   profilePhotoUrl: string | null
   primaryBadgeLabel?: string | null
   affiliationLine: string
@@ -47,6 +47,7 @@ type Props = {
   topSlot?: ReactNode
   className?: string
   onConsultClick?: () => void
+  onShareClick?: () => void
 }
 
 export function AdvisorPublicProfileView({
@@ -57,6 +58,7 @@ export function AdvisorPublicProfileView({
   topSlot,
   className,
   onConsultClick,
+  onShareClick,
 }: Props) {
   const [lightbox, setLightbox] = useState<LightboxState | null>(null)
   const isPreview = variant === 'preview'
@@ -71,7 +73,7 @@ export function AdvisorPublicProfileView({
         heroDisplayTitle: model.heroDisplayTitle,
         heroDisplaySubtitle: model.heroDisplaySubtitle,
         displayName: model.displayName,
-        titleLabel: model.titleSuffix,
+        titleLabel: model.titleSuffix ?? null,
         gaName: model.gaName,
         teamName: model.teamName,
         primaryBadgeLabel: model.primaryBadgeLabel,
@@ -104,13 +106,14 @@ export function AdvisorPublicProfileView({
         <AdvisorProfileHero
           theme={theme}
           displayName={model.displayName}
-          titleSuffix={model.titleSuffix}
+          titleSuffix={model.titleSuffix ?? ''}
           heroTitleLine={heroDisplay.heroTitleLine}
           heroSubtitleLine={heroDisplay.heroSubtitleLine}
           heroEyebrowLine={heroDisplay.heroEyebrowLine}
+          heroDisplayEyebrowRaw={model.heroDisplayEyebrow}
           profilePhotoUrl={model.profilePhotoUrl}
           primaryBadgeLabel={heroDisplay.primaryBadgeLabel}
-          affiliationLine={heroDisplay.heroSubtitleLine}
+          affiliationLine={heroDisplay.heroSubtitleLine ?? ''}
           officeLine={model.officeLine}
           headline={model.headline}
           publicTags={publicTags}
@@ -121,7 +124,20 @@ export function AdvisorPublicProfileView({
           onPhoneClick={() => track(ADVISOR_PUBLIC_EVENT.PHONE_CLICK)}
           onKakaoClick={() => track(ADVISOR_PUBLIC_EVENT.CONTACT_CLICK)}
           onConsultClick={handleConsult}
-          onShareClick={() => track(ADVISOR_PUBLIC_EVENT.SHARE_CLICK)}
+          onShareClick={() => {
+            if (isPreview) {
+              onShareClick?.()
+              return
+            }
+            track(ADVISOR_PUBLIC_EVENT.SHARE_CLICK)
+            const url = typeof window !== 'undefined' ? window.location.href : ''
+            if (!url) return
+            if (typeof navigator.share === 'function') {
+              void navigator.share({ title: document.title, url }).catch(() => {})
+              return
+            }
+            void navigator.clipboard?.writeText(url)
+          }}
           hasBusinessCard={hasBusinessCard}
           onBusinessCardClick={openBusinessCardLightbox}
         />

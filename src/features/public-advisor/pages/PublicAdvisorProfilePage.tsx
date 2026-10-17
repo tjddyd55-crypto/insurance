@@ -96,12 +96,12 @@ export function PublicAdvisorProfilePage() {
     if (!data) return null
     return {
       displayName: data.displayName,
-      titleSuffix: data.titleLabel?.trim() || 'FC',
+      titleSuffix: data.titleLabel ?? null,
       gaName: data.gaName,
       teamName: data.teamName,
-      heroDisplayEyebrow: data.heroDisplayEyebrow,
-      heroDisplayTitle: data.heroDisplayTitle,
-      heroDisplaySubtitle: data.heroDisplaySubtitle,
+      heroDisplayEyebrow: data.heroDisplayEyebrow ?? null,
+      heroDisplayTitle: data.heroDisplayTitle ?? null,
+      heroDisplaySubtitle: data.heroDisplaySubtitle ?? null,
       profilePhotoUrl: normalizeAdvisorMediaUrl(data.profilePhotoUrl),
       primaryBadgeLabel: data.verificationBadges?.[0]?.label ?? null,
       affiliationLine,

@@ -1621,6 +1621,14 @@
   line-height: 1.45;
 }
 
+.pap-editor-field-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #9ca3af;
+}
+
 .pap-theme-picker {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2089,38 +2097,46 @@
 }
 
 .pap-page--fc .pap-hero-brand__photo-ring {
-  width: 100%;
-  max-width: none;
-  height: auto;
-  margin: 0;
-  aspect-ratio: 4 / 5;
-  max-height: min(58vh, 460px);
-  border-radius: 0;
-  border-width: 0;
-  box-shadow: none;
+  width: min(52vw, 196px);
+  height: min(52vw, 196px);
+  margin: -48px auto 0;
+  border: 5px solid #fff;
+  border-radius: 50%;
+  box-shadow:
+    0 12px 32px rgba(15, 23, 42, 0.18),
+    0 0 0 1px rgba(37, 99, 235, 0.12);
 }
 
 .pap-page--fc .pap-hero--theme-premium .pap-hero-premium__media {
-  aspect-ratio: 3 / 4;
-  max-height: min(64vh, 520px);
+  aspect-ratio: 2 / 3;
+  max-height: min(72vh, 600px);
   border-radius: 0;
+}
+
+.pap-page--fc .pap-hero-premium__panel {
+  inset: auto 10px 6px;
 }
 
 @media (min-width: 768px) {
   .pap-page--fc .pap-hero--theme-premium .pap-hero-premium__media {
     border-radius: 0;
-    max-height: min(64vh, 520px);
+    max-height: min(72vh, 600px);
   }
 }
 
-.pap-home-sections .pap-section--business-card.pap-fc-card {
-  padding-left: 10px;
-  padding-right: 10px;
+.pap-page--fc .pap-home-sections .pap-section--business-card.pap-fc-card {
+  padding: 8px 4px 12px;
 }
 
-.pap-section--business-card .pap-business-card-tile {
+.pap-page--fc .pap-section--business-card .pap-business-card-tile {
   width: 100%;
   max-width: none;
+  border-left: none;
+  border-right: none;
+}
+
+.pap-page--fc .pap-section--business-card .pap-business-card-img {
+  padding: 2px 4px;
 }
 
 .pap-hero-eyebrow--classic {

@@ -220,7 +220,7 @@ export async function getPublishedAdvisorBySlug(pool, slug) {
       headline: row.headline,
       bio: row.bio,
       hashtags: row.hashtags ?? [],
-      titleLabel: row.title_label,
+      titleLabel: row.title_label == null ? null : String(row.title_label),
       careerText: row.career_text,
       officeLine: buildOfficeLine(row),
       officeRoadAddress: row.office_road_address,
@@ -231,9 +231,11 @@ export async function getPublishedAdvisorBySlug(pool, slug) {
       businessCardBackObjectKey: row.business_card_back_object_key,
       allowConsultation: row.allow_consultation,
       profileTheme: normalizeAdvisorProfileTheme(row.profile_theme),
-      heroDisplayEyebrow: String(row.hero_display_eyebrow ?? '').trim(),
-      heroDisplayTitle: String(row.hero_display_title ?? '').trim(),
-      heroDisplaySubtitle: String(row.hero_display_subtitle ?? '').trim(),
+      heroDisplayEyebrow:
+        row.hero_display_eyebrow == null ? null : String(row.hero_display_eyebrow).trim(),
+      heroDisplayTitle: row.hero_display_title == null ? null : String(row.hero_display_title).trim(),
+      heroDisplaySubtitle:
+        row.hero_display_subtitle == null ? null : String(row.hero_display_subtitle).trim(),
     },
     user: publicUser,
     gallery,
@@ -415,10 +417,14 @@ export async function patchAdvisorProfileForOwner(pool, userId, patch) {
     'hero_display_subtitle',
   ]
   for (const key of textFields) {
-    if (patch[key] != null) {
+    if (!Object.prototype.hasOwnProperty.call(patch, key)) continue
+    if (patch[key] === null) {
       sets.push(`${key} = $${n++}`)
-      values.push(String(patch[key] ?? '').slice(0, key === 'bio' ? 8000 : 500))
+      values.push(null)
+      continue
     }
+    sets.push(`${key} = $${n++}`)
+    values.push(String(patch[key] ?? '').slice(0, key === 'bio' ? 8000 : 500))
   }
 
   if (patch.hashtags != null) {

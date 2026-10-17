@@ -68,6 +68,70 @@ export async function ensurePublicAdvisorProfileSchema(executor) {
   `)
 
   await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ALTER COLUMN hero_display_eyebrow DROP NOT NULL
+  `).catch(() => {})
+
+  await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ALTER COLUMN hero_display_title DROP NOT NULL
+  `).catch(() => {})
+
+  await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ALTER COLUMN hero_display_subtitle DROP NOT NULL
+  `).catch(() => {})
+
+  await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ALTER COLUMN title_label DROP NOT NULL
+  `).catch(() => {})
+
+  await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ALTER COLUMN hero_display_eyebrow DROP DEFAULT
+  `).catch(() => {})
+
+  await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ALTER COLUMN hero_display_title DROP DEFAULT
+  `).catch(() => {})
+
+  await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ALTER COLUMN hero_display_subtitle DROP DEFAULT
+  `).catch(() => {})
+
+  await executor.query(`
+    ALTER TABLE advisor_public_profiles
+    ALTER COLUMN title_label DROP DEFAULT
+  `).catch(() => {})
+
+  await executor.query(`
+    UPDATE advisor_public_profiles
+    SET hero_display_eyebrow = NULL
+    WHERE hero_display_eyebrow IS NOT NULL AND btrim(hero_display_eyebrow) = ''
+  `)
+
+  await executor.query(`
+    UPDATE advisor_public_profiles
+    SET hero_display_title = NULL
+    WHERE hero_display_title IS NOT NULL AND btrim(hero_display_title) = ''
+  `)
+
+  await executor.query(`
+    UPDATE advisor_public_profiles
+    SET hero_display_subtitle = NULL
+    WHERE hero_display_subtitle IS NOT NULL AND btrim(hero_display_subtitle) = ''
+  `)
+
+  await executor.query(`
+    UPDATE advisor_public_profiles
+    SET title_label = NULL
+    WHERE title_label IS NOT NULL AND btrim(title_label) = ''
+  `)
+
+  await executor.query(`
     DO $$
     BEGIN
       ALTER TABLE advisor_public_profiles
