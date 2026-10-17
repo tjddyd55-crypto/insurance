@@ -24,6 +24,13 @@ Development only.
 - 대표사진 없음 → `/icon.png` fallback
 - 비공개 → `noindex` + 기본 이미지
 
-## QA
+## QA (2026-10-17)
+
+- Dev SHA: `fc664729` (includes `cc25d71a` business card editor + `447eb6b4` OG card)
+- Captures: `scripts/qa/screenshots/mobile-card-final-qa/`
+- `npx tsc --noEmit` PASS
+- review bar ↔ Hero gap: **0px** (`gap-measure.json`)
 
 `https://insurance-dev.up.railway.app/fc/qa-public-advisor-dev`
+
+**상태:** `ONEFC_PUBLIC_ADVISOR_MOBILE_CARD_EDITOR_AND_BUSINESS_CARD_READY`
