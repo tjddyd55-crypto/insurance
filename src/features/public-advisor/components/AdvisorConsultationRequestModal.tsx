@@ -1,6 +1,10 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { useBackButtonClose } from '../../../hooks/useBackButtonClose'
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock'
+import {
+  adjustModalBodyScrollForFocusedField,
+  measureConsultModalChromePx,
+} from '../hooks/consultModalKeyboardScroll'
 import { formatKrPhoneInputLive } from '../utils/formatKrPhoneNumber'
 import { AdvisorConsultationPrivacyConsent } from './AdvisorConsultationPrivacyConsent'
 
@@ -22,6 +26,8 @@ export function AdvisorConsultationRequestModal({ open, submitting, onClose, onS
   const [privacyConsent, setPrivacyConsent] = useState(false)
   const [privacyTermsOpen, setPrivacyTermsOpen] = useState(false)
   const scrollBodyRef = useRef<HTMLDivElement>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+
   useBackButtonClose(open && !privacyTermsOpen, onClose, { layerKind: 'pap-consult-modal' })
   useBodyScrollLock(open, { lockDocumentElement: true })
 
@@ -43,21 +49,37 @@ export function AdvisorConsultationRequestModal({ open, submitting, onClose, onS
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [open, onClose, privacyTermsOpen])
 
+  const syncViewportVars = () => {
+    const vv = window.visualViewport
+    if (!vv) return
+    document.documentElement.style.setProperty('--pap-modal-vh', `${Math.round(vv.height)}px`)
+    const form = formRef.current
+    if (form) {
+      document.documentElement.style.setProperty(
+        '--pap-consult-chrome-h',
+        `${measureConsultModalChromePx(form)}px`,
+      )
+    }
+  }
+
   useEffect(() => {
     if (!open || typeof window === 'undefined') return undefined
     const vv = window.visualViewport
-    if (!vv) return undefined
 
-    const apply = () => {
-      document.documentElement.style.setProperty('--pap-modal-vh', `${Math.round(vv.height)}px`)
+    syncViewportVars()
+    const onViewportChange = () => {
+      syncViewportVars()
     }
-    apply()
-    vv.addEventListener('resize', apply)
-    vv.addEventListener('scroll', apply)
+    vv?.addEventListener('resize', onViewportChange)
+    vv?.addEventListener('scroll', onViewportChange)
+    window.addEventListener('resize', onViewportChange)
+
     return () => {
-      vv.removeEventListener('resize', apply)
-      vv.removeEventListener('scroll', apply)
+      vv?.removeEventListener('resize', onViewportChange)
+      vv?.removeEventListener('scroll', onViewportChange)
+      window.removeEventListener('resize', onViewportChange)
       document.documentElement.style.removeProperty('--pap-modal-vh')
+      document.documentElement.style.removeProperty('--pap-consult-chrome-h')
     }
   }, [open])
 
@@ -65,14 +87,22 @@ export function AdvisorConsultationRequestModal({ open, submitting, onClose, onS
     const root = scrollBodyRef.current
     if (!open || !root) return undefined
 
+    const runAdjust = (target: HTMLElement) => {
+      window.requestAnimationFrame(() => {
+        adjustModalBodyScrollForFocusedField(root, target)
+        window.requestAnimationFrame(() => {
+          adjustModalBodyScrollForFocusedField(root, target)
+        })
+      })
+    }
+
     const onFocusIn = (e: FocusEvent) => {
       const target = e.target
       if (!(target instanceof HTMLElement)) return
       if (!target.matches('input, textarea, select')) return
-      window.requestAnimationFrame(() => {
-        target.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-      })
+      runAdjust(target)
     }
+
     root.addEventListener('focusin', onFocusIn)
     return () => root.removeEventListener('focusin', onFocusIn)
   }, [open])
@@ -95,6 +125,7 @@ export function AdvisorConsultationRequestModal({ open, submitting, onClose, onS
   return (
     <div className="pap-modal-backdrop pap-modal-backdrop--consult" role="presentation">
       <form
+        ref={formRef}
         className="pap-modal pap-modal--sheet pap-modal--consult"
         onSubmit={handleSubmit}
         aria-labelledby="pap-consult-modal-title"
@@ -142,11 +173,16 @@ export function AdvisorConsultationRequestModal({ open, submitting, onClose, onS
           />
         </div>
 
-        <footer className="pap-modal__footer pap-cta-row">
+        <footer className="pap-modal__footer pap-modal__footer--dual">
           <button type="button" className="pap-btn pap-btn--secondary" onClick={onClose} disabled={submitting}>
             닫기
           </button>
-          <button type="submit" className="pap-btn pap-btn--primary" disabled={submitting || !privacyConsent}>
+          <button
+            type="submit"
+            className="pap-btn pap-btn--primary"
+            disabled={submitting || !privacyConsent}
+            aria-disabled={submitting || !privacyConsent}
+          >
             {submitting ? '전송 중…' : '신청하기'}
           </button>
         </footer>

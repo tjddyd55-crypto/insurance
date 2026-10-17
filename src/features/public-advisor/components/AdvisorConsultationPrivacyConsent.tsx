@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useBackButtonClose } from '../../../hooks/useBackButtonClose'
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock'
+import { measureConsultModalChromePx } from '../hooks/consultModalKeyboardScroll'
 import {
   MOBILE_CARD_CONSULTATION_PRIVACY_POLICY_BODY,
   MOBILE_CARD_CONSULTATION_PRIVACY_POLICY_TITLE,
@@ -31,6 +32,12 @@ export function AdvisorConsultationPrivacyConsent({
     if (!termsOpen) return
     const t = window.setTimeout(() => {
       dialogRef.current?.focus()
+      if (dialogRef.current) {
+        document.documentElement.style.setProperty(
+          '--pap-consult-chrome-h',
+          `${measureConsultModalChromePx(dialogRef.current)}px`,
+        )
+      }
     }, 0)
     return () => window.clearTimeout(t)
   }, [termsOpen])
@@ -107,7 +114,7 @@ export function AdvisorConsultationPrivacyConsent({
               <h2 id="consult-privacy-title">{MOBILE_CARD_CONSULTATION_PRIVACY_POLICY_TITLE}</h2>
             </header>
             <div className="pap-consult-privacy-modal__body">{MOBILE_CARD_CONSULTATION_PRIVACY_POLICY_BODY}</div>
-            <footer className="pap-modal__footer pap-cta-row">
+            <footer className="pap-modal__footer pap-modal__footer--dual">
               <button type="button" className="pap-btn pap-btn--secondary" onClick={closeTerms}>
                 취소
               </button>

@@ -116,11 +116,11 @@
 }
 
 .pap-consult-privacy {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px 10px;
+  column-gap: 10px;
+  row-gap: 6px;
   margin: 12px 0 4px;
   font-size: 0.9rem;
 }
@@ -129,11 +129,31 @@
   display: inline-flex;
   align-items: flex-start;
   gap: 8px;
-  flex: 1 1 auto;
   min-width: 0;
   margin: 0;
   font-weight: 600;
   cursor: pointer;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.pap-consult-privacy__link {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  white-space: nowrap;
+}
+
+@media (max-width: 360px) {
+  .pap-consult-privacy {
+    grid-template-columns: 1fr;
+  }
+
+  .pap-consult-privacy__link {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: end;
+  }
 }
 
 .pap-consult-privacy__required {
@@ -149,6 +169,7 @@
   color: #2563eb;
   text-decoration: underline;
   cursor: pointer;
+  margin: 0;
 }
 
 .pap-consult-privacy-modal__body {
