@@ -72,7 +72,6 @@ export function MyPublicProfilePage() {
   const [address, setAddress] = useState<AddressSearchValue>(emptyAddress)
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null)
   const [businessCardFrontUrl, setBusinessCardFrontUrl] = useState<string | null>(null)
-  const [businessCardBackUrl, setBusinessCardBackUrl] = useState<string | null>(null)
   const [gallery, setGallery] = useState<OwnerGalleryItem[]>([])
   const [ownerGaName, setOwnerGaName] = useState('')
   const [ownerTeamName, setOwnerTeamName] = useState('')
@@ -82,7 +81,6 @@ export function MyPublicProfilePage() {
   const [mediaBusy, setMediaBusy] = useState(false)
   const profileInputRef = useRef<HTMLInputElement>(null)
   const businessCardFrontInputRef = useRef<HTMLInputElement>(null)
-  const businessCardBackInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
@@ -112,7 +110,6 @@ export function MyPublicProfilePage() {
       setPublicUrl(data.publicUrl)
       setProfilePhotoUrl(data.profilePhotoUrl)
       setBusinessCardFrontUrl(data.businessCardFrontUrl)
-      setBusinessCardBackUrl(data.businessCardBackUrl)
       setGallery(data.gallery)
       setOwnerDisplayName(data.user.displayName ?? '')
       setOwnerGaName(data.user.gaName ?? '')
@@ -215,16 +212,14 @@ export function MyPublicProfilePage() {
     }
   }
 
-  const onBusinessCardPick = async (side: 'front' | 'back', file: File | null) => {
+  const onBusinessCardPick = async (file: File | null) => {
     if (!file || !token) return
     setMediaBusy(true)
     setMessage('')
-    const kind = side === 'front' ? 'business-card-front' : 'business-card-back'
-    const patchKey = side === 'front' ? 'business_card_front_object_key' : 'business_card_back_object_key'
     try {
-      const objectKey = await uploadAdvisorImageFile(token, kind, file)
-      await patchMyPublicProfile(token, { [patchKey]: objectKey })
-      setMessage(side === 'front' ? '명함 앞면이 저장되었습니다.' : '명함 뒷면이 저장되었습니다.')
+      const objectKey = await uploadAdvisorImageFile(token, 'business-card-front', file)
+      await patchMyPublicProfile(token, { business_card_front_object_key: objectKey })
+      setMessage('명함 앞면이 저장되었습니다.')
       await load()
     } catch {
       setMessage('명함 사진 업로드에 실패했습니다.')
@@ -233,13 +228,12 @@ export function MyPublicProfilePage() {
     }
   }
 
-  const removeBusinessCard = async (side: 'front' | 'back') => {
+  const removeBusinessCard = async () => {
     if (!token) return
     setMediaBusy(true)
-    const patchKey = side === 'front' ? 'business_card_front_object_key' : 'business_card_back_object_key'
     try {
-      await patchMyPublicProfile(token, { [patchKey]: '' })
-      setMessage(side === 'front' ? '명함 앞면을 삭제했습니다.' : '명함 뒷면을 삭제했습니다.')
+      await patchMyPublicProfile(token, { business_card_front_object_key: '' })
+      setMessage('명함 앞면을 삭제했습니다.')
       await load()
     } catch {
       setMessage('명함 사진 삭제에 실패했습니다.')
@@ -406,17 +400,20 @@ export function MyPublicProfilePage() {
         </div>
 
         <h2 className="pap-editor-section-title">실제 명함 사진</h2>
-        <p className="pap-editor-hint">사용 중인 종이 명함을 촬영하거나 이미지 파일로 등록해 주세요.</p>
+        <p className="pap-editor-hint">사용 중인 종이 명함 앞면을 등록해 주세요.</p>
         <div className="pap-editor-business-card-row">
           <div className="pap-editor-business-card-slot">
-            <strong>앞면</strong>
-            {businessCardFrontUrl ? <img src={businessCardFrontUrl} alt="명함 앞면" /> : <p className="pap-affiliation">등록된 앞면이 없습니다.</p>}
+            {businessCardFrontUrl ? (
+              <img src={businessCardFrontUrl} alt="명함 앞면" />
+            ) : (
+              <p className="pap-affiliation">등록된 명함이 없습니다.</p>
+            )}
             <div className="pap-cta-row pap-cta-row--left">
               <button type="button" className="pap-btn pap-btn--secondary" disabled={mediaBusy} onClick={() => businessCardFrontInputRef.current?.click()}>
                 {businessCardFrontUrl ? '변경' : '+ 명함 앞면 추가'}
               </button>
               {businessCardFrontUrl ? (
-                <button type="button" className="pap-btn pap-btn--secondary" disabled={mediaBusy} onClick={() => void removeBusinessCard('front')}>
+                <button type="button" className="pap-btn pap-btn--secondary" disabled={mediaBusy} onClick={() => void removeBusinessCard()}>
                   삭제
                 </button>
               ) : null}
@@ -430,33 +427,7 @@ export function MyPublicProfilePage() {
               onChange={(e) => {
                 const f = e.target.files?.[0] ?? null
                 e.target.value = ''
-                void onBusinessCardPick('front', f)
-              }}
-            />
-          </div>
-          <div className="pap-editor-business-card-slot">
-            <strong>뒷면 (선택)</strong>
-            {businessCardBackUrl ? <img src={businessCardBackUrl} alt="명함 뒷면" /> : <p className="pap-affiliation">등록된 뒷면이 없습니다.</p>}
-            <div className="pap-cta-row pap-cta-row--left">
-              <button type="button" className="pap-btn pap-btn--secondary" disabled={mediaBusy} onClick={() => businessCardBackInputRef.current?.click()}>
-                {businessCardBackUrl ? '변경' : '+ 명함 뒷면 추가'}
-              </button>
-              {businessCardBackUrl ? (
-                <button type="button" className="pap-btn pap-btn--secondary" disabled={mediaBusy} onClick={() => void removeBusinessCard('back')}>
-                  삭제
-                </button>
-              ) : null}
-            </div>
-            <input
-              ref={businessCardBackInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              capture="environment"
-              className="pap-hidden-input"
-              onChange={(e) => {
-                const f = e.target.files?.[0] ?? null
-                e.target.value = ''
-                void onBusinessCardPick('back', f)
+                void onBusinessCardPick(f)
               }}
             />
           </div>
@@ -590,15 +561,10 @@ export function MyPublicProfilePage() {
               <div className="pap-home-sections pap-home-sections--editor-preview">
                 {bio.trim() ? (
                   <section className="pap-section pap-section--intro pap-fc-card">
-                    <h2>소개</h2>
                     <p className="pap-body pap-body--intro">{bio}</p>
                   </section>
                 ) : null}
-                <AdvisorBusinessCardSection
-                  frontUrl={businessCardFrontUrl}
-                  backUrl={businessCardBackUrl}
-                  onImageClick={() => {}}
-                />
+                <AdvisorBusinessCardSection frontUrl={businessCardFrontUrl} onImageClick={() => {}} />
               </div>
             </div>
           </div>

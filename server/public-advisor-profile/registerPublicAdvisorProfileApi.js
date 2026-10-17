@@ -65,7 +65,7 @@ function mapPublicProfilePayload(resolved, req) {
     profileTheme: profile.profileTheme,
     profilePhotoUrl: publicMediaUrl(profile.profilePhotoObjectKey, req),
     businessCardFrontUrl: publicMediaUrl(profile.businessCardFrontObjectKey, req),
-    businessCardBackUrl: publicMediaUrl(profile.businessCardBackObjectKey, req),
+    businessCardBackUrl: null,
     gallery: gallery.map((g) => ({
       id: g.id,
       caption: g.caption,
@@ -268,7 +268,7 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
         publicUrl: `${baseUrl}/fc/${data.profile.public_slug}`,
         profilePhotoUrl: publicMediaUrl(data.profile.profile_photo_object_key, req),
         businessCardFrontUrl: publicMediaUrl(data.profile.business_card_front_object_key, req),
-        businessCardBackUrl: publicMediaUrl(data.profile.business_card_back_object_key, req),
+        businessCardBackUrl: null,
       })
     } catch (e) {
       handleDbError(res, e)
