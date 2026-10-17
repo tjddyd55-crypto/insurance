@@ -8454,11 +8454,13 @@ if (fs.existsSync(DIST_PATH)) {
         const raw = fs.readFileSync(htmlPath, 'utf8')
         const meta = slug ? await getAdvisorPublicMetaBySlug(pool, slug) : { indexable: false, slug: '' }
         const pathSuffix = `/fc/${meta.slug || slug || 'profile'}`
-        const origin = `${req.protocol}://${req.get('host')}`
-        const imageFromPhoto = meta.profilePhotoObjectKey
-          ? advisorPublicMediaUrl(meta.profilePhotoObjectKey, origin)
-          : null
-        const imageUrl = imageFromPhoto || defaultAdvisorOgImageUrl(req)
+        const ogCardPath =
+          meta.indexable && meta.profilePhotoObjectKey && meta.slug
+            ? `/api/public/advisors/${encodeURIComponent(meta.slug)}/og-card.png`
+            : null
+        const imageUrl = ogCardPath
+          ? buildAbsolutePublicUrl(req, ogCardPath)
+          : defaultAdvisorOgImageUrl(req)
         const title = meta.indexable ? meta.title : '프로필을 찾을 수 없습니다 | ONE FC'
         const description = meta.indexable
           ? meta.description
@@ -8472,6 +8474,8 @@ if (fs.existsSync(DIST_PATH)) {
               imageUrl,
               canonicalUrl: buildAbsolutePublicUrl(req, pathSuffix),
               indexable: Boolean(meta.indexable),
+              ogImageWidth: ogCardPath ? 1200 : undefined,
+              ogImageHeight: ogCardPath ? 630 : undefined,
             }),
           )
         return

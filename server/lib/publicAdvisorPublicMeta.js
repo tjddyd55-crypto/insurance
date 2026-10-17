@@ -34,6 +34,12 @@ export function injectPublicAdvisorProfileMeta(html, meta) {
   const d = escapeHtmlAttr(meta.description)
   const img = escapeHtmlAttr(meta.imageUrl)
   const url = escapeHtmlAttr(meta.canonicalUrl)
+  const ogImageDims =
+    meta.ogImageWidth && meta.ogImageHeight
+      ? `
+    <meta property="og:image:width" content="${Number(meta.ogImageWidth)}" />
+    <meta property="og:image:height" content="${Number(meta.ogImageHeight)}" />`
+      : ''
 
   const metaBlock = `
     <meta name="robots" content="${robots}" />
@@ -43,7 +49,7 @@ export function injectPublicAdvisorProfileMeta(html, meta) {
     <meta property="og:description" content="${d}" />
     <meta property="og:type" content="profile" />
     <meta property="og:url" content="${url}" />
-    <meta property="og:image" content="${img}" />
+    <meta property="og:image" content="${img}" />${ogImageDims}
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${t}" />
     <meta name="twitter:description" content="${d}" />

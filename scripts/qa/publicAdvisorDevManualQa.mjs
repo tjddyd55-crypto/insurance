@@ -157,11 +157,16 @@ async function main() {
   const ogOk =
     html.includes('property="og:title"') &&
     html.includes('property="og:image"') &&
+    html.includes('/og-card.png') &&
+    html.includes('property="og:image:width" content="1200"') &&
     html.includes('property="og:url"') &&
     html.includes('twitter:card') &&
     html.includes('rel="canonical"') &&
     html.includes('index, follow')
   record('OG HTML inject', ogOk)
+
+  const ogCardHead = await fetch(`${BASE}/api/public/advisors/${SLUG}/og-card.png`, { method: 'HEAD' })
+  record('OG card PNG endpoint', ogCardHead.ok && ogCardHead.headers.get('content-type')?.includes('image/png'))
 
   const experts = await fetch(`${BASE}/api/public/experts?q=${encodeURIComponent('QA 공개')}`).then((r) => r.json())
   record('Expert search by name', (experts.items ?? []).some((x) => x.slug === SLUG))

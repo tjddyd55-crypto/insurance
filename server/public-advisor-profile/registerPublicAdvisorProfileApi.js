@@ -36,6 +36,8 @@ import {
   recordAdvisorPublicEvent,
   searchPublishedAdvisors,
 } from './publicAdvisorProfileService.js'
+import { ADVISOR_OG_HEADLINE_FALLBACK } from './publicAdvisorOgMeta.js'
+import { renderAdvisorMobileCardOgPng } from './renderAdvisorMobileCardOgImage.js'
 
 const PUBLIC_EVENT_WHITELIST = new Set(Object.values(ADVISOR_PUBLIC_EVENT_TYPES))
 
@@ -143,6 +145,44 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
         profilePhotoObjectKey: undefined,
       }))
       res.json({ items })
+    } catch (e) {
+      handleDbError(res, e)
+    }
+  })
+
+  apiRouter.get('/public/advisors/:slug/og-card.png', async (req, res) => {
+    try {
+      const resolved = await getPublishedAdvisorBySlug(pool, req.params.slug)
+      if (resolved.status !== 'ok') {
+        res.status(404).end()
+        return
+      }
+      const photoKey = resolved.profile.profilePhotoObjectKey
+      if (!photoKey) {
+        res.status(404).end()
+        return
+      }
+      let photoBuffer
+      try {
+        photoBuffer = await readAdvisorPublicMediaBuffer(photoKey)
+      } catch {
+        res.status(404).end()
+        return
+      }
+      const affiliationLine = [resolved.user.gaName, resolved.user.teamName].filter(Boolean).join(' · ')
+      const headline = String(resolved.profile.headline ?? '').trim() || ADVISOR_OG_HEADLINE_FALLBACK
+      const titleSuffix = String(resolved.profile.titleLabel ?? 'FC').trim() || 'FC'
+      const png = await renderAdvisorMobileCardOgPng({
+        theme: resolved.profile.profileTheme ?? 'classic',
+        displayName: resolved.user.displayName,
+        titleSuffix,
+        affiliationLine,
+        headline,
+        photoBuffer,
+      })
+      res.setHeader('Content-Type', 'image/png')
+      res.setHeader('Cache-Control', 'public, max-age=600, stale-while-revalidate=86400')
+      res.send(png)
     } catch (e) {
       handleDbError(res, e)
     }

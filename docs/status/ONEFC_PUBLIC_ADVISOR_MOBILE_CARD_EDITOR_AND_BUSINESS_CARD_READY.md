@@ -16,6 +16,14 @@ Development only.
 - **내정보:** `ProfilePage` 링크 동일 경로
 - **편집:** 대표사진 · 명함 디자인 1/2/3 · 실제 명함 앞/뒤 · 텍스트/갤러리/연락 · 390px 미리보기
 
+## OG 공유 썸네일
+
+- `og:title` = `{이름} {호칭} | ONE FC`
+- `og:description` = `{GA · 지점} · {한 줄 소개}` (소개 없으면 기본 문구)
+- `og:image` = `/api/public/advisors/:slug/og-card.png` (1200×630, `profile_theme`별 렌더)
+- 대표사진 없음 → `/icon.png` fallback
+- 비공개 → `noindex` + 기본 이미지
+
 ## QA
 
 `https://insurance-dev.up.railway.app/fc/qa-public-advisor-dev`

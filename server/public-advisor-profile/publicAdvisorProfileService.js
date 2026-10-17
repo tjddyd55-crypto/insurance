@@ -9,6 +9,7 @@ import {
 } from './publicAdvisorSlug.js'
 import { assertAdvisorPublicObjectKeyOwned } from './publicAdvisorMedia.js'
 import { normalizeAdvisorProfileTheme } from './publicAdvisorProfileTheme.js'
+import { buildAdvisorOgDescription, buildAdvisorOgTitle } from './publicAdvisorOgMeta.js'
 
 const GALLERY_MAX = 6
 const HASHTAG_MAX = 5
@@ -245,18 +246,22 @@ export async function getAdvisorPublicMetaBySlug(pool, slug) {
     return { indexable: false, slug: normalizeAdvisorPublicSlug(slug) }
   }
   const titleLabel = String(resolved.profile.titleLabel ?? 'FC').trim() || 'FC'
-  const title = `${resolved.user.displayName} ${titleLabel} | ONE FC`
-  const descParts = [
-    resolved.profile.headline,
-    [resolved.user.gaName, resolved.user.teamName].filter(Boolean).join(' '),
-  ].filter(Boolean)
-  const description = descParts.join(' · ').slice(0, 200) || 'ONE FC 설계사 공개 프로필'
+  const title = buildAdvisorOgTitle({
+    displayName: resolved.user.displayName,
+    titleLabel,
+  })
+  const description = buildAdvisorOgDescription({
+    gaName: resolved.user.gaName,
+    teamName: resolved.user.teamName,
+    headline: resolved.profile.headline,
+  })
   return {
     indexable: true,
     slug: resolved.profile.slug,
     title,
     description,
     profilePhotoObjectKey: resolved.profile.profilePhotoObjectKey,
+    profileTheme: resolved.profile.profileTheme,
   }
 }
 
