@@ -14,6 +14,9 @@
   --pap-field-error: var(--danger, #dc2626);
   --pap-field-error-bg: var(--danger-bg, #fef2f2);
   --pap-field-error-border: var(--danger-border, #fecaca);
+  --pap-sticky-cta-pad-y: 10px;
+  --pap-sticky-cta-block: calc(var(--pap-sticky-cta-pad-y) + 48px + var(--pap-sticky-cta-pad-y));
+  --pap-toast-gap: 12px;
 }
 
 .public-advisor-page {
@@ -880,23 +883,6 @@
   font-weight: 600;
 }
 
-/* 상담 신청 실패는 .pap-consult-alert. 이 floating 은 접수 안내와 페이지 수준 오류만. */
-.pap-status--floating,
-.pap-error--floating {
-  position: fixed;
-  left: 16px;
-  right: 16px;
-  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-  z-index: 70;
-  margin: 0;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: var(--bg-surface, #fff);
-  border: 1px solid var(--border-default, #e5e7eb);
-  text-align: center;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
-}
-
 .pap-error {
   margin-top: 12px;
   color: #b91c1c;
@@ -1225,11 +1211,36 @@
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+  padding: var(--pap-sticky-cta-pad-y) 16px calc(var(--pap-sticky-cta-pad-y) + env(safe-area-inset-bottom, 0px));
   background: rgba(255, 255, 255, 0.96);
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border-default, #e5e7eb);
   display: flex;
   gap: 10px;
+}
+
+.pap-toast-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 45;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  padding-inline: 16px;
+  bottom: calc(var(--pap-sticky-cta-block) + env(safe-area-inset-bottom, 0px) + var(--pap-toast-gap));
+}
+
+.pap-toast {
+  margin: 0;
+  max-width: 100%;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--text-primary, #111827);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
 }
 
 .pap-page--fc .pap-sticky-cta {
@@ -1249,6 +1260,7 @@
 
 .pap-sticky-cta .pap-btn {
   flex: 1;
+  min-height: 48px;
 }
 
 .pap-editor-form label {

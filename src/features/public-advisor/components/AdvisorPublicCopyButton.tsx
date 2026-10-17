@@ -1,4 +1,9 @@
 import { useCallback, useState } from 'react'
+import {
+  PUBLIC_ADVISOR_COPY_TOAST,
+  PUBLIC_ADVISOR_TOAST_MS,
+  showPublicAdvisorToast,
+} from '../toast/publicAdvisorToast'
 
 type Props = {
   text: string
@@ -14,7 +19,8 @@ export function AdvisorPublicCopyButton({ text, label = '복사' }: Props) {
     try {
       await navigator.clipboard.writeText(value)
       setDone(true)
-      window.setTimeout(() => setDone(false), 1600)
+      showPublicAdvisorToast(PUBLIC_ADVISOR_COPY_TOAST)
+      window.setTimeout(() => setDone(false), PUBLIC_ADVISOR_TOAST_MS)
     } catch {
       try {
         const ta = document.createElement('textarea')
@@ -27,7 +33,8 @@ export function AdvisorPublicCopyButton({ text, label = '복사' }: Props) {
         document.execCommand('copy')
         document.body.removeChild(ta)
         setDone(true)
-        window.setTimeout(() => setDone(false), 1600)
+        showPublicAdvisorToast(PUBLIC_ADVISOR_COPY_TOAST)
+        window.setTimeout(() => setDone(false), PUBLIC_ADVISOR_TOAST_MS)
       } catch {
         /* ignore */
       }
