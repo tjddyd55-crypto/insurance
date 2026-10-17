@@ -9,7 +9,9 @@ import {
 } from '../api/publicAdvisorApi'
 import { AdvisorProfileHero } from '../components/heroes/AdvisorProfileHero'
 import { AdvisorPublicImage } from '../components/AdvisorPublicImage'
-import { normalizeProfileTheme } from '../profileTheme'
+import { AdvisorThemeDevSwitcher } from '../components/AdvisorThemeDevSwitcher'
+import { isAdvisorThemeDevReviewEnabled } from '../config/advisorThemeDevReviewGate'
+import { normalizeProfileTheme, type AdvisorProfileTheme } from '../profileTheme'
 import { parseCareerDisplayLines } from '../utils/parseCareerDisplayLines'
 import '../public-advisor.css'
 
@@ -27,6 +29,9 @@ export function PublicAdvisorProfilePage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitDone, setSubmitDone] = useState(false)
   const [lightbox, setLightbox] = useState<{ url: string; caption: string } | null>(null)
+  /** DEV REVIEW: Hero 미리보기 테마만 오버라이드. API/DB `profile_theme` 은 변경하지 않음. */
+  const [devReviewHeroTheme, setDevReviewHeroTheme] = useState<AdvisorProfileTheme | null>(null)
+  const showDevThemeReviewBar = isAdvisorThemeDevReviewEnabled()
 
   useEffect(() => {
     let cancelled = false
@@ -44,6 +49,10 @@ export function PublicAdvisorProfilePage() {
       cancelled = true
     }
   }, [slug])
+
+  useEffect(() => {
+    setDevReviewHeroTheme(null)
+  }, [slug, data?.profileTheme])
 
   const onConsultSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -130,11 +139,15 @@ export function PublicAdvisorProfilePage() {
 
   const titleSuffix = data.titleLabel?.trim() || 'FC'
   const primaryBadge = data.verificationBadges?.[0]
-  const profileTheme = normalizeProfileTheme(data.profileTheme)
+  const savedProfileTheme = normalizeProfileTheme(data.profileTheme)
+  const profileTheme = devReviewHeroTheme ?? savedProfileTheme
 
   return (
     <div className={`public-advisor-page pap-page--fc pap-page-theme--${profileTheme}`}>
       <div className="public-advisor-shell pap-shell--fc">
+        {showDevThemeReviewBar ? (
+          <AdvisorThemeDevSwitcher value={profileTheme} onChange={setDevReviewHeroTheme} />
+        ) : null}
         <AdvisorProfileHero
           theme={profileTheme}
           displayName={data.displayName}
