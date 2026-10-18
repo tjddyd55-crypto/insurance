@@ -1,6 +1,7 @@
 import { CUSTOMER_ALERT_DATE_LABEL } from '../../shared/customerAlertDateCopy.js'
 import { safeQuery } from '../utils/dbSafeQuery.js'
 import { parseGaId } from '../lib/parseGaId.js'
+import { notifyCustomerAlertChanged } from '../integrations/google/googleCalendarAutoSync.js'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const PURPOSE_TYPES = new Set(['CELEBRATION', 'THANKS', 'NOTICE', 'CHECKUP'])
@@ -182,6 +183,7 @@ export function registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, 
         [customerId, userId, gaId, purposeType, title, dateValue, memo, sortOrder],
       )
       await client.query('COMMIT')
+      notifyCustomerAlertChanged(pool, userId)
       res.status(201).json(mapSpecialDateRow(ins.rows[0]))
     } catch (error) {
       await client.query('ROLLBACK')
@@ -282,6 +284,7 @@ export function registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, 
         [purposeType, title, dateValue, memo, specialDateId, customerId, userId, gaId],
       )
       await client.query('COMMIT')
+      notifyCustomerAlertChanged(pool, userId)
       res.json(mapSpecialDateRow(upd.rows[0]))
     } catch (error) {
       await client.query('ROLLBACK')
@@ -333,6 +336,7 @@ export function registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, 
         return
       }
       await client.query('COMMIT')
+      notifyCustomerAlertChanged(pool, userId)
       res.status(204).send()
     } catch (error) {
       await client.query('ROLLBACK')

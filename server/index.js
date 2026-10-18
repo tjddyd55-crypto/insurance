@@ -7422,6 +7422,10 @@ apiRouter.patch('/customer/external-invite-registration', async (req, res) => {
       return
     }
 
+    void import('./integrations/google/googleCalendarAutoSync.js')
+      .then((m) => m.notifyCustomerAlertChanged(pool, refAgentId))
+      .catch((error) => console.warn('[gcal-autosync] customer rename sync failed', { code: String(error?.code ?? 'error') }))
+
     void tryGeocodeCustomerOnSave(pool, {
       customerId: updated.rows[0].id,
       userId: refAgentId,
@@ -7720,6 +7724,12 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
     if (updated.rowCount === 0) {
       res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
       return
+    }
+
+    if (hasKey('name')) {
+      void import('./integrations/google/googleCalendarAutoSync.js')
+        .then((m) => m.notifyCustomerAlertChanged(pool, userId))
+        .catch((error) => console.warn('[gcal-autosync] customer rename sync failed', { code: String(error?.code ?? 'error') }))
     }
 
     if (hasKey('address')) {
