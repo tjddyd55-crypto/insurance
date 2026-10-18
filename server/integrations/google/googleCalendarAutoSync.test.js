@@ -24,30 +24,39 @@ test('event id is deterministic, base32hex-safe and scoped by user/account/calen
   assert.notEqual(a, autoSyncEventId('u1', 'sub2', 'primary', 'todo:1'))
 })
 
-test('customer autosync title is "{name} {label}" with one separating space', () => {
-  assert.equal(autoSyncTitle({ kind: 'special_date', customerName: '홍길동', label: '결혼기념일' }), '홍길동 결혼기념일')
-  assert.equal(autoSyncTitle({ kind: 'special_date', customerName: '김철수', label: '생일' }), '김철수 생일')
-  assert.equal(autoSyncTitle({ kind: 'special_date', customerName: '이영희', label: '자동차보험 만기' }), '이영희 자동차보험 만기')
-  assert.equal(autoSyncTitle({ kind: 'special_date', customerName: '박민수', label: '보험 갱신일' }), '박민수 보험 갱신일')
-  assert.equal(autoSyncTitle({ kind: 'insurance_age_date', customerName: '홍길동', label: '상령일' }), '홍길동 상령일')
-  assert.equal(autoSyncTitle({ kind: 'car_expiry', customerName: '이영희' }), '이영희 자동차 만기')
-  assert.equal(autoSyncTitle({ kind: 'special_date', customerName: '  홍길동  ', label: '  결혼기념일  ' }), '홍길동 결혼기념일')
-  assert.equal(autoSyncTitle({ kind: 'insurance_age_date', customerName: '', label: '' }), '고객 상령일')
+test('titles that already include the customer name stay in bracket form', () => {
+  assert.equal(autoSyncTitle({ kind: 'insurance_age_date', customerName: '홍길동', label: '상령일' }), '[상령일] 홍길동')
+  assert.equal(autoSyncTitle({ kind: 'car_expiry', customerName: '홍길동', label: '자동차 만기' }), '[자동차 만기] 홍길동')
+  assert.equal(autoSyncTitle({ kind: 'insurance_age_date', customerName: '', label: '' }), '[상령일] 고객')
+  assert.equal(autoSyncTitle({ kind: 'special_date', customerName: '홍길동', label: '' }), '[알림일] 홍길동')
+  assert.equal(autoSyncTitle({ kind: 'special_date', customerName: '홍길동', label: '알림일' }), '[알림일] 홍길동')
+  assert.equal(autoSyncTitle({ kind: 'special_date', customerName: '홍길동', label: '홍길동 기념' }), '[알림일] 홍길동 기념')
   assert.equal(autoSyncTitle({ kind: 'todo', name: '서류 준비', completed: false }), '[할 일] 서류 준비')
   assert.equal(autoSyncTitle({ kind: 'todo', name: '서류 준비', completed: true }), '[할 일] 서류 준비 (완료)')
   assert.equal(AUTOSYNC_TITLES.todo, 'ONE FC 할 일')
 })
 
-test('reminder fields use the registered label and the customer name, not the car number', () => {
+test('custom alert labels without a customer name become "{name} {label}"', () => {
+  assert.equal(autoSyncTitle({ kind: 'special_date', customerName: '홍길동', label: '결혼기념일' }), '홍길동 결혼기념일')
+  assert.equal(autoSyncTitle({ kind: 'special_date', customerName: '김철수', label: '생일' }), '김철수 생일')
+  assert.equal(autoSyncTitle({ kind: 'special_date', customerName: '이영희', label: '자동차보험 만기' }), '이영희 자동차보험 만기')
+  assert.equal(autoSyncTitle({ kind: 'special_date', customerName: '박민수', label: '보험 갱신일' }), '박민수 보험 갱신일')
+  assert.equal(autoSyncTitle({ kind: 'special_date', customerName: '홍길동', label: '알림 1' }), '홍길동 알림 1')
+  assert.equal(autoSyncTitle({ kind: 'special_date', customerName: '  홍길동  ', label: '  결혼기념일  ' }), '홍길동 결혼기념일')
+})
+
+test('reminder fields keep named titles and prefix only unlabeled custom alerts', () => {
   const wedding = reminderEventToAutoSyncFields({ type: 'special_date', customerName: '홍길동', sourceTitle: '결혼기념일' })
   assert.equal(autoSyncTitle({ kind: 'special_date', ...wedding }), '홍길동 결혼기념일')
   const other = reminderEventToAutoSyncFields({ type: 'special_date', customerName: '김철수', sourceTitle: '결혼기념일' })
   assert.equal(autoSyncTitle({ kind: 'special_date', ...other }), '김철수 결혼기념일')
+  const unnamed = reminderEventToAutoSyncFields({ type: 'special_date', customerName: '홍길동', sourceTitle: '알림일' })
+  assert.equal(autoSyncTitle({ kind: 'special_date', ...unnamed }), '[알림일] 홍길동')
   const age = reminderEventToAutoSyncFields({ type: 'insurance_age_date', customerName: '홍길동', sourceTitle: '' })
-  assert.equal(autoSyncTitle({ kind: 'insurance_age_date', ...age }), '홍길동 상령일')
+  assert.equal(autoSyncTitle({ kind: 'insurance_age_date', ...age }), '[상령일] 홍길동')
   const car = reminderEventToAutoSyncFields({ type: 'car_expiry', customerName: '이영희', sourceTitle: '12가3456' })
-  assert.equal(autoSyncTitle({ kind: 'car_expiry', ...car }), '이영희 자동차 만기')
-  assert.equal(car.label.includes('12가'), false)
+  assert.equal(autoSyncTitle({ kind: 'car_expiry', ...car }), '[자동차 만기] 이영희')
+  assert.equal(autoSyncTitle({ kind: 'car_expiry', ...car }).includes('12가'), false)
 })
 
 test('payload uses the title SSOT and does not put customer PII in description or metadata', () => {
@@ -78,7 +87,10 @@ test('payload uses the title SSOT and does not put customer PII in description o
   assert.equal(p.extendedProperties.private.app, 'onefcAutoSync')
   const done = buildAutoSyncEventPayload({ key: 'todo:1', kind: 'todo', date: '2026-10-20', completed: true, name: '서류 준비' }, { ownerTag: 'o' })
   assert.equal(done.summary, '[할 일] 서류 준비 (완료)')
-  assert.equal(buildAutoSyncEventPayload({ key: 'r', kind: 'insurance_age_date', date: '2026-10-20', customerName: '' }, { ownerTag: 'o' }).summary, '고객 상령일')
+  assert.equal(buildAutoSyncEventPayload({ key: 'r', kind: 'insurance_age_date', date: '2026-10-20', customerName: '홍길동' }, { ownerTag: 'o' }).summary, '[상령일] 홍길동')
+  const age = { key: 'r', kind: 'insurance_age_date', date: '2026-10-20', completed: false, customerName: '홍길동', label: '상령일' }
+  const ageHash = decideAutoSyncWrite(undefined, age).hash
+  assert.equal(decideAutoSyncWrite({ status: 'active', content_hash: ageHash, google_event_id: 'evt-age' }, age).action, 'skip')
 })
 
 test('title drift updates the mapped event id and patches summary only when the date is unchanged', () => {
