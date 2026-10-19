@@ -28,6 +28,7 @@ import { isActivePcNavigationPath } from '../components/layout/pcNavigationUtils
 import BillingStatusBadge from '../features/insurance-billing/components/BillingStatusBadge'
 import { AdminNoticePopupModal } from '../features/admin-notices/components/AdminNoticePopupModal'
 import { useAdminNoticePopup } from '../features/admin-notices/hooks/useAdminNoticePopup'
+import { shouldHideWorkspaceChromeForNativeEmbed } from '../features/native-app/nativeAppEmbed'
 import { AiSecretaryProvider } from '../features/ai-secretary/context/AiSecretaryContext'
 import AiSecretaryPanel from '../features/ai-secretary/components/AiSecretaryPanel'
 
@@ -224,9 +225,12 @@ function AppWorkspaceLayoutMobileShell() {
     })
   }, [])
 
+  /* 네이티브 앱 모바일 명함 WebView: 앱 헤더만 보이게 웹 공통 상단바·드로어를 그리지 않는다. */
+  const nativeEmbedChromeHidden = shouldHideWorkspaceChromeForNativeEmbed(location.pathname)
+
   return (
     <div className="mobile-root mobile-workspace-layout">
-      {isMobile ? (
+      {isMobile && !nativeEmbedChromeHidden ? (
         <header className="mobile-topbar" aria-label="모바일 상단바">
           <FormButton
             htmlType="button"
@@ -260,7 +264,7 @@ function AppWorkspaceLayoutMobileShell() {
        *   - CSS 는 `.mobile-workspace-drawer--overlay` / `.mobile-workspace-drawer-backdrop`
        *     스코프에서 일괄 관리한다 (src/index.css).
        */}
-      {drawerOpen ? (
+      {drawerOpen && !nativeEmbedChromeHidden ? (
         <div
           className="mobile-workspace-drawer-backdrop"
           role="presentation"
@@ -269,7 +273,7 @@ function AppWorkspaceLayoutMobileShell() {
         />
       ) : null}
 
-      {drawerOpen ? (
+      {drawerOpen && !nativeEmbedChromeHidden ? (
         /*
          * 모바일 드로어 = [스크롤되는 메뉴 nav] + [하단 고정 footer]
          *
@@ -384,6 +388,7 @@ function AppWorkspaceLayoutPCShell() {
   const location = useLocation()
   const { user, logout, isAuthenticated, token } = useAuth()
   const workspaceChromeHeaderRef = useRef<HTMLElement>(null)
+  const nativeEmbedChromeHidden = shouldHideWorkspaceChromeForNativeEmbed(location.pathname)
 
   const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
   const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'
@@ -395,7 +400,7 @@ function AppWorkspaceLayoutPCShell() {
 
   return (
     <div className="pc-root app-workspace-layout-root">
-      <PCHeader
+      {nativeEmbedChromeHidden ? null : <PCHeader
         title={workspaceHeaderTitle}
         showNotification={showGaUserActions}
         headerRef={workspaceChromeHeaderRef}
@@ -403,7 +408,7 @@ function AppWorkspaceLayoutPCShell() {
           logout()
           navigate('/login', { replace: true })
         }}
-      />
+      />}
 
       {isPlatformAdminArea(location.pathname) && token?.trim() ? (
         <div className="platform-mode-switcher-host platform-mode-switcher-host--pc">
