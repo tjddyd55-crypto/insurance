@@ -1,6 +1,6 @@
 import { AdvisorProfileActionBar } from '../AdvisorProfileActionBar'
 import type { AdvisorProfileHeroProps } from './advisorProfileHeroTypes'
-import { AdvisorHeroTags } from './AdvisorHeroShared'
+import { AdvisorHeroActionSection, AdvisorHeroHashtagSection } from './AdvisorHeroShared'
 import { AdvisorHeroPortraitSlot } from './AdvisorHeroPortraitSlot'
 export function AdvisorProfileHeroBrand(props: AdvisorProfileHeroProps) {
   const {
@@ -29,9 +29,11 @@ export function AdvisorProfileHeroBrand(props: AdvisorProfileHeroProps) {
       <div className="pap-hero-brand__bottom">
         {officeLine ? <p className="pap-hero-line pap-hero-office">{officeLine}</p> : null}
         {headline ? <p className="pap-headline pap-headline--brand">{headline}</p> : null}
-        <AdvisorHeroTags tags={publicTags} />
       </div>
-      <AdvisorProfileActionBar theme={actionBarTheme} {...actionProps} />
+      <AdvisorHeroActionSection>
+        <AdvisorProfileActionBar theme={actionBarTheme} {...actionProps} />
+      </AdvisorHeroActionSection>
+      <AdvisorHeroHashtagSection tags={publicTags} />
     </header>
   )
 }
