@@ -19,6 +19,17 @@ import { resolveAdvisorPublicPhone } from './resolveAdvisorPublicPhone.js'
 import { buildOfficeDisplayLine, resolvePublicAffiliationLine } from './publicAdvisorDisplayFields.js'
 
 const GALLERY_MAX = 6
+/**
+ * 사무실 주소 컬럼은 NOT NULL DEFAULT '' 이다. 모바일 명함 PATCH 에서 명시적 null 은 빈 문자열(주소 없음)로 저장한다.
+ * 키가 없으면 기존 값을 그대로 둔다.
+ */
+export const ADVISOR_OFFICE_ADDRESS_PATCH_FIELDS = new Set([
+  'office_road_address',
+  'office_address_detail',
+  'office_postal_code',
+  'office_address_sido',
+  'office_address_sigungu',
+])
 const HASHTAG_MAX = 5
 
 export function normalizeHashtags(raw) {
@@ -461,9 +472,10 @@ export async function patchAdvisorProfileForOwner(pool, userId, patch) {
   ]
   for (const key of textFields) {
     if (!Object.prototype.hasOwnProperty.call(patch, key)) continue
+    if (patch[key] === undefined && ADVISOR_OFFICE_ADDRESS_PATCH_FIELDS.has(key)) continue
     if (patch[key] === null) {
       sets.push(`${key} = $${n++}`)
-      values.push(null)
+      values.push(ADVISOR_OFFICE_ADDRESS_PATCH_FIELDS.has(key) ? '' : null)
       continue
     }
     sets.push(`${key} = $${n++}`)
