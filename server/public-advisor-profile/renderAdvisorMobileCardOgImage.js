@@ -1,193 +1,226 @@
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 import { promiseWithTimeout } from '../lib/promiseWithTimeout.js'
 import { ADVISOR_OG_IMAGE_HEIGHT, ADVISOR_OG_IMAGE_WIDTH } from './publicAdvisorOgMeta.js'
 
 const W = ADVISOR_OG_IMAGE_WIDTH
 const H = ADVISOR_OG_IMAGE_HEIGHT
-const OG_PHOTO_META_TIMEOUT_MS = 3_000
-const OG_PHOTO_PREPARE_TIMEOUT_MS = 8_000
-const MIN_OG_PHOTO_BYTES = 256
+const OG_CARD_META_TIMEOUT_MS = 3_000
+const OG_CARD_PREPARE_TIMEOUT_MS = 8_000
+const MIN_OG_CARD_BYTES = 256
+const PREPARE_MAX_EDGE = 1600
+
+/** 94% of the canvas width. Wider cards stop here so side padding remains. */
+const MAX_CARD_WIDTH = W - 36 * 2
+/** Height cap. A 1.75 business card then lands near 88% of the canvas width. */
+const MAX_CARD_HEIGHT = H - 14 * 2
+
+const BG = { r: 244, g: 246, b: 248 }
 
 /** @type {Promise<Buffer> | null} */
-let defaultOgPhotoPromise = null
+let placeholderPromise = null
 
-function getDefaultOgPhotoBuffer() {
-  if (!defaultOgPhotoPromise) {
-    defaultOgPhotoPromise = sharp({
-      create: { width: 480, height: 600, channels: 3, background: { r: 148, g: 163, b: 184 } },
-    })
-      .png()
-      .toBuffer()
+/**
+ * Contain box for the business-card foreground. Aspect is preserved.
+ * The box never exceeds the canvas, so the card is not cropped or covered.
+ *
+ * @param {number} sw
+ * @param {number} sh
+ */
+export function planAdvisorOgCardContain(sw, sh) {
+  const safeW = Math.max(1, Math.round(sw))
+  const safeH = Math.max(1, Math.round(sh))
+  const scale = Math.min(MAX_CARD_WIDTH / safeW, MAX_CARD_HEIGHT / safeH)
+  const outWidth = Math.max(1, Math.round(safeW * scale))
+  const outHeight = Math.max(1, Math.round(safeH * scale))
+  return {
+    outWidth: Math.min(MAX_CARD_WIDTH, outWidth),
+    outHeight: Math.min(MAX_CARD_HEIGHT, outHeight),
+    left: Math.floor((W - Math.min(MAX_CARD_WIDTH, outWidth)) / 2),
+    top: Math.floor((H - Math.min(MAX_CARD_HEIGHT, outHeight)) / 2),
+    maxWidth: MAX_CARD_WIDTH,
+    maxHeight: MAX_CARD_HEIGHT,
   }
-  return defaultOgPhotoPromise
 }
 
 /**
- * @param {Buffer | null | undefined} photoBuffer
- * @param {boolean} [forceFallback]
+ * @param {Buffer | null | undefined} cardBuffer
+ * @param {boolean} [forcePlaceholder]
  */
-async function resolveOgPhotoBuffer(photoBuffer, forceFallback = false) {
-  if (forceFallback || !photoBuffer || photoBuffer.length < MIN_OG_PHOTO_BYTES) {
-    return getDefaultOgPhotoBuffer()
-  }
+async function resolveOgCardBuffer(cardBuffer, forcePlaceholder = false) {
+  if (forcePlaceholder || !cardBuffer || cardBuffer.length < MIN_OG_CARD_BYTES) return null
   try {
     const meta = await promiseWithTimeout(
-      sharp(photoBuffer).rotate().metadata(),
-      OG_PHOTO_META_TIMEOUT_MS,
-      'ogPhotoMetadata',
+      sharp(cardBuffer).rotate().metadata(),
+      OG_CARD_META_TIMEOUT_MS,
+      'ogCardMetadata',
     )
-    if (!meta.width || !meta.height || meta.width < 32 || meta.height < 32) {
-      return getDefaultOgPhotoBuffer()
-    }
-    return photoBuffer
+    if (!meta.width || !meta.height || meta.width < 32 || meta.height < 32) return null
+    return cardBuffer
   } catch {
-    return getDefaultOgPhotoBuffer()
+    return null
   }
 }
 
-const PREPARE_MAX_EDGE = 1600
-/** Blur band above and below the portrait so hair is not flush with the frame. */
-const CANVAS_HEADROOM_PX = 14
-/** 3:4 and 4:5 headshots keep at least this much of the source, measured from the top. */
-const PORTRAIT_WINDOW_FRACTION = 0.74
-/** Taller than ~3:2: still start at the top, but drop more of the lower body. */
-const TALL_PORTRAIT_WINDOW_FRACTION = 0.62
-const TALL_PORTRAIT_ASPECT = 1.45
-const PORTRAIT_WIDTH_CAP_RATIO = 0.64
-const LANDSCAPE_WIDTH_CAP_RATIO = 0.88
-
 /**
- * EXIF-orient, then cap the longest edge so later cover/blur stays inside the render timeout.
+ * EXIF-orient, then cap the longest edge so blur/resize stays inside the render timeout.
  * @param {Buffer} source
  */
-async function prepareOgCoverPhoto(source) {
+async function prepareOgCard(source) {
   return promiseWithTimeout(
     sharp(source)
       .rotate()
       .resize(PREPARE_MAX_EDGE, PREPARE_MAX_EDGE, { fit: 'inside', withoutEnlargement: true })
       .toBuffer(),
-    OG_PHOTO_PREPARE_TIMEOUT_MS,
-    'ogPhotoPrepare',
+    OG_CARD_PREPARE_TIMEOUT_MS,
+    'ogCardPrepare',
   )
 }
 
 /**
- * Deterministic crop. Portraits start at the top of the source so the hair stays in frame.
- * Landscape sources stay full height and are centered horizontally.
- *
- * @param {number} sw
- * @param {number} sh
- */
-export function planAdvisorOgForeground(sw, sh) {
-  const safeW = Math.max(1, Math.round(sw))
-  const safeH = Math.max(1, Math.round(sh))
-  const outH = H - CANVAS_HEADROOM_PX * 2
-  const portrait = safeH >= safeW * 1.05
-
-  if (!portrait) {
-    const naturalW = Math.round(safeW * (outH / safeH))
-    const cap = Math.round(W * LANDSCAPE_WIDTH_CAP_RATIO)
-    const outW = Math.max(1, Math.min(cap, naturalW))
-    const windowW = Math.min(safeW, Math.max(1, Math.round(safeH * (outW / outH))))
-    const left = Math.max(0, Math.floor((safeW - windowW) / 2))
-    return {
-      left,
-      top: 0,
-      width: windowW,
-      height: safeH,
-      outWidth: outW,
-      outHeight: outH,
-      canvasTop: CANVAS_HEADROOM_PX,
-    }
-  }
-
-  const fraction = safeH / safeW >= TALL_PORTRAIT_ASPECT ? TALL_PORTRAIT_WINDOW_FRACTION : PORTRAIT_WINDOW_FRACTION
-  let windowH = Math.min(safeH, Math.max(1, Math.round(safeH * fraction)))
-  let outW = Math.round(safeW * (outH / windowH))
-  const cap = Math.round(W * PORTRAIT_WIDTH_CAP_RATIO)
-  if (outW > cap) {
-    const fullW = Math.round(safeW * (outH / safeH))
-    if (fullW <= cap) {
-      windowH = safeH
-      outW = Math.max(1, fullW)
-    } else {
-      windowH = safeH
-      outW = cap
-    }
-  }
-  const windowW = Math.min(safeW, Math.max(1, Math.round(windowH * (outW / outH))))
-  const left = Math.max(0, Math.floor((safeW - windowW) / 2))
-  const top = 0
-  const height = Math.min(safeH - top, windowH)
-  return {
-    left,
-    top,
-    width: windowW,
-    height,
-    outWidth: outW,
-    outHeight: outH,
-    canvasTop: CANVAS_HEADROOM_PX,
-  }
-}
-
-/**
- * Full-bleed cover, top-biased, blurred so it only fills the gaps around the portrait.
+ * Light neutral field with a faint, desaturated blur of the card. The card itself is composited later with contain.
  * @param {Buffer} prepared
  */
 async function renderSoftBackground(prepared) {
-  const covered = await sharp(prepared)
-    .resize(W, H, { fit: 'cover', position: 'north' })
-    .blur(24)
-    .modulate({ brightness: 1.05, saturation: 0.48 })
+  const wash = await sharp(prepared)
+    .resize(W, H, { fit: 'cover', position: 'centre' })
+    .blur(36)
+    .modulate({ brightness: 1.6, saturation: 0.12 })
     .png()
     .toBuffer()
   const veil = await sharp({
+    create: { width: W, height: H, channels: 4, background: { ...BG, alpha: 0.9 } },
+  })
+    .png()
+    .toBuffer()
+  return sharp(wash).composite([{ input: veil, blend: 'over' }]).png().toBuffer()
+}
+
+/**
+ * @param {number} cardLeft
+ * @param {number} cardTop
+ * @param {number} cardW
+ * @param {number} cardH
+ */
+async function renderSoftShadow(cardLeft, cardTop, cardW, cardH) {
+  const plate = await sharp({
     create: {
-      width: W,
-      height: H,
+      width: cardW,
+      height: cardH,
       channels: 4,
-      background: { r: 255, g: 255, b: 255, alpha: 0.22 },
+      background: { r: 15, g: 23, b: 42, alpha: 0.18 },
     },
   })
     .png()
     .toBuffer()
-  return sharp(covered).composite([{ input: veil, blend: 'over' }]).png().toBuffer()
+  const top = Math.max(0, Math.min(H - cardH, cardTop + 6))
+  const left = Math.max(0, Math.min(W - cardW, cardLeft))
+  return sharp({
+    create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+  })
+    .composite([{ input: plate, left, top }])
+    .blur(10)
+    .png()
+    .toBuffer()
 }
 
-/**
- * @param {Buffer} prepared
- */
-async function renderForegroundPortrait(prepared) {
-  const meta = await sharp(prepared).metadata()
-  const plan = planAdvisorOgForeground(meta.width ?? W, meta.height ?? H)
-  return {
-    buffer: await sharp(prepared)
-      .extract({ left: plan.left, top: plan.top, width: plan.width, height: plan.height })
-      .resize(plan.outWidth, plan.outHeight, { fit: 'fill' })
-      .png()
-      .toBuffer(),
-    plan,
+async function loadOneFcMark() {
+  const here = path.dirname(fileURLToPath(import.meta.url))
+  const candidates = [
+    path.resolve(process.cwd(), 'public/icon.png'),
+    path.resolve(here, '../../public/icon.png'),
+  ]
+  for (const file of candidates) {
+    try {
+      const buf = await readFile(file)
+      if (buf.length > 32) return buf
+    } catch {
+      /* try the next path */
+    }
   }
+  return null
+}
+
+async function renderPlaceholderPng() {
+  const cardW = 1008
+  const cardH = 470
+  const cardLeft = Math.floor((W - cardW) / 2)
+  const cardTop = Math.floor((H - cardH) / 2)
+  const cardSvg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+  <rect x="${cardLeft}" y="${cardTop}" width="${cardW}" height="${cardH}" rx="18" fill="#ffffff"/>
+  <text x="${W / 2}" y="${cardTop + 292}" text-anchor="middle" font-family="WenQuanYi Micro Hei, DejaVu Sans, sans-serif" font-size="54" font-weight="700" fill="#0f172a">ONE FC</text>
+  <text x="${W / 2}" y="${cardTop + 360}" text-anchor="middle" font-family="WenQuanYi Micro Hei, DejaVu Sans, sans-serif" font-size="32" fill="#64748b">모바일 명함</text>
+</svg>`
+  const layers = [{ input: await sharp(Buffer.from(cardSvg)).png().toBuffer(), left: 0, top: 0 }]
+  const icon = await loadOneFcMark()
+  if (icon) {
+    const mark = await sharp(icon).resize(120, 120, { fit: 'inside' }).png().toBuffer()
+    const meta = await sharp(mark).metadata()
+    const markW = meta.width ?? 120
+    layers.push({
+      input: mark,
+      left: Math.round((W - markW) / 2),
+      top: cardTop + 72,
+    })
+  }
+  const background = await sharp({
+    create: { width: W, height: H, channels: 3, background: BG },
+  })
+    .png()
+    .toBuffer()
+  const shadow = await renderSoftShadow(cardLeft, cardTop, cardW, cardH)
+  return sharp(background)
+    .composite([{ input: shadow, blend: 'over' }, ...layers])
+    .png()
+    .toBuffer()
+}
+
+function getPlaceholderPng() {
+  if (!placeholderPromise) {
+    placeholderPromise = renderPlaceholderPng().catch((error) => {
+      placeholderPromise = null
+      throw error
+    })
+  }
+  return placeholderPromise
 }
 
 /**
- * Hero photo only — no theme UI, no text overlay (og:title/description carry copy).
+ * Business-card front only. Hero/profile photos are not an input.
+ * Missing or unreadable cards render the ONE FC placeholder.
  *
  * @param {{
- *   photoBuffer?: Buffer | null
- *   forcePhotoFallback?: boolean
+ *   cardBuffer?: Buffer | null
+ *   forcePlaceholder?: boolean
  * }} input
  */
 export async function renderAdvisorMobileCardOgPng(input) {
-  const source = await resolveOgPhotoBuffer(input.photoBuffer, Boolean(input.forcePhotoFallback))
-  const prepared = await prepareOgCoverPhoto(source)
+  const source = await resolveOgCardBuffer(input.cardBuffer, Boolean(input.forcePlaceholder))
+  if (!source) return getPlaceholderPng()
+
+  const prepared = await prepareOgCard(source)
+  const meta = await sharp(prepared).metadata()
+  const plan = planAdvisorOgCardContain(meta.width ?? W, meta.height ?? H)
+  const card = await sharp(prepared)
+    .resize(plan.outWidth, plan.outHeight, { fit: 'inside', withoutEnlargement: false })
+    .png()
+    .toBuffer()
+  const cardMeta = await sharp(card).metadata()
+  const cardW = cardMeta.width ?? plan.outWidth
+  const cardH = cardMeta.height ?? plan.outHeight
+  const left = Math.floor((W - cardW) / 2)
+  const top = Math.floor((H - cardH) / 2)
   const background = await renderSoftBackground(prepared)
-  const { buffer: portrait, plan } = await renderForegroundPortrait(prepared)
-  const portraitLeft = Math.max(0, Math.floor((W - plan.outWidth) / 2))
-  const portraitTop = plan.canvasTop
+  const shadow = await renderSoftShadow(left, top, cardW, cardH)
 
   return sharp(background)
-    .composite([{ input: portrait, left: portraitLeft, top: portraitTop }])
+    .composite([
+      { input: shadow, blend: 'over' },
+      { input: card, left, top },
+    ])
     .png()
     .toBuffer()
 }

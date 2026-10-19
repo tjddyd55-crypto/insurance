@@ -26,29 +26,27 @@ export async function buildAdvisorOgCardPng(pool, slug) {
     return { status: 'not_found', timing }
   }
 
-  const photoKey = resolved.profile.profilePhotoObjectKey
-  timing.photoKeyResolvedMs = Date.now() - totalStart
+  const cardKey = String(resolved.profile.businessCardFrontObjectKey ?? '').trim()
+  timing.cardKeyResolvedMs = Date.now() - totalStart
 
-  let photoBuffer = null
-  let usedPhotoFallback = false
+  let cardBuffer = null
+  let usedCardFallback = false
 
-  if (photoKey) {
+  if (cardKey) {
     const mediaStart = Date.now()
     try {
-      photoBuffer = await readAdvisorPublicMediaBuffer(photoKey, { timeoutMs: OG_MEDIA_READ_TIMEOUT_MS })
+      cardBuffer = await readAdvisorPublicMediaBuffer(cardKey, { timeoutMs: OG_MEDIA_READ_TIMEOUT_MS })
       timing.mediaReadMs = Date.now() - mediaStart
     } catch (e) {
       timing.mediaReadMs = Date.now() - mediaStart
       timing.mediaReadError = e instanceof Error ? e.message : String(e)
-      usedPhotoFallback = true
+      usedCardFallback = true
     }
   } else {
-    usedPhotoFallback = true
+    usedCardFallback = true
   }
 
-  const renderInput = {
-    photoBuffer,
-  }
+  const renderInput = { cardBuffer }
 
   const renderStart = Date.now()
   let png
@@ -63,13 +61,13 @@ export async function buildAdvisorOgCardPng(pool, slug) {
     timing.renderMs = Date.now() - renderStart
     timing.renderError = e instanceof Error ? e.message : String(e)
     const fallbackStart = Date.now()
-    png = await renderAdvisorMobileCardOgPng({ ...renderInput, photoBuffer: null, forcePhotoFallback: true })
+    png = await renderAdvisorMobileCardOgPng({ cardBuffer: null, forcePlaceholder: true })
     timing.fallbackRenderMs = Date.now() - fallbackStart
-    usedPhotoFallback = true
+    usedCardFallback = true
   }
 
   timing.totalMs = Date.now() - totalStart
-  timing.usedPhotoFallback = usedPhotoFallback
+  timing.usedCardFallback = usedCardFallback
 
   if (shouldLogOgTiming()) {
     console.info('[advisor-og-card]', { slug, timing })

@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+
 export const ADVISOR_OG_HEADLINE_FALLBACK = 'ONE FC 모바일 명함'
 
 export const ADVISOR_OG_IMAGE_WIDTH = 1200
@@ -37,6 +39,31 @@ export function buildAdvisorOgImageCacheVersion(cacheVersion) {
   if (Number.isFinite(asNum) && asNum > 0) return String(Math.floor(asNum))
   const parsed = Date.parse(s)
   return Number.isFinite(parsed) ? String(parsed) : s
+}
+
+/**
+ * `og-card.png?v=` changes when the profile timestamp changes, when the
+ * business-card front key changes, or when that media's updatedAt is newer.
+ * The card key is part of the value so two updates that share a timestamp
+ * still produce different URLs.
+ *
+ * @param {{
+ *   profileUpdatedAt?: string | number | Date | null
+ *   businessCardFrontObjectKey?: string | null
+ *   businessCardMediaUpdatedAt?: string | number | Date | null
+ * }} input
+ */
+export function buildAdvisorOgCardCacheVersion(input) {
+  const profileStamp = buildAdvisorOgImageCacheVersion(input?.profileUpdatedAt)
+  const mediaStamp = buildAdvisorOgImageCacheVersion(input?.businessCardMediaUpdatedAt)
+  const stamps = [profileStamp, mediaStamp]
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value > 0)
+  const stamp = stamps.length ? String(Math.max(...stamps)) : ''
+  const key = String(input?.businessCardFrontObjectKey ?? '').trim()
+  if (!key) return stamp
+  const keyHash = createHash('sha1').update(key).digest('hex').slice(0, 10)
+  return stamp ? `${stamp}-${keyHash}` : keyHash
 }
 
 export function buildAdvisorOgCardApiPath(slug, cacheVersion) {
