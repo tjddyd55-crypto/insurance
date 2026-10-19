@@ -23,6 +23,7 @@ import { AdvisorProfileQr } from '../components/AdvisorProfileQr'
 import { AdvisorCustomContactsEditor, type CustomContactDraft } from '../components/AdvisorCustomContactsEditor'
 import { AdvisorHeroEditorField } from '../components/AdvisorHeroEditorField'
 import { resolveAdvisorPublicPhone } from '../utils/resolveAdvisorPublicPhone'
+import { buildAdvisorOgTitle } from '../utils/buildAdvisorShareMeta.js'
 import { AdvisorPublicProfileView } from '../components/AdvisorPublicProfileView'
 import { normalizeProfileTheme, type AdvisorProfileTheme } from '../profileTheme'
 import { RECOMMENDED_ADVISOR_HASHTAGS } from '../recommendedHashtags'
@@ -408,7 +409,11 @@ export function MyPublicProfilePage() {
     if (typeof navigator.share === 'function') {
       try {
         await navigator.share({
-          title: `${user.displayName ?? 'ONE FC'} 공개 프로필`,
+          title: buildAdvisorOgTitle({
+            displayName: user.displayName,
+            heroDisplayTitle,
+            heroDisplayTitleVisible: heroTitleVisible,
+          }),
           url: canonicalPublicUrl,
         })
         return
