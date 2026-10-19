@@ -142,6 +142,9 @@
   flex: none;
   margin: 0;
   padding: 0;
+  /* Hero·셸 폭 규칙은 뷰포트가 아니라 이 카드 너비를 본다. 미리보기 프레임 안에서도 공개 페이지와 같다. */
+  container-type: inline-size;
+  container-name: pap-fc;
 }
 
 .pap-page--fc .public-advisor-shell.pap-shell--fc {
@@ -223,7 +226,6 @@
 .pap-hero--theme-classic .pap-hero-photo-wrap {
   width: 100%;
   aspect-ratio: 4 / 5;
-  max-height: min(52vh, 400px);
   background: #d1d5db;
   overflow: hidden;
 }
@@ -590,19 +592,7 @@
   border-bottom: 1px solid #f3f4f6;
 }
 
-@media (min-width: 390px) and (max-width: 430px) {
-  .pap-hero--theme-classic .pap-hero-photo-wrap {
-    max-height: min(50vh, 380px);
-  }
-}
-
-@media (min-width: 431px) {
-  .pap-hero--theme-classic .pap-hero-photo-wrap {
-    max-height: min(58vh, 440px);
-  }
-}
-
-@media (min-width: 768px) {
+@container pap-fc (min-width: 768px) {
   .pap-shell--fc {
     padding-top: 0;
     padding-inline: 16px;
@@ -622,7 +612,6 @@
 
   .pap-page--fc .pap-hero--theme-classic .pap-hero-photo-wrap {
     border-radius: 0;
-    max-height: 440px;
   }
 
   .pap-home-sections {
@@ -1726,8 +1715,9 @@
 .pap-hero-brand__photo-ring {
   position: relative;
   z-index: 1;
-  width: min(52vw, 196px);
-  height: min(52vw, 196px);
+  width: min(52cqw, 196px);
+  height: min(52cqw, 196px);
+  aspect-ratio: 1;
   margin: -48px auto 0;
   border: 5px solid #fff;
   border-radius: 50%;
@@ -1776,8 +1766,7 @@
 .pap-hero--theme-premium .pap-hero-premium__media {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 5;
-  max-height: min(56vh, 440px);
+  aspect-ratio: 2 / 3;
   overflow: hidden;
   background: #1e293b;
 }
@@ -1903,7 +1892,6 @@
 @media (min-width: 768px) {
   .pap-hero--theme-premium .pap-hero-premium__media {
     border-radius: 16px 16px 0 0;
-    max-height: 440px;
   }
 }
 
@@ -2242,32 +2230,12 @@
   border-radius: 0;
 }
 
-.pap-page--fc .pap-hero-brand__photo-ring {
-  width: min(52vw, 196px);
-  height: min(52vw, 196px);
-  margin: -48px auto 0;
-  border: 5px solid #fff;
-  border-radius: 50%;
-  box-shadow:
-    0 12px 32px rgba(15, 23, 42, 0.18),
-    0 0 0 1px rgba(37, 99, 235, 0.12);
-}
-
 .pap-page--fc .pap-hero--theme-premium .pap-hero-premium__media {
-  aspect-ratio: 2 / 3;
-  max-height: min(72vh, 600px);
   border-radius: 0;
 }
 
 .pap-page--fc .pap-hero-premium__panel {
   inset: auto 10px 6px;
-}
-
-@media (min-width: 768px) {
-  .pap-page--fc .pap-hero--theme-premium .pap-hero-premium__media {
-    border-radius: 0;
-    max-height: min(72vh, 600px);
-  }
 }
 
 .pap-page--fc .pap-home-sections .pap-section--business-card.pap-fc-card {
@@ -2373,6 +2341,10 @@
 }
 
 .pap-editor-live-preview__frame--phone {
+  --pap-preview-viewport: 390px;
+  box-sizing: content-box;
+  width: var(--pap-preview-viewport);
+  max-width: none;
   border: 1px solid #cbd5e1;
   border-radius: 20px;
   padding: 10px 8px;
@@ -2381,11 +2353,21 @@
 }
 
 .pap-editor-live-preview__scroll--phone {
+  box-sizing: border-box;
+  width: var(--pap-preview-viewport);
+  max-width: var(--pap-preview-viewport);
+  border: 0;
   border-radius: 12px;
   background: #f3f4f6;
   overflow-x: hidden;
   overflow-y: auto;
   position: relative;
+  scrollbar-width: none;
+}
+
+.pap-editor-live-preview__scroll--phone::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .pap-public-profile-view--in-editor-preview {
