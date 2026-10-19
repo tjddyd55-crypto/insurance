@@ -10,14 +10,15 @@ import { loadOwnedBinderMaterialFile } from './loadOwnedBinderMaterialFile.js'
 import { classifyBinderSource, sourcePageCount } from './renderBinderPageImage.js'
 import { createBinderPageImageService } from './serveBinderPageImage.js'
 
-const OPEN_IMAGE_CACHE_CONTROL = 'private, max-age=300'
-const STABLE_IMAGE_CACHE_CONTROL = 'private, max-age=86400'
+export const OPEN_IMAGE_CACHE_CONTROL = 'private, max-age=300'
+export const STABLE_IMAGE_CACHE_CONTROL = 'private, max-age=86400'
+const OWN_OPEN_PATH_PREFIX = '/api/personal-binders/page-images/open/'
 
-function httpError(status, message) {
+export function httpError(status, message) {
   return Object.assign(new Error(message), { httpStatus: status })
 }
 
-function requestScope(req, res) {
+export function requestScope(req, res) {
   const userId = String(req.user?.id ?? '').trim()
   const gaId = Number(req.user?.gaId)
   if (!userId || !Number.isInteger(gaId) || gaId < 1) {
@@ -27,7 +28,7 @@ function requestScope(req, res) {
   return { userId, gaId }
 }
 
-function positiveId(value) {
+export function positiveId(value) {
   const id = Number(value)
   return Number.isInteger(id) && id > 0 ? id : null
 }
@@ -40,7 +41,7 @@ function sendError(error, req, res, handleDbError) {
   handleDbError(error, req, res)
 }
 
-function guarded(handleDbError, handler) {
+export function guarded(handleDbError, handler) {
   return async (req, res) => {
     try {
       await handler(req, res)
@@ -75,8 +76,8 @@ function describeMaterial(row) {
   }
 }
 
-function linkBody(req, token, fields) {
-  const openPath = `/api/personal-binders/page-images/open/${encodeURIComponent(token)}`
+export function linkBody(req, token, fields, openPathPrefix = OWN_OPEN_PATH_PREFIX) {
+  const openPath = `${openPathPrefix}${encodeURIComponent(token)}`
   const proto = String(req.headers['x-forwarded-proto'] ?? req.protocol ?? 'https').split(',')[0].trim()
   const host = String(req.headers['x-forwarded-host'] ?? req.get?.('host') ?? '').split(',')[0].trim()
   return {
@@ -90,7 +91,7 @@ function linkBody(req, token, fields) {
   }
 }
 
-function sendPageImage(res, image, cacheControl) {
+export function sendPageImage(res, image, cacheControl) {
   res.setHeader('Content-Type', image.contentType)
   res.setHeader('Content-Length', String(image.buffer.length))
   res.setHeader('Cache-Control', cacheControl)
@@ -281,4 +282,6 @@ export function registerPersonalBinderPageImageApi(apiRouter, ctx) {
     protect,
     wrap((req, res) => handleBinderPages(deps, req, res)),
   )
+  // 공유 바인더 페이지 이미지가 같은 렌더/캐시 서비스를 쓰도록 돌려준다.
+  return { service: deps.service }
 }
