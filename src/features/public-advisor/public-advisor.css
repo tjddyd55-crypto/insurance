@@ -1317,14 +1317,6 @@
   display: block;
 }
 
-.pap-hidden-input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
-
 .pap-tag--editable,
 .pap-tag--suggest {
   border: none;

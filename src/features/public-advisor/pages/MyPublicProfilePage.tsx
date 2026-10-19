@@ -681,7 +681,7 @@ export function MyPublicProfilePage() {
               type="file"
               accept="image/jpeg,image/png,image/webp"
               capture="environment"
-              className="pap-hidden-input"
+              hidden
               onChange={(e) => {
                 const f = e.target.files?.[0] ?? null
                 e.target.value = ''
@@ -719,7 +719,7 @@ export function MyPublicProfilePage() {
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
                 capture="environment"
-                className="pap-hidden-input"
+                hidden
                 onChange={(e) => {
                   const f = e.target.files?.[0] ?? null
                   e.target.value = ''
@@ -843,7 +843,7 @@ export function MyPublicProfilePage() {
             ref={galleryInputRef}
             type="file"
             accept="image/jpeg,image/png,image/webp"
-            className="pap-hidden-input"
+            hidden
             onChange={(e) => {
               const f = e.target.files?.[0] ?? null
               e.target.value = ''
