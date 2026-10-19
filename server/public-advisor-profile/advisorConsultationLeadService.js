@@ -2,10 +2,20 @@ import { systemQuery } from '../utils/dbSafeQuery.js'
 
 export const ADVISOR_CONSULTATION_LEAD_STATUSES = ['new', 'checked', 'completed']
 
+/** 읽기 표시용: 저장된 값이 목록 밖이면 'new' 로 보여 준다(쓰기에는 쓰지 않는다). */
 function normalizeLeadStatus(raw) {
   const s = String(raw ?? '').trim().toLowerCase()
-  if (s === 'new' || s === 'checked' || s === 'completed') return s
-  return 'new'
+  return ADVISOR_CONSULTATION_LEAD_STATUSES.includes(s) ? s : 'new'
+}
+
+/**
+ * 쓰기용 엄격 검증. 허용값(ADVISOR_CONSULTATION_LEAD_STATUSES)과 정확히 같은 문자열만 통과.
+ * 대소문자·공백 변형, 다른 값, 문자열이 아닌 값은 null(→ 400, DB 변경 없음). 'new' 로 바꾸지 않는다.
+ * @param {unknown} raw
+ * @returns {'new' | 'checked' | 'completed' | null}
+ */
+export function parseAdvisorConsultationLeadStatus(raw) {
+  return typeof raw === 'string' && ADVISOR_CONSULTATION_LEAD_STATUSES.includes(raw) ? /** @type {any} */ (raw) : null
 }
 
 function mapLeadRow(row) {
@@ -92,8 +102,9 @@ export async function getAdvisorConsultationLeadForOwner(pool, advisorUserId, le
  * @param {{ status?: string }} patch
  */
 export async function patchAdvisorConsultationLeadForOwner(pool, advisorUserId, leadId, patch) {
-  const status = patch.status != null ? normalizeLeadStatus(patch.status) : null
-  if (status && !ADVISOR_CONSULTATION_LEAD_STATUSES.includes(status)) {
+  // status 가 없으면(undefined/null) 기존 계약대로 empty_patch. 있으면 엄격 검증, 실패 시 UPDATE 하지 않는다.
+  const status = patch.status == null ? null : parseAdvisorConsultationLeadStatus(patch.status)
+  if (patch.status != null && !status) {
     return { ok: false, code: 'invalid_status' }
   }
 
