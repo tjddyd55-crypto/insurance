@@ -43,4 +43,18 @@ describe('hero media sizing SSOT', () => {
     expect(css).not.toMatch(/pap-public-profile-view--in-editor-preview[^{]*\{[^}]*object-fit/)
     expect(css).not.toMatch(/pap-page--fc \.pap-hero--theme-premium \.pap-hero-premium__media\s*\{[^}]*aspect-ratio/)
   })
+
+  it('makes the fc shell fill the card container, not the viewport max-width', () => {
+    const shell = ruleBody('.pap-page--fc .public-advisor-shell.pap-shell--fc {')
+    expect(shell).toContain('width: 100%')
+    expect(shell).toContain('max-width: none')
+    expect(shell).toMatch(/margin:\s*0\s*;/)
+    expect(css).not.toMatch(/\.pap-public-profile-view--in-editor-preview \.public-advisor-shell/)
+    expect(css).not.toMatch(/pap-editor-live-preview__frame--phone[\s\S]{0,400}transform:\s*scale/)
+    const viewport = ruleBody('.pap-editor-live-preview__scroll--phone {')
+    expect(viewport).toContain('width: var(--pap-preview-viewport)')
+    expect(viewport).toContain('max-width: none')
+    expect(viewport).toContain('padding: 0')
+    expect(viewport).toContain('border: 0')
+  })
 })

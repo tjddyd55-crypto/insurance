@@ -41,7 +41,11 @@ describe('mobile card theme labels', () => {
     const buttons = html.match(/role="radio"/g) ?? []
     expect(buttons).toHaveLength(3)
     const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'public-advisor.css'), 'utf8')
-    expect(css).toMatch(/\.pap-theme-picker\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/)
+    expect(css).toMatch(/\.pap-theme-picker\s*\{[^}]*display:\s*inline-grid/)
+    expect(css).toMatch(/\.pap-theme-picker\s*\{[^}]*width:\s*max-content/)
+    expect(css).toMatch(/\.pap-theme-picker\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*1fr\)/)
+    expect(css).not.toMatch(/\.pap-theme-picker\s*\{[^}]*minmax\(0,\s*1fr\)/)
+    expect(css).toMatch(/\.pap-theme-picker__segment\s*\{[^}]*height:\s*44px/)
     expect(css).toMatch(/\.pap-theme-picker__segment\s*\{[^}]*min-height:\s*44px/)
     expect(css).not.toMatch(/\.pap-theme-picker__thumb/)
   })
