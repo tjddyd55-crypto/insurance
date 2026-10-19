@@ -12,7 +12,11 @@ import {
   normalizeUserNotificationSettingsPatch,
   upsertUserNotificationSettings,
 } from '../services/userNotificationSettingsService.js'
-import { USER_NOTIFICATION_TYPES } from '../notifications/userNotificationTypes.js'
+import { getNotificationDedupeExpressions } from '../notifications/notificationDedupeKey.js'
+import {
+  assertNotificationTypeToken,
+  USER_NOTIFICATION_CENTER_SECTIONS,
+} from '../notifications/userNotificationTypes.js'
 import { addDaysToDateOnly, getKstDateString } from '../../shared/dateTimeKst.js'
 
 function isInsurerManagerRole(role) {
@@ -100,10 +104,7 @@ function parseNotificationListFilters(query) {
   const allowedStatus = new Set(['all', 'unread', 'read', 'dismissed', 'hidden'])
   const allowedTypes = new Set([
     'all',
-    USER_NOTIFICATION_TYPES.CAR_EXPIRY,
-    USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE,
-    USER_NOTIFICATION_TYPES.CLAIM_REQUEST_RECEIVED,
-    USER_NOTIFICATION_TYPES.SPECIAL_DATE,
+    ...USER_NOTIFICATION_CENTER_SECTIONS.map((section) => section.type),
   ])
   let view = 'active'
   if (allowedViews.has(viewRaw)) {
@@ -162,19 +163,22 @@ export function buildNotificationListWhere(
       )
     }
 
-    pushWindowedType(
-      settings.insuranceAge.enabled,
-      USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE,
-      settings.insuranceAge.daysBefore,
-    )
-    pushWindowedType(settings.carExpiry.enabled, USER_NOTIFICATION_TYPES.CAR_EXPIRY, settings.carExpiry.daysBefore)
-    pushWindowedType(
-      settings.specialDate.enabled,
-      USER_NOTIFICATION_TYPES.SPECIAL_DATE,
-      settings.specialDate.daysBefore,
-    )
-    if (settings.claimRequest.enabled) {
-      typeClauses.push(`(type = '${USER_NOTIFICATION_TYPES.CLAIM_REQUEST_RECEIVED}')`)
+    for (const section of USER_NOTIFICATION_CENTER_SECTIONS) {
+      const typeLiteral = assertNotificationTypeToken(section.type)
+      if (section.activeRule === 'window') {
+        const setting = settings?.[section.settingKey]
+        pushWindowedType(Boolean(setting?.enabled), typeLiteral, setting?.daysBefore)
+        continue
+      }
+      if (section.activeRule === 'toggle') {
+        if (settings?.[section.settingKey]?.enabled) {
+          typeClauses.push(`(type = '${typeLiteral}')`)
+        }
+        continue
+      }
+      if (section.activeRule === 'always') {
+        typeClauses.push(`(type = '${typeLiteral}')`)
+      }
     }
 
     if (typeClauses.length === 0) {
@@ -194,35 +198,40 @@ export function buildNotificationListQuery(userId, gaId, filters, limit, setting
   const { clause, params } = buildNotificationListWhere(userId, gaId, filters, settings)
   params.push(limit)
   const limitParam = params.length
+  const dedupeExpressions = getNotificationDedupeExpressions('list').join(',\n        ')
   const sql = `
     SELECT id, user_id, ga_id, team_id, type, reference_id, message, is_read, is_dismissed,
            customer_id, customer_name, target_date, claim_request_id, special_date_id, created_at, confirmed_at
     FROM (
       SELECT DISTINCT ON (
-        user_id,
-        ga_id,
-        type,
-        COALESCE(customer_id, -1),
-        COALESCE(special_date_id, -1),
-        COALESCE(target_date, DATE '1970-01-01'),
-        COALESCE(claim_request_id, -1)
+        ${dedupeExpressions}
       )
         id, user_id, ga_id, team_id, type, reference_id, message, is_read, is_dismissed,
         customer_id, customer_name, target_date, claim_request_id, special_date_id, created_at, confirmed_at
       FROM notifications
       WHERE ${clause}
       ORDER BY
-        user_id,
-        ga_id,
-        type,
-        COALESCE(customer_id, -1),
-        COALESCE(special_date_id, -1),
-        COALESCE(target_date, DATE '1970-01-01'),
-        COALESCE(claim_request_id, -1),
+        ${dedupeExpressions},
         id ASC
     ) deduped
     ORDER BY created_at DESC, id DESC
     LIMIT $${limitParam}
+  `
+  return { sql, params }
+}
+
+export function buildNotificationUnreadCountQuery(userId, gaId, settings) {
+  const { clause, params } = buildNotificationListWhere(
+    userId,
+    gaId,
+    { view: 'active', type: 'all' },
+    settings,
+  )
+  const sql = `
+    SELECT COUNT(*)::bigint AS c
+    FROM notifications
+    WHERE ${clause}
+      AND is_read = false
   `
   return { sql, params }
 }
@@ -299,22 +308,8 @@ export function registerNotificationsApi(apiRouter, ctx) {
         console.error('[notificationsApi] syncDueUserNotifications failed', { userId, gaId, error })
       })
       const settings = await getUserNotificationSettings(pool, userId, gaId)
-      const { clause, params } = buildNotificationListWhere(
-        userId,
-        gaId,
-        { view: 'active', type: 'all' },
-        settings,
-      )
-      const r = await safeQuery(
-        pool,
-        `
-        SELECT COUNT(*)::bigint AS c
-        FROM notifications
-        WHERE ${clause}
-          AND is_read = false
-        `,
-        params,
-      )
+      const { sql, params } = buildNotificationUnreadCountQuery(userId, gaId, settings)
+      const r = await safeQuery(pool, sql, params)
       const row = r.rows[0]
       const count = row && row.c != null ? Number(row.c) : 0
       res.json({ count: Number.isFinite(count) ? count : 0 })

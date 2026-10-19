@@ -5580,6 +5580,15 @@ div.cta-button.customers-page__action-btn[role='button']{
   color: #9d174d;
 }
 
+.notification-section--consultation .notification-section__banner{
+  background: var(--bg-soft);
+  border-bottom-color: var(--border-default);
+}
+
+.notification-section--consultation .notification-section__title{
+  color: var(--text-primary);
+}
+
 .notification-settings-modal__body{
   display: grid;
   gap: 14px;

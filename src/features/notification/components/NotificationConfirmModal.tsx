@@ -1,3 +1,4 @@
+import { formatNotificationPrimaryText } from '@insurance-shared/userNotificationCatalog.js'
 import { ConfirmDialog } from '../../../components/dialog/ConfirmDialog'
 import type { NotificationRow } from '../api/notificationApi'
 import { NOTIFICATION_SECTIONS } from '../config/notificationCenter.config'
@@ -15,7 +16,7 @@ function buildNotificationConfirmSummary(row: NotificationRow) {
   const section = NOTIFICATION_SECTIONS.find((item) => item.type === row.type)
   const dateLabel = section?.dateColumnLabel ?? '기준일'
   return {
-    name: row.customerName ?? '—',
+    name: formatNotificationPrimaryText(row),
     detail: `${dateLabel} ${formatNotificationDateOnly(row)} · ${formatNotificationRowDDay(row)}`,
   }
 }
