@@ -4,7 +4,7 @@ import { BaseDialog } from '../dialog/BaseDialog'
 import FormButton from './FormButton'
 import FormInput from './FormInput'
 import type { AddressSearchValue } from './addressSearchUtils'
-import { regionFromPostcodeParts } from './addressSearchUtils'
+import { emptyAddressSearchValue, hasAddressSearchValue, regionFromPostcodeParts } from './addressSearchUtils'
 import {
   loadKakaoPostcode,
   resetKakaoPostcodeLoader,
@@ -52,6 +52,13 @@ export interface AddressSearchFieldProps {
    * disabled 와 별도로 side effect 차단용이다.
    */
   previewStatic?: boolean
+  /**
+   * opt-in: 검색 버튼 옆에 '주소 지우기' 버튼을 둔다. 누르면 우편번호·기본·상세·지역 칸을 모두 비운다.
+   * 기본값 false — 기존 사용처(고객 등) 화면은 그대로다.
+   */
+  clearable?: boolean
+  /** 지우기 버튼 라벨. */
+  clearButtonLabel?: string
 }
 
 const EMPTY_VALUE: AddressSearchValue = {
@@ -78,6 +85,8 @@ export default function AddressSearchField({
   detailPlaceholder = '상세주소 (동/호수 등)',
   searchButtonLabel = '주소 검색',
   zonecodePlaceholder = '우편번호',
+  clearable = false,
+  clearButtonLabel = '주소 지우기',
   disabled,
   previewStatic = false,
 }: AddressSearchFieldProps) {
@@ -156,11 +165,18 @@ export default function AddressSearchField({
   const current = value ?? EMPTY_VALUE
   const rootClass = ['customer-address-field', className].filter(Boolean).join(' ')
   const frozen = Boolean(disabled || previewStatic)
+  const showClear = clearable && !previewStatic
+  const handleClear = useCallback(() => {
+    if (previewStatic) return
+    onChange(emptyAddressSearchValue())
+  }, [onChange, previewStatic])
 
   return (
     <div className={rootClass}>
       {!previewStatic ? (
-        <div className="customer-address-field__search-row">
+        <div
+          className={`customer-address-field__search-row${showClear ? ' customer-address-field__search-row--with-clear' : ''}`}
+        >
           <FormButton
             htmlType="button"
             variant="secondary"
@@ -170,6 +186,17 @@ export default function AddressSearchField({
           >
             {searchButtonLabel}
           </FormButton>
+          {showClear ? (
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="customer-address-field__clear"
+              disabled={frozen || !hasAddressSearchValue(current)}
+              onClick={handleClear}
+            >
+              {clearButtonLabel}
+            </FormButton>
+          ) : null}
         </div>
       ) : null}
 
