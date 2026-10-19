@@ -8,8 +8,9 @@ export function normalizeProfileTheme(raw: unknown): AdvisorProfileTheme {
   return 'classic'
 }
 
-export const ADVISOR_PROFILE_THEME_LABELS: Record<AdvisorProfileTheme, { title: string; subtitle: string }> = {
-  classic: { title: '기본형', subtitle: 'Classic' },
-  brand: { title: '브랜드형', subtitle: 'Brand' },
-  premium: { title: '프리미엄형', subtitle: 'Premium' },
+/** 화면 라벨. 저장 enum(classic/brand/premium) 순서는 1형·2형·3형이다. */
+export const ADVISOR_PROFILE_THEME_LABELS: Record<AdvisorProfileTheme, string> = {
+  classic: '1형',
+  brand: '2형',
+  premium: '3형',
 }

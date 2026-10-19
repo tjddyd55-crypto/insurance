@@ -10,6 +10,7 @@ import {
 import { AdvisorPublicProfileView } from '../components/AdvisorPublicProfileView'
 import { normalizeProfileTheme } from '../profileTheme'
 import { buildAdvisorPublicInfoBlocks } from '../utils/buildAdvisorPublicInfoBlocks'
+import { resolveUserAffiliationText } from '../utils/resolveUserAffiliationText'
 import { normalizeAdvisorMediaUrl } from '../utils/advisorMediaUrl'
 import { AdvisorConsultationRequestModal } from '../components/AdvisorConsultationRequestModal'
 import {
@@ -87,7 +88,10 @@ export function PublicAdvisorProfilePage() {
 
   const affiliationLine = useMemo(() => {
     if (!data) return ''
-    return [data.gaName, data.teamName].filter(Boolean).join(' · ')
+    return resolveUserAffiliationText({
+      heroDisplaySubtitle: data.heroDisplaySubtitle,
+      heroDisplaySubtitleVisible: data.heroDisplaySubtitleVisible,
+    })
   }, [data])
 
   const publicTags = useMemo(() => (data?.hashtags ?? []).slice(0, MAX_PUBLIC_TAGS), [data?.hashtags])
@@ -95,6 +99,7 @@ export function PublicAdvisorProfilePage() {
   const infoBlocks = useMemo(() => {
     if (!data) return []
     return buildAdvisorPublicInfoBlocks({
+      affiliationText: affiliationLine,
       gaName: data.gaName,
       teamName: data.teamName,
       careerText: data.careerText,
@@ -112,7 +117,7 @@ export function PublicAdvisorProfilePage() {
         isVisible: true,
       })),
     })
-  }, [data])
+  }, [affiliationLine, data])
 
   const viewModel = useMemo(() => {
     if (!data) return null

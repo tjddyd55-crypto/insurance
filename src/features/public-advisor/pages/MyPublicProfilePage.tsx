@@ -1,10 +1,9 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
-import { FormButton } from '../../../components/form'
+import { AddressSearchField, FormButton } from '../../../components/form'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import { canAccessSelfProfilePage } from '../../auth/roleGuards'
-import { AddressSearchField, type AddressSearchValue } from '../../../components/form'
 import {
   addAdvisorGalleryItem,
   ADVISOR_PUBLIC_EVENT,
@@ -29,18 +28,18 @@ import { normalizeProfileTheme, type AdvisorProfileTheme } from '../profileTheme
 import { RECOMMENDED_ADVISOR_HASHTAGS } from '../recommendedHashtags'
 import { advisorMediaUrlFromObjectKey, normalizeAdvisorMediaUrl } from '../utils/advisorMediaUrl'
 import { buildAdvisorPublicInfoBlocks } from '../utils/buildAdvisorPublicInfoBlocks'
+import {
+  advisorOfficeAddressFromProfile,
+  advisorOfficeColumnsFromAddress,
+  buildAdvisorOfficeDisplayLine,
+  emptyAdvisorOfficeAddress,
+} from '../utils/advisorOfficeAddress'
 import { formatKrPhoneInputLive, formatKrPhoneNumberForDisplay } from '../utils/formatKrPhoneNumber'
+import { resolveUserAffiliationText } from '../utils/resolveUserAffiliationText'
 import '../public-advisor.css'
 
 const GALLERY_MAX = 6
 const HASHTAG_MAX = 5
-
-const emptyAddress: AddressSearchValue = {
-  postalCode: '',
-  roadAddress: '',
-  jibunAddress: '',
-  addressDetail: '',
-}
 
 function parseHashtags(raw: string): string[] {
   const out: string[] = []
@@ -98,7 +97,7 @@ export function MyPublicProfilePage() {
   const [customContacts, setCustomContacts] = useState<CustomContactDraft[]>([])
   const [allowConsultation, setAllowConsultation] = useState(true)
   const [profileTheme, setProfileTheme] = useState<AdvisorProfileTheme>('classic')
-  const [address, setAddress] = useState<AddressSearchValue>(emptyAddress)
+  const [address, setAddress] = useState(() => emptyAdvisorOfficeAddress())
   const [profilePhotoObjectKey, setProfilePhotoObjectKey] = useState<string | null>(null)
   const [businessCardObjectKey, setBusinessCardObjectKey] = useState<string | null>(null)
   const [profilePhotoPreviewUrl, setProfilePhotoPreviewUrl] = useState<string | null>(null)
@@ -185,12 +184,8 @@ export function MyPublicProfilePage() {
       )
       setAllowConsultation(p.allow_consultation !== false)
       setProfileTheme(normalizeProfileTheme(p.profile_theme))
-      setAddress({
-        postalCode: String(p.office_postal_code ?? ''),
-        roadAddress: String(p.office_road_address ?? ''),
-        jibunAddress: '',
-        addressDetail: String(p.office_address_detail ?? ''),
-      })
+      const loadedAddress = advisorOfficeAddressFromProfile(p)
+      setAddress(loadedAddress)
       const photoKey = String(p.profile_photo_object_key ?? '').trim() || null
       const cardKey = String(p.business_card_front_object_key ?? '').trim() || null
       applyProfilePhotoFromServer(photoKey, data.profilePhotoUrl)
@@ -235,11 +230,7 @@ export function MyPublicProfilePage() {
           })),
           allowConsultation: p.allow_consultation !== false,
           profileTheme: normalizeProfileTheme(p.profile_theme),
-          address: {
-            postalCode: String(p.office_postal_code ?? ''),
-            roadAddress: String(p.office_road_address ?? ''),
-            addressDetail: String(p.office_address_detail ?? ''),
-          },
+          address: loadedAddress,
           profilePhotoObjectKey: String(p.profile_photo_object_key ?? '').trim() || null,
           businessCardObjectKey: String(p.business_card_front_object_key ?? '').trim() || null,
         }),
@@ -307,9 +298,7 @@ export function MyPublicProfilePage() {
         kakao_link: '',
         allow_consultation: allowConsultation,
         profile_theme: profileTheme,
-        office_postal_code: address.postalCode,
-        office_road_address: address.roadAddress,
-        office_address_detail: address.addressDetail,
+        ...advisorOfficeColumnsFromAddress(address),
         profile_photo_object_key: profilePhotoObjectKey ?? '',
         business_card_front_object_key: businessCardObjectKey ?? '',
       })
@@ -527,8 +516,11 @@ export function MyPublicProfilePage() {
     }
   }
 
-  const gaLine = [ownerGaName, ownerTeamName].filter(Boolean).join(' · ')
-  const officePreviewLine = [address.roadAddress, address.addressDetail].filter(Boolean).join(' ')
+  const userAffiliation = resolveUserAffiliationText({
+    heroDisplaySubtitle,
+    heroDisplaySubtitleVisible: heroSubtitleVisible,
+  })
+  const officePreviewLine = buildAdvisorOfficeDisplayLine(address)
 
   const livePreviewModel = useMemo(() => {
     const phoneForPreview = resolveAdvisorPublicPhone({
@@ -548,7 +540,7 @@ export function MyPublicProfilePage() {
       heroDisplaySubtitleVisible: heroSubtitleVisible,
       profilePhotoUrl: profilePhotoPreviewUrl,
       primaryBadgeLabel: verificationBadgeLabel,
-      affiliationLine: gaLine,
+      affiliationLine: userAffiliation,
       officeLine: officePreviewLine,
       headline: headline.trim(),
       publicTags: hashtags,
@@ -563,6 +555,7 @@ export function MyPublicProfilePage() {
         imageUrl: g.imageUrl,
       })),
       infoBlocks: buildAdvisorPublicInfoBlocks({
+        affiliationText: userAffiliation,
         gaName: ownerGaName,
         teamName: ownerTeamName,
         careerText,
@@ -586,7 +579,7 @@ export function MyPublicProfilePage() {
     bio,
     businessCardPreviewUrl,
     careerText,
-    gaLine,
+    userAffiliation,
     hashtags,
     headline,
     gallery,
@@ -772,11 +765,17 @@ export function MyPublicProfilePage() {
         />
 
         <h2 className="pap-editor-section-title">기본 표시정보</h2>
-        <p className="pap-affiliation"><strong>{ownerDisplayName || user.displayName}</strong>{gaLine ? ` · ${gaLine}` : ''}</p>
+        <p className="pap-affiliation">
+          <strong>{ownerDisplayName || user.displayName}</strong>
+          {userAffiliation ? ` · ${userAffiliation}` : ''}
+        </p>
         <label>공개 주소 (영문·숫자·하이픈)<input value={slug} onChange={(e) => setSlug(e.target.value)} /></label>
 
           <h2 className="pap-editor-section-title">사무실 위치</h2>
-          <AddressSearchField label="사무실 주소" value={address} onChange={setAddress} />
+          <label className="pap-editor-address">
+            <span className="pap-editor-field-hint">사무실 주소</span>
+            <AddressSearchField value={address} onChange={setAddress} />
+          </label>
 
           <label>경력/소속<textarea value={careerText} onChange={(e) => setCareerText(e.target.value)} maxLength={2000} /></label>
 

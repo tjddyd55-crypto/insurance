@@ -875,11 +875,10 @@
 
 .pap-facts__line {
   display: block;
-}
-
-.pap-facts__line + .pap-facts__line {
-  font-size: 0.88rem;
-  color: #4b5563;
+  font-size: 0.94rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #1f2937;
 }
 
 .pap-status {
@@ -1927,14 +1926,46 @@
 .pap-theme-picker {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 0;
   margin-bottom: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-surface);
 }
 
-@media (max-width: 720px) {
-  .pap-theme-picker {
-    grid-template-columns: 1fr;
-  }
+.pap-theme-picker__segment {
+  min-height: 44px;
+  margin: 0;
+  padding: 10px 8px;
+  border: 0;
+  border-right: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.pap-theme-picker__segment:last-child {
+  border-right: 0;
+}
+
+.pap-theme-picker__segment--selected {
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+}
+
+.pap-theme-picker__segment:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.pap-theme-picker__segment:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .pap-theme-picker__card {
@@ -2125,86 +2156,6 @@
   border-right: none;
 }
 
-.pap-theme-mini {
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
-  min-height: 108px;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.pap-theme-mini__photo-block {
-  height: 42px;
-  border-radius: 6px;
-  background: linear-gradient(145deg, #d1d5db, #e5e7eb);
-}
-
-.pap-theme-mini__line {
-  height: 6px;
-  border-radius: 4px;
-  background: #e5e7eb;
-  width: 72%;
-}
-
-.pap-theme-mini__line--bold {
-  height: 8px;
-  width: 58%;
-  background: #9ca3af;
-}
-
-.pap-theme-mini__line--light {
-  background: rgba(255, 255, 255, 0.45);
-}
-
-.pap-theme-mini__actions {
-  margin-top: auto;
-  height: 14px;
-  border-radius: 6px;
-  background: repeating-linear-gradient(90deg, #e5e7eb 0 18px, transparent 18px 22px);
-}
-
-.pap-theme-mini--brand .pap-theme-mini__brand-top {
-  border-radius: 6px;
-  padding: 6px;
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.pap-theme-mini__brand-photo {
-  width: 36px;
-  height: 36px;
-  margin: -10px auto 2px;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  background: #cbd5e1;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
-}
-
-.pap-theme-mini--premium .pap-theme-mini__premium-photo {
-  position: relative;
-  flex: 1;
-  min-height: 56px;
-  border-radius: 6px;
-  background: linear-gradient(145deg, #64748b, #94a3b8);
-  overflow: hidden;
-}
-
-.pap-theme-mini__premium-overlay {
-  position: absolute;
-  inset: auto 0 0;
-  padding: 6px;
-  background: linear-gradient(180deg, transparent, rgba(15, 33, 64, 0.85));
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
 /* CRM — 2-column editor + live mobile preview */
 .pap-editor-layout {
   display: flex;
@@ -2275,33 +2226,6 @@
   .pap-editor-preview-fallback {
     display: none;
   }
-}
-
-.pap-theme-picker--compact .pap-theme-picker__card--compact {
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-
-.pap-theme-picker__thumb {
-  display: block;
-  width: 100%;
-  height: 52px;
-  border-radius: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-sizing: border-box;
-}
-
-.pap-theme-picker__thumb--classic {
-  background: linear-gradient(180deg, #dbeafe 0%, #fff 55%);
-}
-
-.pap-theme-picker__thumb--brand {
-  background: linear-gradient(135deg, #1e3a5f 0%, #3b82f6 100%);
-}
-
-.pap-theme-picker__thumb--premium {
-  background: linear-gradient(180deg, #64748b 0%, #0f172a 70%);
 }
 
 /* Round 3 — Hero 사각형, 오버레이형 높이, 명함 full-width, preview phone canvas */
