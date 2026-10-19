@@ -36,6 +36,7 @@ import {
 } from '../utils/advisorOfficeAddress'
 import { formatKrPhoneInputLive, formatKrPhoneNumberForDisplay } from '../utils/formatKrPhoneNumber'
 import { resolveUserAffiliationText } from '../utils/resolveUserAffiliationText'
+import { advisorPublishToggleLabel } from '../utils/advisorPublishToggleLabel'
 import '../public-advisor.css'
 
 const GALLERY_MAX = 6
@@ -634,7 +635,7 @@ export function MyPublicProfilePage() {
       <section className="pap-editor-toolbar">
         <label className="pap-editor-toggle">
           <input type="checkbox" checked={isPublished} onChange={(e) => setIsPublished(e.target.checked)} />
-          공개 ON
+          <span className="pap-editor-toggle__label">{advisorPublishToggleLabel(isPublished)}</span>
         </label>
         <div className="pap-cta-row pap-cta-row--left">
           {slug ? (
