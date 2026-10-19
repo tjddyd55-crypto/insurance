@@ -53,3 +53,49 @@ export function readBinderPageImageToken(secret, token) {
     return { ok: false, status: 410 }
   }
 }
+
+const SHARED_TOKEN_SCOPE = 'personal-binder-shared-page-image'
+
+/**
+ * 공유 바인더 페이지 이미지용 10분 JWT. 공유 id·공유 파일 id·페이지·너비가 박힌다.
+ * 열 때마다 서버가 공유 상태(active)·GA 를 다시 확인하므로, 해제된 공유는 토큰이 남아 있어도 열리지 않는다.
+ */
+export function issueSharedBinderPageImageToken(secret, claims) {
+  return jwt.sign(
+    {
+      scope: SHARED_TOKEN_SCOPE,
+      uid: claims.userId,
+      ga: claims.gaId,
+      sid: claims.shareId,
+      sfid: claims.shareFileId,
+      page: claims.page,
+      width: claims.width,
+    },
+    secret,
+    { expiresIn: BINDER_PAGE_IMAGE_TOKEN_TTL_SEC },
+  )
+}
+
+function sharedClaimsFromPayload(payload) {
+  const userId = String(payload?.uid ?? '').trim()
+  const gaId = positiveInt(payload?.ga)
+  const shareId = positiveInt(payload?.sid)
+  const shareFileId = positiveInt(payload?.sfid)
+  const page = positiveInt(payload?.page)
+  const width = positiveInt(payload?.width)
+  if (!userId || payload?.scope !== SHARED_TOKEN_SCOPE) return null
+  if (gaId == null || shareId == null || shareFileId == null || page == null || width == null) return null
+  if (!BINDER_PAGE_IMAGE_WIDTH_BUCKETS.includes(width)) return null
+  return { userId, gaId, shareId, shareFileId, page, width }
+}
+
+export function readSharedBinderPageImageToken(secret, token) {
+  try {
+    const payload = jwt.verify(String(token ?? ''), secret)
+    const claims = sharedClaimsFromPayload(payload)
+    if (!claims) return { ok: false, status: 410 }
+    return { ok: true, claims }
+  } catch {
+    return { ok: false, status: 410 }
+  }
+}

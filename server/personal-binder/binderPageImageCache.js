@@ -18,7 +18,8 @@ function cachePaths(root, key) {
   }
 }
 
-export function binderPageImageCacheKey({ fileId, fingerprint, page, width }) {
+/** namespace: 공유 스냅샷 파일(share_files.id)은 'share' 로 files.id 와 캐시 경로를 나눈다. 기본값은 기존 경로 그대로. */
+export function binderPageImageCacheKey({ fileId, fingerprint, page, width, namespace = '' }) {
   const file = Number(fileId)
   const pageNo = Number(page)
   const targetWidth = Number(width)
@@ -29,7 +30,9 @@ export function binderPageImageCacheKey({ fileId, fingerprint, page, width }) {
   if (!Number.isInteger(targetWidth) || targetWidth < 1 || stamp.length < 8) {
     throw new Error('invalid binder page cache key')
   }
-  return path.join(String(file), stamp, String(pageNo), String(targetWidth))
+  if (namespace && namespace !== 'share') throw new Error('invalid binder page cache key')
+  const parts = [String(file), stamp, String(pageNo), String(targetWidth)]
+  return namespace ? path.join(namespace, ...parts) : path.join(...parts)
 }
 
 async function readEntry(paths) {
