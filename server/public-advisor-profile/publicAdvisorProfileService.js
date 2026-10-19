@@ -9,7 +9,11 @@ import {
 } from './publicAdvisorSlug.js'
 import { assertAdvisorPublicObjectKeyOwned } from './publicAdvisorMedia.js'
 import { normalizeAdvisorProfileTheme } from './publicAdvisorProfileTheme.js'
-import { buildAdvisorOgDescription, buildAdvisorOgTitle } from './publicAdvisorOgMeta.js'
+import {
+  buildAdvisorOgCardCacheVersion,
+  buildAdvisorOgDescription,
+  buildAdvisorOgTitle,
+} from './publicAdvisorOgMeta.js'
 import { loadCustomContacts, loadVisibleCustomContacts, syncCustomContacts } from './advisorPublicProfileContacts.js'
 import { resolveAdvisorPublicPhone } from './resolveAdvisorPublicPhone.js'
 
@@ -293,8 +297,13 @@ export async function getAdvisorPublicMetaBySlug(pool, slug) {
     title,
     description,
     profilePhotoObjectKey: resolved.profile.profilePhotoObjectKey,
-    // 대표사진 patch는 updated_at = NOW()를 같이 기록하므로 og-card.png?v= 가 사진 교체 때 바뀐다.
-    ogImageCacheVersion: resolved.profile.updatedAt,
+    // 명함 앞면 patch는 updated_at = NOW()를 같이 기록한다.
+    // ?v= 는 그 시각과 business_card_front_object_key 지문을 함께 쓰고,
+    // 미디어 updatedAt이 더 새로우면 그 시각을 쓴다.
+    ogImageCacheVersion: buildAdvisorOgCardCacheVersion({
+      profileUpdatedAt: resolved.profile.updatedAt,
+      businessCardFrontObjectKey: resolved.profile.businessCardFrontObjectKey,
+    }),
   }
 }
 
