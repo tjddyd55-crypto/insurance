@@ -253,6 +253,7 @@ import { registerCoverageSimulatorPreviewShareApi } from './apis/coverageSimulat
 import { registerPersonalBinderApi } from './apis/personalBinderApi.js'
 import { registerNewsletterCollectionsApi } from './apis/newsletterCollectionsApi.js'
 import { registerPersonalBinderPageImageApi } from './personal-binder/registerPersonalBinderPageImageApi.js'
+import { registerSharedBinderPageImageApi } from './personal-binder/registerSharedBinderPageImageApi.js'
 import { registerContractAdminApi } from './apis/contractAdminApi.js'
 import { registerContractUserApi } from './apis/contractUserApi.js'
 import { registerSubscriptionEndpoints } from './subscription/endpoints.js'
@@ -1649,11 +1650,18 @@ registerCoverageSimulatorStorageApi(apiRouter, { pool, requireAuth, handleDbErro
 registerCoverageSimulatorPreviewShareApi(apiRouter, { pool, handleDbError })
 registerPersonalBinderApi(apiRouter, { pool, requireAuth, handleDbError })
 registerNewsletterCollectionsApi(apiRouter, { pool, requireAuth, handleDbError })
-registerPersonalBinderPageImageApi(apiRouter, {
+const personalBinderPageImages = registerPersonalBinderPageImageApi(apiRouter, {
   pool,
   requireAuth,
   handleDbError,
   JWT_SECRET,
+})
+registerSharedBinderPageImageApi(apiRouter, {
+  pool,
+  requireAuth,
+  handleDbError,
+  JWT_SECRET,
+  service: personalBinderPageImages.service,
 })
 
 registerContractAdminApi(apiRouter, {

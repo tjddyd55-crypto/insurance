@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { readStorageFileBufferFromPath } from '../lib/storageFileObjectKey.js'
 import { binderPageImageCacheKey, createBinderPageImageCache } from './binderPageImageCache.js'
 import { loadOwnedBinderMaterialFile } from './loadOwnedBinderMaterialFile.js'
+import { loadActiveSharedBinderFile } from './loadActiveSharedBinderFile.js'
 import {
   classifyBinderSource,
   MAX_BINDER_PAGE_SOURCE_BYTES,
@@ -49,30 +50,51 @@ export function createBinderPageImageService(ctx) {
   const cache = createBinderPageImageCache(ctx.cacheDir)
   const readFileBuffer = ctx.readFileBuffer ?? readStorageFileBufferFromPath
 
-  async function renderMaterialPage(scope, materialId, page, width) {
-    const row = await loadOwnedBinderMaterialFile(ctx.pool, materialId, scope)
-    if (!row) throw httpError(404, '자료를 찾을 수 없습니다.')
-    const mimeType = String(row.file_mime || row.material_mime || '')
+  /**
+   * 렌더링·캐시 공통 경로. 자기 자료와 공유 스냅샷 파일이 같은 파이프라인을 탄다.
+   * @param {{ cacheFileId: number, namespace?: string, row: Record<string, unknown>, mimeType: string }} source
+   */
+  async function renderSourcePage(source, page, width) {
+    const { row, mimeType } = source
     const kind = classifyBinderSource(mimeType)
     if (kind === 'unsupported') throw httpError(415, '페이지 이미지로 열 수 없는 파일 형식입니다.')
     const pageCount = sourcePageCount(kind, row.page_count)
     assertPageInRange(page, pageCount)
+    const keyBase = { fileId: source.cacheFileId, namespace: source.namespace ?? '', page, width }
     const known = storedFingerprint(row)
     const image = known
       ? await cache.getOrCreate(
-        binderPageImageCacheKey({ fileId: row.file_id, fingerprint: known, page, width }),
+        binderPageImageCacheKey({ ...keyBase, fingerprint: known }),
         () => renderStored(readFileBuffer, row, mimeType, page, width),
       )
-      : await renderUnchecksummed(cache, readFileBuffer, row, mimeType, page, width)
+      : await renderUnchecksummed(cache, readFileBuffer, row, mimeType, keyBase)
     return { row, kind, mimeType, pageCount, image }
   }
 
-  return { renderMaterialPage }
+  async function renderMaterialPage(scope, materialId, page, width) {
+    const row = await loadOwnedBinderMaterialFile(ctx.pool, materialId, scope)
+    if (!row) throw httpError(404, '자료를 찾을 수 없습니다.')
+    const mimeType = String(row.file_mime || row.material_mime || '')
+    return renderSourcePage({ cacheFileId: row.file_id, row, mimeType }, page, width)
+  }
+
+  /** 공유 받은 사람(같은 GA)만, 공유가 active 일 때만. 매 호출 DB 로 다시 확인한다. */
+  async function renderSharedFilePage(scope, shareId, shareFileId, page, width) {
+    const row = await loadActiveSharedBinderFile(ctx.pool, scope, shareId, shareFileId)
+    if (!row) throw httpError(404, '공유 바인더를 찾을 수 없습니다.')
+    return renderSourcePage(
+      { cacheFileId: row.share_file_id, namespace: 'share', row, mimeType: String(row.file_mime || '') },
+      page,
+      width,
+    )
+  }
+
+  return { renderMaterialPage, renderSharedFilePage }
 }
 
-async function renderUnchecksummed(cache, readFileBuffer, row, mimeType, page, width) {
+async function renderUnchecksummed(cache, readFileBuffer, row, mimeType, keyBase) {
   const buffer = await readBoundedFile(readFileBuffer, row)
   const fingerprint = createHash('sha256').update(buffer).digest('hex').slice(0, 16)
-  const key = binderPageImageCacheKey({ fileId: row.file_id, fingerprint, page, width })
-  return cache.getOrCreate(key, () => renderBinderPageImage({ buffer, mimeType, page, width }))
+  const key = binderPageImageCacheKey({ ...keyBase, fingerprint })
+  return cache.getOrCreate(key, () => renderBinderPageImage({ buffer, mimeType, page: keyBase.page, width: keyBase.width }))
 }
