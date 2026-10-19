@@ -43,6 +43,7 @@ import {
   buildAdvisorConsultationLeadNotificationMessage,
   USER_NOTIFICATION_TYPES,
 } from '../notifications/userNotificationTypes.js'
+import { resolvePublicAffiliationLine } from './publicAdvisorDisplayFields.js'
 import { resolveRequestPublicOrigin } from './requestPublicOrigin.js'
 
 const PUBLIC_EVENT_WHITELIST = new Set(Object.values(ADVISOR_PUBLIC_EVENT_TYPES))
@@ -52,7 +53,7 @@ function publicMediaUrl(objectKey, req) {
   return advisorPublicMediaUrl(objectKey, origin)
 }
 
-function mapPublicProfilePayload(resolved, req) {
+export function mapPublicProfilePayload(resolved, req) {
   const { profile, user, gallery, verificationBadges } = resolved
   return {
     slug: profile.slug,
@@ -62,6 +63,7 @@ function mapPublicProfilePayload(resolved, req) {
     titleLabel: profile.titleLabel,
     careerText: profile.careerText,
     officeLine: profile.officeLine,
+    affiliationLine: profile.affiliationLine ?? resolvePublicAffiliationLine(profile),
     displayName: user.displayName,
     gaName: user.gaName,
     teamName: user.teamName,

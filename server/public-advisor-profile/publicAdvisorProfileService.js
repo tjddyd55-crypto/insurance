@@ -16,8 +16,20 @@ import {
 } from './publicAdvisorOgMeta.js'
 import { loadCustomContacts, loadVisibleCustomContacts, syncCustomContacts } from './advisorPublicProfileContacts.js'
 import { resolveAdvisorPublicPhone } from './resolveAdvisorPublicPhone.js'
+import { buildOfficeDisplayLine, resolvePublicAffiliationLine } from './publicAdvisorDisplayFields.js'
 
 const GALLERY_MAX = 6
+/**
+ * 사무실 주소 컬럼은 NOT NULL DEFAULT '' 이다. 모바일 명함 PATCH 에서 명시적 null 은 빈 문자열(주소 없음)로 저장한다.
+ * 키가 없으면 기존 값을 그대로 둔다.
+ */
+export const ADVISOR_OFFICE_ADDRESS_PATCH_FIELDS = new Set([
+  'office_road_address',
+  'office_address_detail',
+  'office_postal_code',
+  'office_address_sido',
+  'office_address_sigungu',
+])
 const HASHTAG_MAX = 5
 
 export function normalizeHashtags(raw) {
@@ -165,13 +177,6 @@ export function resolvePublicFacingVerificationBadges(badges) {
   return [{ id: oneFc.id, label: label.startsWith('✓') ? label : `✓ ${label}` }]
 }
 
-function buildOfficeLine(profile) {
-  const road = String(profile?.office_road_address ?? '').trim()
-  const detail = String(profile?.office_address_detail ?? '').trim()
-  if (!road && !detail) return ''
-  return [road, detail].filter(Boolean).join(' ')
-}
-
 async function loadGallery(pool, userId) {
   const r = await systemQuery(
     pool,
@@ -239,7 +244,11 @@ export async function getPublishedAdvisorBySlug(pool, slug) {
       hashtags: row.hashtags ?? [],
       titleLabel: row.title_label == null ? null : String(row.title_label),
       careerText: row.career_text,
-      officeLine: buildOfficeLine(row),
+      officeLine: buildOfficeDisplayLine(row),
+      affiliationLine: resolvePublicAffiliationLine({
+        heroDisplaySubtitle: row.hero_display_subtitle,
+        heroDisplaySubtitleVisible: row.hero_display_subtitle_visible !== false,
+      }),
       officeRoadAddress: row.office_road_address,
       officeAddressDetail: row.office_address_detail,
       officePostalCode: row.office_postal_code,
@@ -387,7 +396,7 @@ export async function searchPublishedAdvisors(pool, { q, limit = 24, offset = 0 
       headline: row.headline,
       hashtags: row.hashtags ?? [],
       profilePhotoObjectKey: row.profile_photo_object_key,
-      officeLine: buildOfficeLine(row),
+      officeLine: buildOfficeDisplayLine(row),
       verificationBadges,
     })
   }
@@ -463,9 +472,10 @@ export async function patchAdvisorProfileForOwner(pool, userId, patch) {
   ]
   for (const key of textFields) {
     if (!Object.prototype.hasOwnProperty.call(patch, key)) continue
+    if (patch[key] === undefined && ADVISOR_OFFICE_ADDRESS_PATCH_FIELDS.has(key)) continue
     if (patch[key] === null) {
       sets.push(`${key} = $${n++}`)
-      values.push(null)
+      values.push(ADVISOR_OFFICE_ADDRESS_PATCH_FIELDS.has(key) ? '' : null)
       continue
     }
     sets.push(`${key} = $${n++}`)

@@ -8,6 +8,13 @@ const IMAGE_CLASS: Record<AdvisorHeroPortraitVariant, string> = {
   premium: 'pap-hero-premium__photo',
 }
 
+/** CSS aspect-ratio 와 같은 비율. 숫자 자체는 크기가 아니라 로드 전 비율 예약이다. */
+const INTRINSIC_SIZE: Record<AdvisorHeroPortraitVariant, { width: number; height: number }> = {
+  classic: { width: 800, height: 1000 },
+  brand: { width: 800, height: 800 },
+  premium: { width: 800, height: 1200 },
+}
+
 type Props = {
   variant: AdvisorHeroPortraitVariant
   src: string | null | undefined
@@ -21,7 +28,14 @@ type Props = {
 export function AdvisorHeroPortraitSlot({ variant, src, alt }: Props) {
   return (
     <div className={`pap-hero-portrait-slot pap-hero-portrait-slot--${variant}`} data-hero-photo-slot={variant}>
-      <AdvisorPublicImage className={IMAGE_CLASS[variant]} src={src} alt={alt} loading="eager" />
+      <AdvisorPublicImage
+        className={IMAGE_CLASS[variant]}
+        src={src}
+        alt={alt}
+        loading="eager"
+        width={INTRINSIC_SIZE[variant].width}
+        height={INTRINSIC_SIZE[variant].height}
+      />
       <span className="pap-hero-portrait-slot__placeholder" aria-hidden>대표사진</span>
     </div>
   )
