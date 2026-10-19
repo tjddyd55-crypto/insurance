@@ -3,7 +3,9 @@
  * ONE FC 원본(할 일·고객 알림)은 DB 가 원본이고, 사용자가 연결한 "본인" Google Calendar 에 일정 사본만 만든다.
  * - 대상 날짜는 기존 알림 조립(loadReminderSourceRows + assembleReminderEvents)을 그대로 쓴다(재계산 금지).
  * - 기존 알림 설정(user_notification_settings)에서 OFF 인 알림 유형은 보내지 않는다.
- * - Google 일정에는 일반 제목만 보낸다(고객명·연락처·메모·링크 없음). ONE FC 원본은 바꾸지 않는다.
+ * - 제목에 고객 이름이 이미 있으면 그 형식 그대로 둔다(`[상령일] 홍길동`, `[자동차 만기] 홍길동`).
+ *   이름이 없는 고객 알림(사용자 지정 알림일 등)만 `{고객이름} {라벨}` 로 보낸다.
+ *   연락처·주민번호·계좌·병력·메모·링크는 넣지 않는다. ONE FC 원본은 바꾸지 않는다.
  * - 이벤트 id 는 (사용자, Google 계정, 캘린더, 원본 키)로 결정되는 값이라 재시도·시간초과에도 한 건만 생긴다.
  * - 삭제·수정 전에는 Google 에서 다시 읽어 private extendedProperties 의 소유 태그를 확인한다(제목·날짜로 판단하지 않는다).
  * - OFF: 설정을 먼저 저장하고(세대 번호 증가), OFF 한 서울 날짜 "다음 날 이후" 사본만 삭제 대기로 표시한다. 과거·당일은 보존.
@@ -28,17 +30,66 @@ export const AUTOSYNC_TITLES = Object.freeze({
   insurance_age_date: 'ONE FC 상령일 알림',
   special_date: 'ONE FC 고객 알림',
 })
-/** t327(사용자 결정): 유형 라벨 + 이름. 일정 관리와 같은 이름을 쓴다. 주민번호·연락처·계좌·병력·메모 본문·링크는 넣지 않는다. */
+/** 유형 기본 라벨. 사용자 지정 알림일은 등록한 제목이 기본값과 다를 때만 그 문자열을 쓴다. */
 export const AUTOSYNC_LABELS = Object.freeze({ todo: '할 일', car_expiry: '자동차 만기', insurance_age_date: '상령일', special_date: '알림일' })
-export function autoSyncTitle(item) {
-  const name = String(item.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 200) || (item.kind === 'todo' ? '할 일' : '고객')
-  const done = item.kind === 'todo' && item.completed ? ' (완료)' : ''
-  return `[${AUTOSYNC_LABELS[item.kind] ?? item.kind}] ${name}${done}`
+const CUSTOMER_AUTOSYNC_KINDS = new Set(['car_expiry', 'insurance_age_date', 'special_date'])
+
+/** 제목 조각. 앞뒤 공백을 없애 이름과 라벨 사이 구분자는 공백 하나가 되게 한다. */
+function titlePart(value) {
+  return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, 200)
 }
-function specialName(ev) {
-  const t = String(ev.sourceTitle ?? '').trim()
-  // 제목이 비어 기본 라벨이 들어간 경우는 고객 이름
-  return t && t !== '알림일' ? t : String(ev.customerName ?? '')
+
+/** 기존 대괄호 제목. 상령일·자동차 만기·이름 있는 알림일·할 일이 이 형식을 유지한다. */
+function bracketTitle(kind, name, completed) {
+  const shown = titlePart(name) || (kind === 'todo' ? '할 일' : '고객')
+  const done = kind === 'todo' && completed ? ' (완료)' : ''
+  return `[${AUTOSYNC_LABELS[kind] ?? kind}] ${shown}${done}`
+}
+
+/**
+ * 사용자 지정 알림일의 등록 라벨.
+ * 비었거나 기본값 '알림일'이면 빈 문자열이다. 그때 기존 제목은 `[알림일] 고객이름` 이라 이름을 이미 포함한다.
+ */
+function registeredAlertLabel(label) {
+  const text = titlePart(label)
+  if (!text || text === AUTOSYNC_LABELS.special_date) return ''
+  return text
+}
+
+/**
+ * Google 캘린더 자동 연동 제목의 단일 함수.
+ * 고객 이름이 이미 있는 제목(`[상령일] 홍길동`, `[자동차 만기] 홍길동`, `[알림일] 홍길동`)은 그대로 둔다.
+ * 이름이 없는 사용자 지정 알림일만 `{고객이름} {라벨}` (구분자 공백 하나).
+ * 고객이 없는 할 일은 `[할 일] 제목` 유지.
+ * 주민번호·연락처·계좌·병력·메모·차량번호는 넣지 않는다.
+ * @param {{ kind?: string, name?: string, customerName?: string, label?: string, completed?: boolean }} item
+ */
+export function autoSyncTitle(item) {
+  if (item?.kind === 'special_date') {
+    const customerName = titlePart(item.customerName) || '고객'
+    const registered = registeredAlertLabel(item.label)
+    if (!registered || registered.includes(customerName)) {
+      const slot = registered && registered.includes(customerName) ? registered : item.customerName
+      return bracketTitle('special_date', slot, false)
+    }
+    return `${customerName} ${registered}`
+  }
+  if (item?.kind === 'car_expiry' || item?.kind === 'insurance_age_date') {
+    return bracketTitle(item.kind, item.customerName ?? item.name, false)
+  }
+  return bracketTitle(item?.kind, item?.name, item?.completed)
+}
+
+/**
+ * 알림 조립 결과에서 캘린더 제목에 쓸 고객 이름·라벨만 고른다.
+ * 알림일은 등록 제목을 그대로 넘긴다(기본값 '알림일'은 제목 함수가 기존 형식으로 유지).
+ * @param {{ type?: string, customerName?: string, sourceTitle?: string }} ev
+ */
+export function reminderEventToAutoSyncFields(ev) {
+  return {
+    customerName: String(ev?.customerName ?? ''),
+    label: ev?.type === 'special_date' ? titlePart(ev.sourceTitle) : (AUTOSYNC_LABELS[ev?.type] || ''),
+  }
 }
 const KIND_COLUMN = { todo: 'todo_enabled', car_expiry: 'car_expiry_enabled', insurance_age_date: 'insurance_age_enabled', special_date: 'special_date_enabled' }
 const KIND_ORIGINAL_SETTING = { car_expiry: 'carExpiry', insurance_age_date: 'insuranceAge', special_date: 'specialDate' }
@@ -132,7 +183,7 @@ export function autoSyncEventId(userId, accountId, calendarId, sourceKey) {
   return `onefcas${h}` // base32hex(0-9a-v) 부분집합
 }
 
-/** Google 에 보낼 본문. 일반 제목·날짜만. 원문·고객 정보·링크는 넣지 않는다. */
+/** Google 에 보낼 본문. 제목은 autoSyncTitle. 설명·확장 속성에는 고객 정보를 더하지 않는다. */
 export function buildAutoSyncEventPayload(item, ctx) {
   const completed = item.kind === 'todo' && item.completed
   const title = autoSyncTitle(item)
@@ -149,8 +200,39 @@ export function buildAutoSyncEventPayload(item, ctx) {
 }
 
 function contentHash(item) {
-  // 제목 포함(t327): 제목 규칙·이름이 바뀌면 기존 사본을 같은 id 로 갱신한다(중복 생성 없음).
+  // 제목 포함: 고객 이름·라벨이 바뀌면 기존 사본을 같은 id 로 갱신한다(중복 생성 없음).
   return `${item.date}|${item.kind}|${item.completed ? 1 : 0}|${crypto.createHash('sha256').update(autoSyncTitle(item)).digest('hex').slice(0, 16)}`
+}
+
+/**
+ * 매핑된 사본을 건너뛸지, 같은 이벤트 id 로 고칠지, 새로 쓸지.
+ * active 이고 hash 가 같으면 건너뛴다. 제목만 달라져도 update 이며 새 이벤트를 만들지 않는다.
+ * @param {{ status?: string, content_hash?: string | null, google_event_id?: string } | undefined} mapRow
+ * @param {{ date: string, kind: string, completed?: boolean }} item
+ */
+export function decideAutoSyncWrite(mapRow, item) {
+  const hash = contentHash(item)
+  const eventId = mapRow?.google_event_id ?? null
+  if (mapRow?.status === 'conflict') return { action: 'skip', hash, eventId }
+  if (mapRow?.status === 'active' && mapRow.content_hash === hash) return { action: 'skip', hash, eventId }
+  if (mapRow?.status === 'active') return { action: 'update', hash, eventId }
+  return { action: 'upsert', hash, eventId }
+}
+
+/**
+ * 이미 있는 ONE FC 사본을 고칠 때 보낼 본문.
+ * 고객 알림이고 날짜가 같으면 제목만 PATCH 해서 날짜·알림(reminder)을 그대로 둔다.
+ * 날짜가 달라졌거나 할 일이면 기존처럼 본문 전체를 다시 쓴다.
+ * @param {{ start?: { date?: string }, summary?: string } | null | undefined} existing
+ * @param {{ summary: string, start?: { date?: string }, extendedProperties?: { private?: { kind?: string } } }} payload
+ */
+export function autoSyncUpdateRequest(existing, payload) {
+  const kind = payload?.extendedProperties?.private?.kind
+  const sameDate = String(existing?.start?.date ?? '').slice(0, 10) === String(payload?.start?.date ?? '')
+  if (CUSTOMER_AUTOSYNC_KINDS.has(kind) && sameDate) {
+    return { method: 'PATCH', body: { summary: payload.summary } }
+  }
+  return { method: 'PUT', body: { ...payload, status: 'confirmed' } }
 }
 
 /** 이 이벤트가 이 사용자의 ONE FC 자동 사본인지(태그로만 판단). */
@@ -190,12 +272,22 @@ export async function loadDesiredItems(pool, scope) {
     const original = await getUserNotificationSettings(pool, userId, gaId)
     const allowed = reminderKinds.filter((k) => original[KIND_ORIGINAL_SETTING[k]]?.enabled !== false)
     if (allowed.length) {
+      // 고객 원본은 이 사용자의 GA·소유 고객만 읽는다. 다른 GA 고객은 쿼리에서 빠진다.
       const rows = await loadReminderSourceRows(pool, { userId, gaId, fromYmd, toYmd })
       for (const ev of assembleReminderEvents({ ...rows, fromYmd, toYmd })) {
         if (!allowed.includes(ev.type)) continue
         const key = `reminder:${ev.id}`
-        out.set(key, { key, kind: ev.type, sourceType: String(ev.source), sourceId: String(ev.id), date: ev.startDate, completed: false,
-          name: ev.type === 'special_date' ? (specialName(ev)) : String(ev.customerName ?? '') })
+        const fields = reminderEventToAutoSyncFields(ev)
+        out.set(key, {
+          key,
+          kind: ev.type,
+          sourceType: String(ev.source),
+          sourceId: String(ev.id),
+          date: ev.startDate,
+          completed: false,
+          customerName: fields.customerName,
+          label: fields.label,
+        })
       }
     }
   }
@@ -239,7 +331,8 @@ async function patchEvent(access, calendarId, eventId, payload, ctx, key) {
   const existing = await getEventOrNull(access, calendarId, eventId)
   if (!existing || existing.status === 'cancelled') return upsertEvent(access, calendarId, eventId, payload, ctx, key)
   if (!isOwnedAutoSyncEvent(existing, ctx.ownerTag, key)) throw googleError('autosync_not_owned')
-  return googleSendJson(access.fetchImpl, 'PUT', eventUrl(calendarId, eventId), access.accessToken, { body: { ...payload, status: 'confirmed' } })
+  const update = autoSyncUpdateRequest(existing, payload)
+  return googleSendJson(access.fetchImpl, update.method, eventUrl(calendarId, eventId), access.accessToken, { body: update.body })
 }
 
 /** 삭제: 태그로 소유 확인된 경우만. 이미 없으면 성공으로 본다. */
@@ -476,10 +569,10 @@ export async function reconcileUser(pool, userId, options = {}) {
     for (const item of desired.values()) {
       if (throttle.exhausted) { result.skipped = 'continue_next_run'; break }
       if (!(await stillCurrent())) { result.skipped = 'settings_changed'; break }
-      const hash = contentHash(item)
       let m = byKey.get(item.key)
-      if (m && m.status === 'active' && m.content_hash === hash) continue
-      if (m && m.status === 'conflict') continue
+      const decision = decideAutoSyncWrite(m, item)
+      if (decision.action === 'skip') continue
+      const hash = decision.hash
       const eventId = m?.google_event_id ?? autoSyncEventId(userId, accountId, calendarId, item.key)
       if (!m) {
         const ins = await client.query(
@@ -493,7 +586,7 @@ export async function reconcileUser(pool, userId, options = {}) {
       }
       const payload = buildAutoSyncEventPayload(item, ctx)
       try {
-        if (m.status === 'active') {
+        if (decision.action === 'update') {
           await throttle.run(() => patchEvent(access, calendarId, eventId, payload, ctx, item.key))
           result.updated += 1
         } else {
@@ -587,10 +680,19 @@ export async function reconcileAllUsers(pool, options = {}) {
   return { users: r.rows.length }
 }
 
-/** 할 일 변경 후 호출(실패해도 ONE FC 저장에는 영향 없음). */
-export function notifyTodoChanged(pool, userId) {
+function scheduleAutoSync(pool, userId, logLabel) {
   if (!isAutoSyncEnabledFor(userId)) return
   setTimeout(() => {
-    requestAutoSync(pool, userId).catch((error) => console.warn('[gcal-autosync] todo sync failed', { code: String(error?.code ?? 'error') }))
+    requestAutoSync(pool, userId).catch((error) => console.warn(logLabel, { code: String(error?.code ?? 'error') }))
   }, 300)
+}
+
+/** 할 일 변경 후 호출(실패해도 ONE FC 저장에는 영향 없음). */
+export function notifyTodoChanged(pool, userId) {
+  scheduleAutoSync(pool, userId, '[gcal-autosync] todo sync failed')
+}
+
+/** 고객 이름·알림일 라벨이 바뀐 뒤 호출. 연결된 본인 캘린더만 다시 맞춘다. */
+export function notifyCustomerAlertChanged(pool, userId) {
+  scheduleAutoSync(pool, userId, '[gcal-autosync] customer alert sync failed')
 }

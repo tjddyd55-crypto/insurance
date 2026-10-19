@@ -41,11 +41,21 @@ function GoogleAutoSyncSection({
       }}
     >
       <p className="notification-settings-modal__hint">
-        ON 하면 ONE FC 할 일과 아래에서 선택한 알림이 연결된 본인 Google 캘린더에 &quot;[상령일] 고객 이름&quot;, &quot;[할 일] 할 일 제목&quot;
-        같은 제목으로 자동 등록됩니다(앞으로 {google.windowDays}일 범위). 연락처·주민번호·계좌·병력·메모 내용은 보내지 않습니다.
+        ON 하면 ONE FC 할 일과 아래에서 선택한 알림이 연결된 본인 Google 캘린더에 자동 등록됩니다.
+        상령일과 자동차 만기는 &quot;[상령일] 고객 이름&quot;, &quot;[자동차 만기] 고객 이름&quot;으로 두고,
+        고객 이름이 없던 알림일은 &quot;홍길동 결혼기념일&quot;처럼 고객 이름과 알림 이름으로 올립니다.
+        고객이 없는 할 일은 &quot;[할 일] 할 일 제목&quot;입니다
+        (앞으로 {google.windowDays}일 범위). 주민번호·전화번호·계좌·병력·메모 내용은 보내지 않습니다.
         OFF 하면 더 이상 등록하지 않고, OFF 한 날 다음 날 이후의 ONE FC 자동 일정만 Google 에서 지웁니다.
         지난 일정과 당일 일정, Google 에서 직접 만든 일정, Google 할 일, ONE FC 원본은 그대로 둡니다.
       </p>
+      {google.enabled ? (
+        <p className="notification-settings-modal__hint" data-testid="gcal-customer-name-notice" role="note">
+          자동 연동이 켜져 있으면 고객 이름이 연결된 본인 Google 캘린더 일정 제목으로 전송됩니다.
+          이름 없이 라벨만 보이던 알림일은 &quot;홍길동 결혼기념일&quot;처럼 바뀌고, 상령일·자동차 만기처럼 이름이 이미 있는 제목은 그대로입니다.
+          주민번호, 전화번호, 병력, 계좌번호는 보내지 않습니다.
+        </p>
+      ) : null}
       {masterDisabled ? (
         <p className="notification-settings-modal__hint">
           {!google.available
