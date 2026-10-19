@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react'
+import { useId, type Dispatch, type SetStateAction } from 'react'
 import { InsuranceInline } from '../../../../components/customer/CustomerForm'
 import {
   AddressSearchField,
@@ -37,6 +37,7 @@ export function CustomerBasicCoreEditFields({
   disabled = false,
   inline = false,
 }: CustomerBasicCoreEditFieldsProps) {
+  const addressLabelId = useId()
   const patch = (next: Partial<CustomerBasicCoreFormDraft>) => {
     setDraft((prev) => ({ ...prev, ...next }))
   }
@@ -170,15 +171,16 @@ export function CustomerBasicCoreEditFields({
           />
         </div>
       </div>
-      <label className="field field--wide">
-        <span className="field__label">주소</span>
+      <div className="field field--wide">
+        <span id={addressLabelId} className="field__label">주소</span>
         <AddressSearchField
           className="address-search-field"
+          labelId={addressLabelId}
           value={addressValue}
           disabled={disabled}
           onChange={onAddressChange}
         />
-      </label>
+      </div>
       <CustomerFormSection title="건강/보험 참고" className="field field--wide">
         <CustomerMedicalHistoryFields
           treatmentHistoryNote={draft.treatmentHistoryNote}
