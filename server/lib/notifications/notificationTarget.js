@@ -15,12 +15,26 @@ export const NOTIFICATION_TARGET_TYPES = {
   CUSTOMER: 'customer',
   NEWSLETTER: 'newsletter',
   CLAIM: 'claim',
+  CONSULTATION_LEAD: 'consultation_lead',
 }
 
 export const PUSH_EVENT_TYPES = {
   CUSTOMER_CREATED: 'CUSTOMER_CREATED',
   CUSTOMER_CLAIM_SUBMITTED: 'CUSTOMER_CLAIM_SUBMITTED',
   NEWSLETTER_PUBLISHED: 'NEWSLETTER_PUBLISHED',
+  ADVISOR_CONSULTATION_LEAD: 'ADVISOR_CONSULTATION_LEAD',
+}
+
+/** 상담 신청 id(UUID). 경로·payload 에는 이 형식만 싣는다. */
+const CONSULTATION_LEAD_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function normalizeConsultationLeadId(value) {
+  const id = String(value ?? '').trim()
+  return CONSULTATION_LEAD_ID.test(id) ? id.toLowerCase() : ''
 }
 
 export const NATIVE_SCHEME_PROD = 'onefc'
@@ -52,7 +66,7 @@ export function buildNativeCustomerDeepLink(input) {
 
 /**
  * CRM Native internal route (expo-router path).
- * @param {{ type: string; customerId?: number | string | null; claimRequestId?: number | string | null; newsletterId?: string | null; newsChannel?: string | null; boardSlug?: string | null }} target
+ * @param {{ type: string; customerId?: number | string | null; claimRequestId?: number | string | null; newsletterId?: string | null; newsChannel?: string | null; boardSlug?: string | null; leadId?: string | null }} target
  */
 export function buildNativeInternalRoute(target) {
   const type = String(target?.type ?? '').trim().toLowerCase()
@@ -66,6 +80,10 @@ export function buildNativeInternalRoute(target) {
       customerId: target.customerId,
       claimRequestId: target.claimRequestId,
     })
+  }
+  if (type === NOTIFICATION_TARGET_TYPES.CONSULTATION_LEAD) {
+    const leadId = normalizeConsultationLeadId(target.leadId)
+    return leadId ? `/consultation-leads/${leadId}` : ''
   }
   if (type === NOTIFICATION_TARGET_TYPES.NEWSLETTER) {
     const newsletterId = String(target.newsletterId ?? '').trim()
@@ -87,7 +105,7 @@ export function buildNativeInternalRoute(target) {
 
 /**
  * Web CRM fallback when Native app is unavailable.
- * @param {{ type: string; customerId?: number | string | null; claimRequestId?: number | string | null }} target
+ * @param {{ type: string; customerId?: number | string | null; claimRequestId?: number | string | null; leadId?: string | null }} target
  */
 export function buildWebFallbackRoute(target) {
   const type = String(target?.type ?? '').trim().toLowerCase()
@@ -105,6 +123,10 @@ export function buildWebFallbackRoute(target) {
   }
   if (type === NOTIFICATION_TARGET_TYPES.NEWSLETTER) {
     return buildNativeInternalRoute(target)
+  }
+  if (type === NOTIFICATION_TARGET_TYPES.CONSULTATION_LEAD) {
+    const leadId = normalizeConsultationLeadId(target.leadId)
+    return leadId ? `/consultation-leads?lead=${encodeURIComponent(leadId)}` : ''
   }
   return ''
 }
@@ -175,7 +197,7 @@ export function buildStaffAppOpenUrl(input) {
  * @param {{
  *   type: string
  *   notificationId?: number | string | null
- *   target: { type: string; customerId?: number | string | null; claimRequestId?: number | string | null; newsletterId?: string | null; newsChannel?: string | null; boardSlug?: string | null }
+ *   target: { type: string; customerId?: number | string | null; claimRequestId?: number | string | null; newsletterId?: string | null; newsChannel?: string | null; boardSlug?: string | null; leadId?: string | null }
  *   dedupeKey?: string
  * }} input
  */
@@ -211,6 +233,11 @@ export function buildPushDataPayload(input) {
   const boardSlug = String(target.boardSlug ?? '').trim()
   if (boardSlug) {
     data.boardSlug = boardSlug
+  }
+  const leadId = normalizeConsultationLeadId(target.leadId)
+  if (leadId) {
+    data.leadId = leadId
+    data.referenceId = leadId
   }
   if (input?.dedupeKey) {
     data.dedupeKey = String(input.dedupeKey)

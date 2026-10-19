@@ -45,6 +45,7 @@ import {
 } from '../notifications/userNotificationTypes.js'
 import { resolvePublicAffiliationLine } from './publicAdvisorDisplayFields.js'
 import { resolveRequestPublicOrigin } from './requestPublicOrigin.js'
+import { enqueueAdvisorConsultationLeadPushSafely } from '../lib/push/advisorConsultationLeadPush.js'
 
 const PUBLIC_EVENT_WHITELIST = new Set(Object.values(ADVISOR_PUBLIC_EVENT_TYPES))
 
@@ -533,11 +534,12 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
       const gaRow = await systemQuery(pool, `SELECT ga_id FROM users WHERE id = $1`, [advisorUserId])
       const gaId = parseGaId(gaRow.rows[0]?.ga_id)
       if (gaId != null) {
-        await systemQuery(
+        const notificationRow = await systemQuery(
           pool,
           `
           INSERT INTO notifications (user_id, ga_id, type, reference_id, message)
           VALUES ($1, $2, $3, $4, $5)
+          RETURNING id
           `,
           [
             advisorUserId,
@@ -547,6 +549,14 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
             buildAdvisorConsultationLeadNotificationMessage(name),
           ],
         )
+        // 기존 push outbox(FCM) 재사용. 실패해도 상담 신청·알림은 그대로 둔다(던지지 않음).
+        await enqueueAdvisorConsultationLeadPushSafely(pool, {
+          notificationId: Number(notificationRow.rows?.[0]?.id) || null,
+          recipientUserId: String(advisorUserId),
+          gaId,
+          leadId,
+          visitorName: name,
+        })
       }
 
       void recordAdvisorPublicEvent(pool, {
