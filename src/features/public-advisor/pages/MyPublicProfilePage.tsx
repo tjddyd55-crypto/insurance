@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { AddressSearchField, FormButton } from '../../../components/form'
 import { ApiError } from '../../../lib/apiClient'
@@ -116,6 +116,7 @@ export function MyPublicProfilePage() {
   const profileInputRef = useRef<HTMLInputElement>(null)
   const businessCardFrontInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
+  const officeAddressLabelId = useId()
 
   useEffect(() => {
     return () => {
@@ -772,10 +773,10 @@ export function MyPublicProfilePage() {
         <label>공개 주소 (영문·숫자·하이픈)<input value={slug} onChange={(e) => setSlug(e.target.value)} /></label>
 
           <h2 className="pap-editor-section-title">사무실 위치</h2>
-          <label className="pap-editor-address">
-            <span className="pap-editor-field-hint">사무실 주소</span>
-            <AddressSearchField value={address} onChange={setAddress} clearable />
-          </label>
+          <div className="pap-editor-address">
+            <span id={officeAddressLabelId} className="pap-editor-field-hint">사무실 주소</span>
+            <AddressSearchField value={address} onChange={setAddress} clearable labelId={officeAddressLabelId} />
+          </div>
 
           <label>경력/소속<textarea value={careerText} onChange={(e) => setCareerText(e.target.value)} maxLength={2000} /></label>
 

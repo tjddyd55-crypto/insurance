@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useId, useMemo, useState } from 'react'
 import {
   AddressSearchField,
   FormButton,
@@ -56,6 +56,7 @@ export function CustomerFireInsuranceQuickSection({
   const { confirm, confirmDialog } = useConfirmDialog()
 
   const [modal, setModal] = useState<ModalState>({ mode: 'closed' })
+  const addressLabelId = useId()
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -277,15 +278,16 @@ export function CustomerFireInsuranceQuickSection({
       >
         {modalOpen ? (
           <div className="customer-quick-form-dialog__fields">
-            <label className="field field--wide">
-              <span className="field__label">주소 검색</span>
+            <div className="field field--wide">
+              <span id={addressLabelId} className="field__label">주소 검색</span>
               <AddressSearchField
                 className="address-search-field"
+                labelId={addressLabelId}
                 value={modal.address}
                 disabled={saving}
                 onChange={updateAddress}
               />
-            </label>
+            </div>
             <label className="field field--wide">
               <span className="field__label">메모</span>
               <FormTextarea

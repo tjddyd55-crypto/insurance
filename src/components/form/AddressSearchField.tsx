@@ -59,6 +59,15 @@ export interface AddressSearchFieldProps {
   clearable?: boolean
   /** 지우기 버튼 라벨. */
   clearButtonLabel?: string
+  /**
+   * 화면에 보이는 필드 라벨 요소의 id (예: '사무실 주소' span).
+   * 지정하면 루트를 role="group" + aria-labelledby 로 묶어 라벨을 그룹(우편번호·기본·상세 입력)에 연결한다.
+   *
+   * 주의: 이 필드를 `<label>` 로 감싸지 말 것. `<label>` 은 첫 labelable 자손(= 주소 검색 버튼)을
+   * 자신의 컨트롤로 삼아, 버튼의 접근성 이름이 라벨 텍스트 + 나머지 버튼/입력 텍스트로 바뀐다
+   * (예: '사무실 주소 주소 지우기'). 라벨은 `<div>` 안의 span + labelId 로 연결한다.
+   */
+  labelId?: string
 }
 
 const EMPTY_VALUE: AddressSearchValue = {
@@ -89,6 +98,7 @@ export default function AddressSearchField({
   clearButtonLabel = '주소 지우기',
   disabled,
   previewStatic = false,
+  labelId,
 }: AddressSearchFieldProps) {
   const [open, setOpen] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -172,7 +182,7 @@ export default function AddressSearchField({
   }, [onChange, previewStatic])
 
   return (
-    <div className={rootClass}>
+    <div className={rootClass} {...(labelId ? { role: 'group', 'aria-labelledby': labelId } : {})}>
       {!previewStatic ? (
         <div
           className={`customer-address-field__search-row${showClear ? ' customer-address-field__search-row--with-clear' : ''}`}

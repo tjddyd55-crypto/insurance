@@ -1903,6 +1903,13 @@
   line-height: 1.45;
 }
 
+/* 사무실 주소 블록: <label> 래퍼(버튼 접근성 이름 오염)를 div 로 바꾸며 기존 .pap-editor-form label 레이아웃 유지 */
+.pap-editor-form .pap-editor-address {
+  display: block;
+  font-weight: 600;
+  margin: 16px 0 6px;
+}
+
 .pap-editor-field-hint {
   display: block;
   margin-top: 2px;
