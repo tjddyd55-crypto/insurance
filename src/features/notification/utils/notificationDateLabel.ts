@@ -1,3 +1,4 @@
+import { notificationUsesCreatedAtReference } from '@insurance-shared/userNotificationCatalog.js'
 import {
   diffDateOnlyDays,
   formatDateOnly,
@@ -27,7 +28,7 @@ export function resolveNotificationReferenceDate(row: {
   if (target) {
     return target
   }
-  if (row.type === 'claim_request_received' && row.createdAt) {
+  if (notificationUsesCreatedAtReference(row.type) && row.createdAt) {
     return formatKstDate(row.createdAt)
   }
   return ''

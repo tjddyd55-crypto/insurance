@@ -1,4 +1,5 @@
 import type { NavigateFunction } from 'react-router-dom'
+import { notificationNavigateKind } from '@insurance-shared/userNotificationCatalog.js'
 import { openCustomerClaimWorkspace } from '../../customers/utils/customerClaimWorkspaceNavigation'
 import { buildExternalCustomerNavigateTarget } from '../../customers/utils/customerRoutePaths'
 import { parseSelectedCustomerId } from '../../customers/utils/customerWorkspaceNavigation'
@@ -32,7 +33,7 @@ export function openNotificationNavigate(params: {
   navigate: NavigateFunction
   isMobile?: boolean
 }): boolean {
-  if (params.notification.type === 'advisor_consultation_lead') {
+  if (notificationNavigateKind(params.notification.type) === 'consultation_lead') {
     const leadId = String(params.notification.referenceId ?? '').trim()
     if (!leadId) {
       return false
@@ -44,7 +45,7 @@ export function openNotificationNavigate(params: {
 }
 
 export function canNavigateFromNotification(row: NotificationRow): boolean {
-  if (row.type === 'advisor_consultation_lead') {
+  if (notificationNavigateKind(row.type) === 'consultation_lead') {
     return Boolean(String(row.referenceId ?? '').trim())
   }
   return row.customerId != null && row.customerId > 0
