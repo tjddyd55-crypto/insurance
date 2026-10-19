@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import { ApiError } from '../../../lib/apiClient'
@@ -15,21 +15,10 @@ import {
   type NotificationRow,
   type UserAlertSettings,
 } from '../api/notificationApi'
-import {
-  DEFAULT_USER_ALERT_SETTINGS,
-  NOTIFICATION_PANEL_PREVIEW_COUNT,
-  NOTIFICATION_SECTIONS,
-} from '../config/notificationCenter.config'
+import { DEFAULT_USER_ALERT_SETTINGS } from '../config/notificationCenter.config'
 import { dispatchNotificationRefresh } from '../notificationRefreshDispatch'
-import {
-  formatNotificationDateOnly,
-  formatNotificationRowDDay,
-  sortNotificationRowsByReferenceDate,
-} from '../utils/notificationDateLabel'
-import {
-  canNavigateFromNotification,
-  openNotificationNavigate,
-} from '../utils/notificationCustomerNavigation'
+import { canNavigateFromNotification, openNotificationNavigate } from '../utils/notificationCustomerNavigation'
+import { NotificationCenterSections } from './NotificationCenterSections'
 import { NotificationConfirmModal } from './NotificationConfirmModal'
 import { NotificationSettingsModal } from './NotificationSettingsModal'
 
@@ -105,24 +94,6 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
     const timer = window.setTimeout(() => setToast(''), 3000)
     return () => window.clearTimeout(timer)
   }, [toast])
-
-  const groupedItems = useMemo(() => {
-    const map = new Map<string, NotificationRow[]>()
-    for (const section of NOTIFICATION_SECTIONS) {
-      map.set(section.type, [])
-    }
-    for (const row of items) {
-      const bucket = map.get(row.type)
-      if (bucket) {
-        bucket.push(row)
-      }
-    }
-    for (const section of NOTIFICATION_SECTIONS) {
-      const rows = map.get(section.type) ?? []
-      map.set(section.type, sortNotificationRowsByReferenceDate(rows))
-    }
-    return map
-  }, [items])
 
   const handleNameClick = async (row: NotificationRow) => {
     if (!canNavigateFromNotification(row)) {
@@ -326,93 +297,17 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
       ) : null}
 
       {!loading && !error ? (
-        <div className="notification-center__grid">
-          {NOTIFICATION_SECTIONS.map((section) => {
-            const rows = groupedItems.get(section.type) ?? []
-            const expanded = expandedSections.has(section.type)
-            const hiddenCount = Math.max(0, rows.length - NOTIFICATION_PANEL_PREVIEW_COUNT)
-            const visibleRows = expanded ? rows : rows.slice(0, NOTIFICATION_PANEL_PREVIEW_COUNT)
-            return (
-              <section
-                key={section.type}
-                className={`notification-section notification-section--${section.sectionClass}${
-                  expanded ? ' is-expanded' : ''
-                }`}
-              >
-                <header className="notification-section__banner">
-                  <h2 className="notification-section__title">
-                    {section.title}
-                    <span className="notification-section__count">{rows.length}</span>
-                  </h2>
-                </header>
-                <div className="notification-section__body">
-                  {rows.length === 0 ? (
-                    <p className="notification-section__empty">표시할 알림이 없습니다.</p>
-                  ) : (
-                    <table className="notification-section__table">
-                      <thead>
-                        <tr>
-                          <th>이름</th>
-                          <th>{section.dateColumnLabel}</th>
-                          <th>D-day</th>
-                          {view === 'active' ? <th>확인</th> : null}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {visibleRows.map((row) => (
-                          <tr key={row.id}>
-                            <td>
-                              {canNavigateFromNotification(row) ? (
-                                <button
-                                  type="button"
-                                  className="notification-section__name-link"
-                                  disabled={pendingId === row.id || isConfirming}
-                                  onClick={() => void handleNameClick(row)}
-                                >
-                                  {row.customerName ?? '—'}
-                                </button>
-                              ) : (
-                                row.customerName ?? '—'
-                              )}
-                            </td>
-                            <td className="tabular-nums">{formatNotificationDateOnly(row)}</td>
-                            <td className="tabular-nums">{formatNotificationRowDDay(row)}</td>
-                            <td>
-                              {view === 'active' ? (
-                                <FormButton
-                                  htmlType="button"
-                                  variant="secondary"
-                                  size="sm"
-                                  disabled={isConfirming && confirmTarget?.id === row.id}
-                                  onClick={() => openConfirmModal(row)}
-                                >
-                                  확인
-                                </FormButton>
-                              ) : null}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-                {hiddenCount > 0 || expanded ? (
-                  <div className="notification-section__footer">
-                    {rows.length > NOTIFICATION_PANEL_PREVIEW_COUNT ? (
-                      <button
-                        type="button"
-                        className="notification-section__more"
-                        onClick={() => toggleSectionExpanded(section.type)}
-                      >
-                        {expanded ? '접기' : `더보기 ${hiddenCount}개`}
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
-              </section>
-            )
-          })}
-        </div>
+        <NotificationCenterSections
+          items={items}
+          view={view}
+          expandedSections={expandedSections}
+          pendingId={pendingId}
+          isConfirming={isConfirming}
+          confirmTargetId={confirmTarget?.id ?? null}
+          onNameClick={(row) => void handleNameClick(row)}
+          onConfirm={openConfirmModal}
+          onToggleExpanded={toggleSectionExpanded}
+        />
       ) : null}
     </div>
   )

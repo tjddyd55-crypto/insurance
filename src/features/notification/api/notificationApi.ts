@@ -1,3 +1,4 @@
+import { notificationBadgeLabel, notificationNavigateKind } from '@insurance-shared/userNotificationCatalog.js'
 import { ApiError, apiRequest } from '../../../lib/apiClient'
 
 export type NotificationRow = {
@@ -52,6 +53,7 @@ export type NotificationListType =
   | 'insurance_age_date'
   | 'claim_request_received'
   | 'special_date'
+  | 'advisor_consultation_lead'
 
 export async function fetchNotifications(
   token: string,
@@ -172,21 +174,15 @@ export async function patchNotificationSettings(
 }
 
 export function notificationTypeLabel(type: string): string {
-  switch (type) {
-    case 'car_expiry':
-      return '자동차 만기'
-    case 'insurance_age_date':
-      return '상령일'
-    case 'claim_request_received':
-      return '청구알림'
-    case 'special_date':
-      return '지정일'
-    default:
-      return type || '알림'
-  }
+  return notificationBadgeLabel(type) || type || '알림'
 }
 
 export function buildNotificationNavigatePath(notification: NotificationRow): string | null {
+  if (notificationNavigateKind(notification.type) === 'consultation_lead') {
+    const leadId = String(notification.referenceId ?? '').trim()
+    if (!leadId) return null
+    return `/consultation-leads?lead=${encodeURIComponent(leadId)}`
+  }
   if (notification.customerId == null || notification.customerId < 1) {
     return null
   }

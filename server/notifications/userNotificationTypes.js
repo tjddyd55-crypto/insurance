@@ -1,21 +1,12 @@
-import { CUSTOMER_ALERT_DATE_LABEL } from '../../shared/customerAlertDateCopy.js'
-
-export const USER_NOTIFICATION_TYPES = {
-  CAR_EXPIRY: 'car_expiry',
-  INSURANCE_AGE_DATE: 'insurance_age_date',
-  CLAIM_REQUEST_RECEIVED: 'claim_request_received',
-  SPECIAL_DATE: 'special_date',
-  CUSTOMER_CREATED: 'customer_created',
-  NEWSLETTER_PUBLISHED: 'newsletter_published',
-  ADVISOR_CONSULTATION_LEAD: 'advisor_consultation_lead',
-}
-
-export const USER_NOTIFICATION_TYPE_LABELS = {
-  [USER_NOTIFICATION_TYPES.CAR_EXPIRY]: '자동차 만기',
-  [USER_NOTIFICATION_TYPES.INSURANCE_AGE_DATE]: '상령일',
-  [USER_NOTIFICATION_TYPES.CLAIM_REQUEST_RECEIVED]: '청구알림',
-  [USER_NOTIFICATION_TYPES.SPECIAL_DATE]: CUSTOMER_ALERT_DATE_LABEL,
-  [USER_NOTIFICATION_TYPES.CUSTOMER_CREATED]: '신규 고객',
-  [USER_NOTIFICATION_TYPES.NEWSLETTER_PUBLISHED]: '소식지',
-  [USER_NOTIFICATION_TYPES.ADVISOR_CONSULTATION_LEAD]: '상담 신청',
-}
+export {
+  USER_NOTIFICATION_TYPES,
+  USER_NOTIFICATION_TYPE_LABELS,
+  USER_NOTIFICATION_CENTER_SECTIONS,
+  assertNotificationTypeToken,
+  buildAdvisorConsultationLeadNotificationMessage,
+  formatNotificationPrimaryText,
+  notificationBadgeLabel,
+  notificationNavigateKind,
+  notificationReferenceDedupePart,
+  notificationUsesCreatedAtReference,
+} from '../../shared/userNotificationCatalog.js'

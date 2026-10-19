@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   buildNotificationListQuery,
   buildNotificationListWhere,
+  buildNotificationUnreadCountQuery,
   parseNotificationListFilters,
 } from '../apis/notificationsApi.js'
 import { getDefaultUserNotificationSettings } from '../services/userNotificationSettingsService.js'
@@ -34,6 +35,11 @@ test('parseNotificationListFilters accepts view and legacy status filters', () =
     status: 'all',
     type: 'special_date',
   })
+  assert.deepEqual(parseNotificationListFilters({ type: 'advisor_consultation_lead' }), {
+    view: 'active',
+    status: 'all',
+    type: 'advisor_consultation_lead',
+  })
 })
 
 test('buildNotificationListWhere maps active and confirmed views', () => {
@@ -54,9 +60,11 @@ test('buildNotificationListWhere keeps upcoming windowed types within settings d
   assert.match(active.clause, /type = 'car_expiry'/)
   assert.match(active.clause, /type = 'special_date'/)
   assert.match(active.clause, /type = 'claim_request_received'/)
+  assert.match(active.clause, /type = 'advisor_consultation_lead'/)
+  assert.doesNotMatch(active.clause, /type = 'advisor_consultation_lead' AND target_date/)
   assert.match(active.clause, /target_date >=/)
   assert.match(active.clause, /target_date <=/)
-  // userId, gaId + 3 windowed types * (today, upper) = 8
+  // userId, gaId + 3 windowed types * (today, upper) = 8. 상담 신청은 날짜 파라미터가 없다.
   assert.equal(active.params.length, 8)
 
   const narrow = buildNotificationListWhere(
@@ -72,6 +80,7 @@ test('buildNotificationListWhere keeps upcoming windowed types within settings d
     },
   )
   assert.match(narrow.clause, /insurance_age_date/)
+  assert.match(narrow.clause, /advisor_consultation_lead/)
   assert.doesNotMatch(narrow.clause, /car_expiry/)
   assert.doesNotMatch(narrow.clause, /special_date/)
   assert.doesNotMatch(narrow.clause, /claim_request_received/)
@@ -88,7 +97,10 @@ test('buildNotificationListWhere keeps upcoming windowed types within settings d
       claimRequest: { enabled: false },
     },
   )
-  assert.match(allOff.clause, /FALSE/)
+  assert.match(allOff.clause, /advisor_consultation_lead/)
+  assert.doesNotMatch(allOff.clause, /FALSE/)
+  assert.doesNotMatch(allOff.clause, /target_date/)
+  assert.equal(allOff.params.length, 2)
 })
 
 test('buildNotificationListWhere applies type filter without changing view rules', () => {
@@ -111,7 +123,19 @@ test('buildNotificationListQuery deduplicates rows defensively with DISTINCT ON'
   assert.match(query.sql, /COALESCE\(customer_id, -1\)/)
   assert.match(query.sql, /COALESCE\(special_date_id, -1\)/)
   assert.match(query.sql, /COALESCE\(target_date, DATE '1970-01-01'\)/)
+  assert.match(query.sql, /COALESCE\(claim_request_id, -1\)/)
+  assert.match(query.sql, /advisor_consultation_lead/)
+  assert.match(query.sql, /reference_id/)
   assert.match(query.sql, /confirmed_at/)
   assert.match(query.sql, /ORDER BY created_at DESC, id DESC/)
   assert.equal(query.params[query.params.length - 1], 50)
+})
+
+test('unread count uses the active view and keeps consultation leads until read', () => {
+  const query = buildNotificationUnreadCountQuery('u1', 1, getDefaultUserNotificationSettings())
+  assert.match(query.sql, /COUNT\(\*\)/)
+  assert.match(query.sql, /is_read = false/)
+  assert.match(query.sql, /is_dismissed = false/)
+  assert.match(query.sql, /type = 'advisor_consultation_lead'/)
+  assert.doesNotMatch(query.sql, /type = 'advisor_consultation_lead' AND target_date/)
 })

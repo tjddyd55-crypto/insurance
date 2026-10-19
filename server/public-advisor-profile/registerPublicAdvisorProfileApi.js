@@ -39,6 +39,10 @@ import {
 import { buildAdvisorOgCardPng } from './advisorOgCardBuilder.js'
 import { MOBILE_CARD_CONSULTATION_PRIVACY_POLICY_VERSION } from './advisorConsultationPrivacyPolicy.js'
 import { registerAdvisorConsultationLeadsApi } from './registerAdvisorConsultationLeadsApi.js'
+import {
+  buildAdvisorConsultationLeadNotificationMessage,
+  USER_NOTIFICATION_TYPES,
+} from '../notifications/userNotificationTypes.js'
 import { resolveRequestPublicOrigin } from './requestPublicOrigin.js'
 
 const PUBLIC_EVENT_WHITELIST = new Set(Object.values(ADVISOR_PUBLIC_EVENT_TYPES))
@@ -524,9 +528,15 @@ export function registerPublicAdvisorProfileApi(apiRouter, ctx) {
           pool,
           `
           INSERT INTO notifications (user_id, ga_id, type, reference_id, message)
-          VALUES ($1, $2, 'advisor_consultation_lead', $3, $4)
+          VALUES ($1, $2, $3, $4, $5)
           `,
-          [advisorUserId, gaId, leadId, `${name}님의 상담 신청이 도착했습니다.`],
+          [
+            advisorUserId,
+            gaId,
+            USER_NOTIFICATION_TYPES.ADVISOR_CONSULTATION_LEAD,
+            leadId,
+            buildAdvisorConsultationLeadNotificationMessage(name),
+          ],
         )
       }
 
