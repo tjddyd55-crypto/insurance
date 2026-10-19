@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs'
 import { randomUUID } from 'node:crypto'
 import { ensurePromotionCodesSchema } from './promotions/ensurePromotionCodesSchema.js'
 import { ensurePublicServiceInquiriesSchema } from './public-inquiries/ensurePublicServiceInquiriesSchema.js'
+import { ensurePublicAdvisorProfileSchema } from './public-advisor-profile/ensurePublicAdvisorProfileSchema.js'
 import pool from './db.js'
 import {
   runCompanyDirectorySanitize,
@@ -4604,6 +4605,12 @@ export async function initDb() {
   } catch (error) {
     // 공개 문의 테이블 실패가 전체 앱 기동을 막지 않도록 격리한다.
     console.error('[initDb][public-service-inquiries] schema ensure 실패', error)
+  }
+  try {
+    await ensurePublicAdvisorProfileSchema(pool)
+    console.log('[initDb][public-advisor-profile] schema ensure 완료')
+  } catch (error) {
+    console.error('[initDb][public-advisor-profile] schema ensure 실패', error)
   }
   const { ensureSmsModuleSchema } = await import('./sms/ensureSmsModuleSchema.js')
   await ensureSmsModuleSchema(pool)

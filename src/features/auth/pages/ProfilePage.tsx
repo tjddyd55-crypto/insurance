@@ -610,6 +610,11 @@ export function ProfilePage() {
   return (
     <main className="page page--with-back profile-page">
       <h1 className="profile-page__title">{pageTitle}</h1>
+      {user.role === 'USER' ? (
+        <p className="profile-page__status">
+          <Link to="/profile/mobile-card">모바일 명함</Link>
+        </p>
+      ) : null}
       <SubscriptionStatusCard subscription={user?.subscription ?? null} />
       {gaApproval ? (
         <section className="profile-page__section" aria-live="polite">

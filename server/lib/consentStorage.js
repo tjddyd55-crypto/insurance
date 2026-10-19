@@ -248,24 +248,67 @@ export async function consentPutInsurerAttachment(key, body, contentType) {
   await consentPutObject(key, body, contentType)
 }
 
-export async function consentGetBuffer(key) {
-  const c = r2Credentials()
-  const client = getS3()
-  if (client && c) {
-    const out = await client.send(
-      new GetObjectCommand({
-        Bucket: c.bucket,
-        Key: key,
-      }),
-    )
-    const chunks = []
-    for await (const chunk of out.Body) {
-      chunks.push(chunk)
+/**
+ * 생략하거나 빈 options면 main과 같다. 크기 상한도 타임아웃도 없다.
+ * 모바일 명함·OG 미디어 읽기만 maxBytes / timeoutMs를 넘긴다.
+ * @param {{ timeoutMs?: number, maxBytes?: number } | null | undefined} [options]
+ */
+export function resolveConsentGetBufferLimits(options) {
+  const timeoutRaw = options?.timeoutMs
+  const maxRaw = options?.maxBytes
+  const timeoutMs = Number.isFinite(timeoutRaw) && timeoutRaw > 0 ? timeoutRaw : 0
+  const maxBytes = Number.isFinite(maxRaw) && maxRaw > 0 ? maxRaw : 0
+  return { timeoutMs, maxBytes }
+}
+
+/**
+ * @param {string} key
+ * @param {{ timeoutMs?: number, maxBytes?: number }} [options]
+ */
+export async function consentGetBuffer(key, options) {
+  const { timeoutMs, maxBytes } = resolveConsentGetBufferLimits(options)
+
+  const readTask = async () => {
+    const c = r2Credentials()
+    const client = getS3()
+    if (client && c) {
+      const out = await client.send(
+        new GetObjectCommand({
+          Bucket: c.bucket,
+          Key: key,
+        }),
+      )
+      const chunks = []
+      if (maxBytes > 0) {
+        let total = 0
+        for await (const chunk of out.Body) {
+          const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+          total += buf.length
+          if (total > maxBytes) {
+            throw new Error(`R2 object exceeds maxBytes (${maxBytes})`)
+          }
+          chunks.push(buf)
+        }
+      } else {
+        for await (const chunk of out.Body) {
+          chunks.push(chunk)
+        }
+      }
+      return Buffer.concat(chunks)
     }
-    return Buffer.concat(chunks)
+    const full = path.join(LOCAL_ROOT, key)
+    const body = await readFile(full)
+    if (maxBytes > 0 && body.length > maxBytes) {
+      throw new Error(`Local object exceeds maxBytes (${maxBytes})`)
+    }
+    return body
   }
-  const full = path.join(LOCAL_ROOT, key)
-  return readFile(full)
+
+  if (timeoutMs > 0) {
+    const { promiseWithTimeout } = await import('./promiseWithTimeout.js')
+    return promiseWithTimeout(readTask(), timeoutMs, 'consentGetBuffer')
+  }
+  return readTask()
 }
 
 /**

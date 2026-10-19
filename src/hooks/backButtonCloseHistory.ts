@@ -92,6 +92,30 @@ export function stripOwnUiLayerMarker(
   return base
 }
 
+/**
+ * 중첩 모달의 back 대상. 위에 열린 레이어만 popstate 로 닫는다.
+ * 아래 레이어는 등록을 유지해, privacy → consult → 브라우저 순서가 한 스택에서 결정된다.
+ */
+export function createModalLayerStack() {
+  const ids: string[] = []
+  return {
+    push(id: string) {
+      const existing = ids.lastIndexOf(id)
+      if (existing >= 0) ids.splice(existing, 1)
+      ids.push(id)
+    },
+    remove(id: string) {
+      const existing = ids.lastIndexOf(id)
+      if (existing >= 0) ids.splice(existing, 1)
+    },
+    isTop(id: string) {
+      return ids.length > 0 && ids[ids.length - 1] === id
+    },
+  }
+}
+
+export const modalLayerStack = createModalLayerStack()
+
 /** history top 에 UI 레이어 trap 이 있으면 네이티브 back 을 웹 history.back 에 위임한다. */
 export function hasUiLayerTrapOnTop(top: unknown): boolean {
   if (top == null || typeof top !== 'object') {

@@ -181,12 +181,19 @@ export function notificationTypeLabel(type: string): string {
       return '청구알림'
     case 'special_date':
       return '지정일'
+    case 'advisor_consultation_lead':
+      return '상담 신청'
     default:
       return type || '알림'
   }
 }
 
 export function buildNotificationNavigatePath(notification: NotificationRow): string | null {
+  if (notification.type === 'advisor_consultation_lead') {
+    const leadId = String(notification.referenceId ?? '').trim()
+    if (!leadId) return null
+    return `/consultation-leads?lead=${encodeURIComponent(leadId)}`
+  }
   if (notification.customerId == null || notification.customerId < 1) {
     return null
   }

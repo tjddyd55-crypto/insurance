@@ -19,6 +19,8 @@ import {
   resolveHasActivePaidAccess,
 } from '../../entitlements/featureEntitlementGuard'
 import { useInsuranceBillingSummary } from '../../insurance-billing/hooks/useInsuranceBillingSummary'
+import { useAdvisorConsultationLeadNewCount } from '../../public-advisor/hooks/useAdvisorConsultationLeadNewCount'
+import { applyConsultationLeadMenuBadge } from '../../public-advisor/utils/applyConsultationLeadMenuBadge'
 
 type MenuEntry = GaTenantDashboardMenuEntry
 
@@ -132,14 +134,16 @@ export function DashboardPage() {
    */
   const { summary: billingSummary } = useInsuranceBillingSummary()
   const hasActivePaidAccess = resolveHasActivePaidAccess(user, billingSummary)
+  const consultationLeadNewCount = useAdvisorConsultationLeadNewCount(token, role)
 
   const menuItems = useMemo<MenuEntry[]>(() => {
-    return buildAppMenuForSession(role, user?.gaCode, user?.gaName, {
+    const base = buildAppMenuForSession(role, user?.gaCode, user?.gaName, {
       teamMenuManageVisible,
       dynamicNewsletterBoards,
       hasActivePaidAccess,
     })
-  }, [role, user?.gaCode, user?.gaName, teamMenuManageVisible, dynamicNewsletterBoards, hasActivePaidAccess])
+    return applyConsultationLeadMenuBadge(base, consultationLeadNewCount)
+  }, [role, user?.gaCode, user?.gaName, teamMenuManageVisible, dynamicNewsletterBoards, hasActivePaidAccess, consultationLeadNewCount])
 
   return (
     <main className="page dashboard-page--centered">
