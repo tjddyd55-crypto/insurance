@@ -138,6 +138,9 @@
 .pap-page--fc {
   background: #eef0f3;
   display: block;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
   min-height: 0;
   flex: none;
   margin: 0;
@@ -147,9 +150,15 @@
   container-name: pap-fc;
 }
 
+/* 뷰포트 @media(720/960) 는 에디터 창에도 걸려 390 프레임 안 셸을 줄인다. FC 셸은 컨테이너를 채운다. */
 .pap-page--fc .public-advisor-shell.pap-shell--fc {
-  padding-top: 0;
-  margin-top: 0;
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 var(--pap-sticky-cta-block);
 }
 
 .pap-shell--fc {
@@ -593,8 +602,7 @@
 }
 
 @container pap-fc (min-width: 768px) {
-  .pap-shell--fc {
-    padding-top: 0;
+  .pap-page--fc .public-advisor-shell.pap-shell--fc {
     padding-inline: 16px;
   }
 
@@ -1912,20 +1920,26 @@
 }
 
 .pap-theme-picker {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: inline-grid;
+  width: max-content;
+  max-width: 100%;
+  grid-template-columns: repeat(3, 1fr);
   gap: 0;
   margin-bottom: 8px;
   border: 1px solid var(--border-default);
   border-radius: 10px;
   overflow: hidden;
   background: var(--bg-surface);
+  vertical-align: top;
 }
 
 .pap-theme-picker__segment {
+  box-sizing: border-box;
+  height: 44px;
   min-height: 44px;
+  min-width: 44px;
   margin: 0;
-  padding: 10px 8px;
+  padding: 0 12px;
   border: 0;
   border-right: 1px solid var(--border-default);
   background: transparent;
@@ -2204,7 +2218,9 @@
 
   .pap-editor-layout__preview {
     display: block;
+    /* 390 콘텐츠 + 좌우 베젤(padding 8+8, border 1+1) = 408. 컬럼은 그보다 넓게 고정해 내용을 줄이지 않는다. */
     width: 420px;
+    min-width: 420px;
     flex: 0 0 420px;
     position: sticky;
     top: 72px;
@@ -2340,27 +2356,38 @@
   text-transform: uppercase;
 }
 
+/* phone-shell: 베젤·테두리만. 콘텐츠 폭은 자식 phone-viewport 가 가진다. */
 .pap-editor-live-preview__frame--phone {
   --pap-preview-viewport: 390px;
+  --pap-preview-bezel-inline: 8px;
+  --pap-preview-bezel-block: 10px;
   box-sizing: content-box;
   width: var(--pap-preview-viewport);
+  min-width: var(--pap-preview-viewport);
   max-width: none;
+  flex-shrink: 0;
   border: 1px solid #cbd5e1;
   border-radius: 20px;
-  padding: 10px 8px;
+  padding: var(--pap-preview-bezel-block) var(--pap-preview-bezel-inline);
   background: #111827;
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
 }
 
+/* phone-viewport: 내용 영역이 정확히 --pap-preview-viewport. 테두리·패딩·스크롤바로 줄이지 않는다. */
 .pap-editor-live-preview__scroll--phone {
   box-sizing: border-box;
   width: var(--pap-preview-viewport);
-  max-width: var(--pap-preview-viewport);
+  min-width: var(--pap-preview-viewport);
+  max-width: none;
+  flex-shrink: 0;
+  padding: 0;
   border: 0;
+  margin: 0;
   border-radius: 12px;
   background: #f3f4f6;
   overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-gutter: auto;
   position: relative;
   scrollbar-width: none;
 }
@@ -2370,23 +2397,14 @@
   height: 0;
 }
 
+/* 미리보기는 공개 페이지와 같은 블록 흐름이다. flex 셸은 margin:auto 와 만나 폭이 줄어든다. */
 .pap-public-profile-view--in-editor-preview {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.pap-public-profile-view--in-editor-preview .public-advisor-shell {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
+  min-height: 0;
 }
 
 .pap-public-profile-view--in-editor-preview .pap-sticky-cta {
   position: sticky;
   bottom: 0;
-  width: 100%;
   margin-inline: 0;
-  margin-top: auto;
   z-index: 3;
 }
