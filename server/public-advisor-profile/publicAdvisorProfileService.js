@@ -290,6 +290,8 @@ export async function getAdvisorPublicMetaBySlug(pool, slug) {
   })
   const description = buildAdvisorOgDescription({
     headline: resolved.profile.headline,
+    heroDisplaySubtitle: resolved.profile.heroDisplaySubtitle,
+    heroDisplaySubtitleVisible: resolved.profile.heroDisplaySubtitleVisible,
   })
   return {
     indexable: true,

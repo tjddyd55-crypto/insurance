@@ -170,7 +170,11 @@ import {
   injectPublicAdvisorProfileMeta,
 } from './lib/publicAdvisorPublicMeta.js'
 import { advisorPublicMediaUrl } from './public-advisor-profile/publicAdvisorMediaDelivery.js'
-import { buildAdvisorOgCardApiPath } from './public-advisor-profile/publicAdvisorOgMeta.js'
+import {
+  ADVISOR_SHARE_UNAVAILABLE_DESCRIPTION,
+  ADVISOR_SHARE_UNAVAILABLE_TITLE,
+  buildAdvisorOgCardApiPath,
+} from './public-advisor-profile/publicAdvisorOgMeta.js'
 import { getAdvisorPublicMetaBySlug } from './public-advisor-profile/publicAdvisorProfileService.js'
 import {
   getPublicCoverageShareByToken,
@@ -8472,10 +8476,8 @@ if (fs.existsSync(DIST_PATH)) {
         const imageUrl = ogCardPath
           ? buildAbsolutePublicUrl(req, ogCardPath)
           : defaultAdvisorOgImageUrl(req)
-        const title = meta.indexable ? meta.title : '프로필을 찾을 수 없습니다 | ONE FC'
-        const description = meta.indexable
-          ? meta.description
-          : '비공개이거나 존재하지 않는 설계사 프로필입니다.'
+        const title = meta.indexable ? meta.title : ADVISOR_SHARE_UNAVAILABLE_TITLE
+        const description = meta.indexable ? meta.description : ADVISOR_SHARE_UNAVAILABLE_DESCRIPTION
         res
           .type('html')
           .send(

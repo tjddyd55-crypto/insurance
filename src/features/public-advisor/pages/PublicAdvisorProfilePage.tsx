@@ -18,6 +18,10 @@ import {
   type ConsultSubmitError,
 } from '../utils/consultFormValidation'
 import { PUBLIC_ADVISOR_CONSULT_SUCCESS_TOAST, showPublicAdvisorToast } from '../toast/publicAdvisorToast'
+import {
+  ADVISOR_SHARE_UNAVAILABLE_TITLE,
+  buildAdvisorOgTitle,
+} from '../utils/buildAdvisorShareMeta.js'
 import '../public-advisor.css'
 
 const MAX_PUBLIC_TAGS = 5
@@ -36,11 +40,18 @@ export function PublicAdvisorProfilePage() {
       .then((row) => {
         if (!cancelled) {
           setData(row)
-          document.title = `${row.displayName} | ONE FC`
+          document.title = buildAdvisorOgTitle({
+            displayName: row.displayName,
+            heroDisplayTitle: row.heroDisplayTitle,
+            heroDisplayTitleVisible: row.heroDisplayTitleVisible,
+          })
         }
       })
       .catch(() => {
-        if (!cancelled) setLoadError('프로필을 찾을 수 없습니다.')
+        if (!cancelled) {
+          setLoadError('프로필을 찾을 수 없습니다.')
+          document.title = ADVISOR_SHARE_UNAVAILABLE_TITLE
+        }
       })
     return () => {
       cancelled = true

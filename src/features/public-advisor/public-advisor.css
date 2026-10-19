@@ -14,8 +14,13 @@
   --pap-field-error: var(--danger, #dc2626);
   --pap-field-error-bg: var(--danger-bg, #fef2f2);
   --pap-field-error-border: var(--danger-border, #fecaca);
+  --pap-column-max: 640px;
   --pap-sticky-cta-pad-y: 10px;
-  --pap-sticky-cta-block: calc(var(--pap-sticky-cta-pad-y) + 48px + var(--pap-sticky-cta-pad-y));
+  --pap-sticky-cta-btn: 48px;
+  --pap-sticky-cta-block: calc(
+    var(--pap-sticky-cta-pad-y) + var(--pap-sticky-cta-btn) + var(--pap-sticky-cta-pad-y) + 1px +
+      env(safe-area-inset-bottom, 0px)
+  );
   --pap-toast-gap: 12px;
 }
 
@@ -150,7 +155,7 @@
   min-height: 0;
   flex: none;
   padding-top: 0;
-  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: var(--pap-sticky-cta-block);
   padding-inline: 0;
 }
 
@@ -606,7 +611,7 @@
   .pap-page--fc .pap-fc-card--hero,
   .pap-page--fc .pap-home-sections {
     width: 100%;
-    max-width: 640px;
+    max-width: var(--pap-column-max);
     margin-inline: auto;
   }
 
@@ -1211,6 +1216,10 @@
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 30;
+  box-sizing: border-box;
+  width: min(100%, var(--pap-column-max));
+  margin-inline: auto;
   padding: var(--pap-sticky-cta-pad-y) 16px calc(var(--pap-sticky-cta-pad-y) + env(safe-area-inset-bottom, 0px));
   background: rgba(255, 255, 255, 0.96);
   border-top: 1px solid var(--border-default, #e5e7eb);
@@ -1243,24 +1252,9 @@
   text-align: center;
 }
 
-.pap-page--fc .pap-sticky-cta {
-  box-sizing: border-box;
-  padding-inline: 0;
-}
-
-@media (min-width: 768px) {
-  .pap-page--fc .pap-sticky-cta {
-    left: 50%;
-    right: auto;
-    width: min(100%, 720px);
-    transform: translateX(-50%);
-    padding-inline: 16px;
-  }
-}
-
 .pap-sticky-cta .pap-btn {
   flex: 1;
-  min-height: 48px;
+  min-height: var(--pap-sticky-cta-btn);
 }
 
 .pap-editor-form label {
@@ -2485,27 +2479,8 @@
 .pap-public-profile-view--in-editor-preview .pap-sticky-cta {
   position: sticky;
   bottom: 0;
-  left: 0;
-  right: 0;
   width: 100%;
+  margin-inline: 0;
   margin-top: auto;
-  transform: none;
   z-index: 3;
-}
-
-.pap-public-profile-view--in-editor-preview.pap-page--fc .pap-sticky-cta {
-  left: 0;
-  right: 0;
-  width: 100%;
-  transform: none;
-  padding-inline: 10px;
-}
-
-@media (min-width: 768px) {
-  .pap-public-profile-view--in-editor-preview.pap-page--fc .pap-sticky-cta {
-    left: 0;
-    right: 0;
-    width: 100%;
-    transform: none;
-  }
 }

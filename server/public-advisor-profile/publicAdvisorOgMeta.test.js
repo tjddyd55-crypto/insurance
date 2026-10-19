@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
-  ADVISOR_OG_HEADLINE_FALLBACK,
+  ADVISOR_SHARE_DESCRIPTION_FALLBACK,
   buildAdvisorOgCardApiPath,
   buildAdvisorOgCardCacheVersion,
   buildAdvisorOgDescription,
@@ -10,23 +10,82 @@ import {
   buildAdvisorOgTitle,
 } from './publicAdvisorOgMeta.js'
 
-test('buildAdvisorOgTitle prefers visible hero title', () => {
+test('og title uses the visible hero name and ignores the top label', () => {
   assert.equal(
-    buildAdvisorOgTitle({ displayName: '홍길동', heroDisplayTitle: '박성용 FC', heroDisplayTitleVisible: true }),
-    '박성용 FC | ONE FC',
+    buildAdvisorOgTitle({
+      displayName: '박성용',
+      heroDisplayEyebrow: 'ONE FC',
+      heroDisplayTitle: '박성용 FC',
+      heroDisplayTitleVisible: true,
+      heroDisplaySubtitle: '영진에셋 · 팀장',
+    }),
+    '박성용 FC',
+  )
+  assert.equal(
+    buildAdvisorOgTitle({
+      displayName: '박성용',
+      heroDisplayEyebrow: 'MDRT',
+      heroDisplayTitle: '박성용',
+      heroDisplayTitleVisible: true,
+      heroDisplaySubtitle: '법인 전문 컨설턴트',
+    }),
+    '박성용',
+  )
+  assert.equal(
+    buildAdvisorOgTitle({
+      displayName: '다른이름',
+      heroDisplayTitle: '박성용 팀장',
+      heroDisplayTitleVisible: true,
+    }),
+    '박성용 팀장',
   )
 })
 
-test('buildAdvisorOgTitle falls back to display name when hero title hidden', () => {
+test('og title falls back to displayName when the hero title is hidden or empty', () => {
   assert.equal(
-    buildAdvisorOgTitle({ displayName: '홍길동', heroDisplayTitle: '박성용 FC', heroDisplayTitleVisible: false }),
-    '홍길동 | ONE FC',
+    buildAdvisorOgTitle({
+      displayName: '박성용',
+      heroDisplayEyebrow: 'ONE FC',
+      heroDisplayTitle: '박성용 FC',
+      heroDisplayTitleVisible: false,
+    }),
+    '박성용',
   )
+  assert.equal(
+    buildAdvisorOgTitle({
+      displayName: '박성용',
+      heroDisplayTitle: '   ',
+      heroDisplayTitleVisible: true,
+    }),
+    '박성용',
+  )
+  assert.equal(buildAdvisorOgTitle({ displayName: '박성용' }).includes('ONE FC'), false)
 })
 
-test('buildAdvisorOgDescription uses headline or short fallback', () => {
-  assert.equal(buildAdvisorOgDescription({ headline: '한 줄 소개' }), '한 줄 소개')
-  assert.equal(buildAdvisorOgDescription({ headline: '' }), ADVISOR_OG_HEADLINE_FALLBACK)
+test('og description uses headline, then a visible subtitle, then a generic line', () => {
+  assert.equal(
+    buildAdvisorOgDescription({
+      headline: '한 줄 소개',
+      heroDisplaySubtitle: '영진에셋 · 팀장',
+      heroDisplaySubtitleVisible: true,
+    }),
+    '한 줄 소개',
+  )
+  assert.equal(
+    buildAdvisorOgDescription({
+      headline: '  ',
+      heroDisplaySubtitle: '법인 전문 컨설턴트',
+      heroDisplaySubtitleVisible: true,
+    }),
+    '법인 전문 컨설턴트',
+  )
+  const hidden = buildAdvisorOgDescription({
+    headline: '',
+    heroDisplaySubtitle: '영진에셋 · 팀장',
+    heroDisplaySubtitleVisible: false,
+  })
+  assert.equal(hidden, ADVISOR_SHARE_DESCRIPTION_FALLBACK)
+  assert.equal(hidden.includes('ONE FC'), false)
 })
 
 test('buildAdvisorOgCardApiPath appends cache version query', () => {
