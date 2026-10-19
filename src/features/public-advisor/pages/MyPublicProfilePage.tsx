@@ -774,7 +774,7 @@ export function MyPublicProfilePage() {
           <h2 className="pap-editor-section-title">사무실 위치</h2>
           <label className="pap-editor-address">
             <span className="pap-editor-field-hint">사무실 주소</span>
-            <AddressSearchField value={address} onChange={setAddress} />
+            <AddressSearchField value={address} onChange={setAddress} clearable />
           </label>
 
           <label>경력/소속<textarea value={careerText} onChange={(e) => setCareerText(e.target.value)} maxLength={2000} /></label>
