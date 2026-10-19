@@ -78,6 +78,6 @@ describe('mobile card editor opts in', () => {
       join(dirname(fileURLToPath(import.meta.url)), '../../features/public-advisor/pages/MyPublicProfilePage.tsx'),
       'utf8',
     )
-    expect(src).toMatch(/<AddressSearchField value=\{address\} onChange=\{setAddress\} clearable \/>/)
+    expect(src).toMatch(/<AddressSearchField value=\{address\} onChange=\{setAddress\} clearable[\s/]/)
   })
 })

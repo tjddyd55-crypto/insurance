@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useId, useState } from 'react'
 import {
   AddressSearchField,
   FormButton,
@@ -52,6 +52,7 @@ export function CustomerBusinessQuickSection({
 }: CustomerBusinessQuickSectionProps) {
   const businessInfo = customer.businessInfo
   const [modal, setModal] = useState<ModalState>({ mode: 'closed' })
+  const addressLabelId = useId()
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -199,15 +200,16 @@ export function CustomerBusinessQuickSection({
                 onChange={(e) => updateDraft({ businessNumber: e.target.value })}
               />
             </label>
-            <label className="field field--wide">
-              <span className="field__label">사업장 주소</span>
+            <div className="field field--wide">
+              <span id={addressLabelId} className="field__label">사업장 주소</span>
               <AddressSearchField
                 className="address-search-field"
+                labelId={addressLabelId}
                 value={modal.address}
                 disabled={saving}
                 onChange={updateAddress}
               />
-            </label>
+            </div>
             <label className="field field--wide">
               <span className="field__label">메모</span>
               <FormTextarea
