@@ -11,12 +11,13 @@ import { GaSettingsProvider } from './features/ga-settings/GaSettingsProvider'
 import useIsMobile from './hooks/useIsMobile'
 import { FocusDebugLogger } from './components/debug/FocusDebugLogger'
 import { isIntroductionPublicPath } from './features/web/introductionPublicRoutes'
+import { isAdvisorPublicPath } from './features/public-advisor/advisorPublicRoutes'
 
 export function AppLayout() {
   const { isAuthenticated } = useAuth()
   const location = useLocation()
   const isMobile = useIsMobile()
-  const isIntroductionRoute = isIntroductionPublicPath(location.pathname)
+  const isIntroductionRoute = isIntroductionPublicPath(location.pathname) || isAdvisorPublicPath(location.pathname)
 
   /** 고객 등록(?mode=create)은 CustomersPage ExitConfirmDialog만 사용 (네이티브·웹 이중 확인 방지) */
   const hideAppExitConfirm = isCustomerCreateMode(location.pathname, location.search ?? '')
@@ -28,12 +29,14 @@ export function AppLayout() {
     location.pathname === '/terms' ||
     location.pathname === '/privacy-policy'
   const isExternalAccountVaultRoute = location.pathname.startsWith('/share/account-credentials/')
+  const isAdvisorPublicRoute = isAdvisorPublicPath(location.pathname)
 
   const rootClass = [
     'app-root',
     isAuthenticated ? 'app-root--authenticated' : '',
     isPublicLegalRoute ? 'app-root--public-legal' : '',
     isExternalAccountVaultRoute ? 'app-root--external-account-vault' : '',
+    isAdvisorPublicRoute ? 'app-root--advisor-public' : '',
   ]
     .filter(Boolean)
     .join(' ')

@@ -13,6 +13,8 @@ import {
 import { useInsuranceBillingSummary } from '../features/insurance-billing/hooks/useInsuranceBillingSummary'
 import { formatGaBannerLabel, resolveStoreReviewTenantDisplayName, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
 import { buildAppMenuForSession } from '../features/dashboard/gaTenantMenu'
+import { useAdvisorConsultationLeadNewCount } from '../features/public-advisor/hooks/useAdvisorConsultationLeadNewCount'
+import { applyConsultationLeadMenuBadge } from '../features/public-advisor/utils/applyConsultationLeadMenuBadge'
 import { ExpiredBanner } from '../features/subscription/components/ExpiredBanner'
 import PlatformModeSwitcher from '../features/platform/components/PlatformModeSwitcher'
 import { fetchTeamMembers } from '../features/team/api/teamApi'
@@ -120,14 +122,16 @@ function AppWorkspaceLayoutMobileShell() {
    */
   const { summary: billingSummary } = useInsuranceBillingSummary()
   const hasActivePaidAccess = resolveHasActivePaidAccess(user, billingSummary)
+  const consultationLeadNewCount = useAdvisorConsultationLeadNewCount(token, user?.role)
 
   const sidebarItems = useMemo(() => {
-    return buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
+    const base = buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
       teamMenuManageVisible,
       dynamicNewsletterBoards,
       subscriptionExpired: user?.subscription?.effectiveStatus === 'EXPIRED',
       hasActivePaidAccess,
     })
+    return applyConsultationLeadMenuBadge(base, consultationLeadNewCount)
   }, [
     teamMenuManageVisible,
     dynamicNewsletterBoards,
@@ -136,6 +140,7 @@ function AppWorkspaceLayoutMobileShell() {
     user?.gaName,
     user?.subscription?.effectiveStatus,
     hasActivePaidAccess,
+    consultationLeadNewCount,
   ])
 
   useEffect(() => {

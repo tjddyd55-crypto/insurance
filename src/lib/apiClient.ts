@@ -1,6 +1,17 @@
 import { safeApiResponse } from './safeApiResponse'
 import { getPublicOrigin } from './publicOrigin'
 
+/** 서버 JSON `message`가 있으면 상태와 무관하게 그대로 둔다. 없을 때만 fallback. */
+export function resolveApiErrorMessage(
+  status: number,
+  payload: { message?: unknown } | null | undefined,
+): string {
+  const message = payload && typeof payload.message === 'string' ? payload.message.trim() : ''
+  if (message) return message
+  if (status === 429) return '요청이 많습니다. 잠시 후 다시 시도해 주세요.'
+  return '요청 처리에 실패했습니다.'
+}
+
 export class ApiError extends Error {
   status: number
   retryAfterSec?: number
@@ -191,10 +202,6 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     retryAfterMin?: number
   }
   if (!response.ok) {
-    const fallback =
-      response.status === 429
-        ? '요청이 많습니다. 잠시 후 다시 시도해 주세요.'
-        : '요청 처리에 실패했습니다.'
     const rawCode =
       typeof payload.code === 'string' && payload.code.trim() ? payload.code.trim() : ''
     const rawErr =
@@ -202,11 +209,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     const code =
       rawCode ||
       (rawErr && /^[a-z][a-z0-9_]*$/i.test(rawErr) ? rawErr : undefined)
-    const userMsg =
-      typeof payload.message === 'string' && payload.message.trim()
-        ? payload.message.trim()
-        : fallback
-    throw new ApiError(userMsg, response.status, {
+    throw new ApiError(resolveApiErrorMessage(response.status, payload), response.status, {
       retryAfterSec: payload.retryAfterSec,
       retryAfterMin: payload.retryAfterMin,
       code,

@@ -166,6 +166,17 @@ import {
 import { injectAccountVaultShareMeta } from './lib/accountVaultSharePublicMeta.js'
 import { injectCoverageSharePublicMeta } from './lib/coverageSharePublicMeta.js'
 import {
+  buildAbsolutePublicUrl,
+  defaultAdvisorOgImageUrl,
+  injectPublicAdvisorProfileMeta,
+} from './lib/publicAdvisorPublicMeta.js'
+import {
+  ADVISOR_SHARE_UNAVAILABLE_DESCRIPTION,
+  ADVISOR_SHARE_UNAVAILABLE_TITLE,
+  buildAdvisorOgCardApiPath,
+} from './public-advisor-profile/publicAdvisorOgMeta.js'
+import { getAdvisorPublicMetaBySlug } from './public-advisor-profile/publicAdvisorProfileService.js'
+import {
   getPublicCoverageShareByToken,
   toPublicViewerPayload,
 } from './coverage-simulator/coverageSimulationShareService.js'
@@ -196,6 +207,7 @@ import { registerConsentApi } from './registerConsentApi.js'
 import { registerInsurerNewsApi } from './registerInsurerNewsApi.js'
 import { registerPublicBoardWriterApi } from './registerPublicBoardWriterApi.js'
 import { registerPublicInquiryApi } from './public-inquiries/registerPublicInquiryApi.js'
+import { registerPublicAdvisorProfileApi } from './public-advisor-profile/registerPublicAdvisorProfileApi.js'
 import { registerPublicInquiryAdminApi } from './public-inquiries/registerPublicInquiryAdminApi.js'
 import { registerSignatureApi } from './registerSignatureApi.js'
 import { registerClientLogRoutes } from './routes/client-log.js'
@@ -1598,6 +1610,11 @@ registerPublicBoardWriterApi(apiRouter, {
 
 registerPublicInquiryApi(apiRouter, {
   pool,
+  handleDbError,
+})
+registerPublicAdvisorProfileApi(apiRouter, {
+  pool,
+  requireAuth,
   handleDbError,
 })
 registerPublicInquiryAdminApi(apiRouter, {
@@ -8368,6 +8385,45 @@ if (fs.existsSync(DIST_PATH)) {
       } catch (err) {
         console.warn(
           '[spa] coverage share meta inject failed:',
+          err instanceof Error ? err.message : String(err),
+        )
+      }
+    }
+
+    if (p.startsWith('/fc/')) {
+      try {
+        const slugRaw = p.slice('/fc/'.length).split('/')[0] ?? ''
+        const slug = decodeURIComponent(slugRaw).trim()
+        const htmlPath = path.join(DIST_PATH, 'index.html')
+        const raw = fs.readFileSync(htmlPath, 'utf8')
+        const meta = slug ? await getAdvisorPublicMetaBySlug(pool, slug) : { indexable: false, slug: '' }
+        const pathSuffix = `/fc/${meta.slug || slug || 'profile'}`
+        const ogCardPath =
+          meta.indexable && meta.slug
+            ? buildAdvisorOgCardApiPath(meta.slug, meta.ogImageCacheVersion)
+            : null
+        const imageUrl = ogCardPath
+          ? buildAbsolutePublicUrl(req, ogCardPath)
+          : defaultAdvisorOgImageUrl(req)
+        const title = meta.indexable ? meta.title : ADVISOR_SHARE_UNAVAILABLE_TITLE
+        const description = meta.indexable ? meta.description : ADVISOR_SHARE_UNAVAILABLE_DESCRIPTION
+        res
+          .type('html')
+          .send(
+            injectPublicAdvisorProfileMeta(raw, {
+              title,
+              description,
+              imageUrl,
+              canonicalUrl: buildAbsolutePublicUrl(req, pathSuffix),
+              indexable: Boolean(meta.indexable),
+              ogImageWidth: ogCardPath ? 1200 : undefined,
+              ogImageHeight: ogCardPath ? 630 : undefined,
+            }),
+          )
+        return
+      } catch (err) {
+        console.warn(
+          '[spa] public advisor meta inject failed:',
           err instanceof Error ? err.message : String(err),
         )
       }

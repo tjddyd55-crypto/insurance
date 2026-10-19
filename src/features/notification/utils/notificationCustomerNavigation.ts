@@ -27,6 +27,29 @@ export function parseNotificationExpandCustomerId(state: unknown): number | null
   return parseSelectedCustomerId(String(entry.expandCustomerId ?? ''))
 }
 
+export function openNotificationNavigate(params: {
+  notification: NotificationRow
+  navigate: NavigateFunction
+  isMobile?: boolean
+}): boolean {
+  if (params.notification.type === 'advisor_consultation_lead') {
+    const leadId = String(params.notification.referenceId ?? '').trim()
+    if (!leadId) {
+      return false
+    }
+    params.navigate(`/consultation-leads?lead=${encodeURIComponent(leadId)}`)
+    return true
+  }
+  return openNotificationCustomerNavigate(params)
+}
+
+export function canNavigateFromNotification(row: NotificationRow): boolean {
+  if (row.type === 'advisor_consultation_lead') {
+    return Boolean(String(row.referenceId ?? '').trim())
+  }
+  return row.customerId != null && row.customerId > 0
+}
+
 export function openNotificationCustomerNavigate(params: {
   notification: NotificationRow
   navigate: NavigateFunction
