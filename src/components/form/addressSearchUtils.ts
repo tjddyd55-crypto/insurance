@@ -14,6 +14,26 @@ export interface AddressSearchValue {
   regionCaptured?: boolean
 }
 
+/** 주소 지우기: 검색·직접 입력·지역 칸을 모두 비운 값. 저장 시 빈 문자열로 내려간다. */
+export function emptyAddressSearchValue(): AddressSearchValue {
+  return {
+    zonecode: '',
+    baseAddress: '',
+    detailAddress: '',
+    sido: '',
+    sigungu: '',
+    eupmyeondong: '',
+    regionCaptured: false,
+  }
+}
+
+/** 비울 값이 하나라도 있는지 (주소 지우기 버튼 활성 여부). */
+export function hasAddressSearchValue(value: AddressSearchValue | null | undefined): boolean {
+  if (!value) return false
+  return [value.zonecode, value.baseAddress, value.detailAddress, value.sido, value.sigungu]
+    .some((part) => String(part ?? '').trim() !== '')
+}
+
 function isEupMyeonDongToken(token: string): boolean {
   if (!token || /\s/.test(token)) {
     return false

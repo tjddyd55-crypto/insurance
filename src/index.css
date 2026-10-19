@@ -4732,6 +4732,17 @@ button.filter-button:focus-visible{
   width: 100%;
 }
 
+.customer-address-field__search-row--with-clear{
+  gap: 8px;
+  align-items: stretch;
+}
+
+.customer-address-field__search-row--with-clear > .customer-address-field__clear{
+  flex: 0 0 auto;
+  width: auto;
+  white-space: nowrap;
+}
+
 .address-search-field__base,
 .address-search-field__detail,
 .address-search-field__zonecode{
