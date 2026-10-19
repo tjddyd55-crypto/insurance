@@ -12,6 +12,8 @@ export type PublicAdvisorCard = {
   hashtags: string[]
   profilePhotoUrl: string | null
   officeLine: string
+  /** 사용자가 저장한 소속 문구. GA/팀 자동 합성값이 아니다. */
+  affiliationLine?: string
   verificationBadges?: VerificationBadge[]
 }
 

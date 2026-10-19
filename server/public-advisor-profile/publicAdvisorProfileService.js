@@ -16,6 +16,7 @@ import {
 } from './publicAdvisorOgMeta.js'
 import { loadCustomContacts, loadVisibleCustomContacts, syncCustomContacts } from './advisorPublicProfileContacts.js'
 import { resolveAdvisorPublicPhone } from './resolveAdvisorPublicPhone.js'
+import { buildOfficeDisplayLine, resolvePublicAffiliationLine } from './publicAdvisorDisplayFields.js'
 
 const GALLERY_MAX = 6
 const HASHTAG_MAX = 5
@@ -165,13 +166,6 @@ export function resolvePublicFacingVerificationBadges(badges) {
   return [{ id: oneFc.id, label: label.startsWith('✓') ? label : `✓ ${label}` }]
 }
 
-function buildOfficeLine(profile) {
-  const road = String(profile?.office_road_address ?? '').trim()
-  const detail = String(profile?.office_address_detail ?? '').trim()
-  if (!road && !detail) return ''
-  return [road, detail].filter(Boolean).join(' ')
-}
-
 async function loadGallery(pool, userId) {
   const r = await systemQuery(
     pool,
@@ -239,7 +233,11 @@ export async function getPublishedAdvisorBySlug(pool, slug) {
       hashtags: row.hashtags ?? [],
       titleLabel: row.title_label == null ? null : String(row.title_label),
       careerText: row.career_text,
-      officeLine: buildOfficeLine(row),
+      officeLine: buildOfficeDisplayLine(row),
+      affiliationLine: resolvePublicAffiliationLine({
+        heroDisplaySubtitle: row.hero_display_subtitle,
+        heroDisplaySubtitleVisible: row.hero_display_subtitle_visible !== false,
+      }),
       officeRoadAddress: row.office_road_address,
       officeAddressDetail: row.office_address_detail,
       officePostalCode: row.office_postal_code,
@@ -387,7 +385,7 @@ export async function searchPublishedAdvisors(pool, { q, limit = 24, offset = 0 
       headline: row.headline,
       hashtags: row.hashtags ?? [],
       profilePhotoObjectKey: row.profile_photo_object_key,
-      officeLine: buildOfficeLine(row),
+      officeLine: buildOfficeDisplayLine(row),
       verificationBadges,
     })
   }

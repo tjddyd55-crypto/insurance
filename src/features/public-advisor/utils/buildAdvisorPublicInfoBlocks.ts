@@ -34,6 +34,8 @@ function contactFact(
 }
 
 export function buildAdvisorPublicInfoBlocks(input: {
+  /** 사용자가 모바일 명함에 입력한 소속. GA/팀 이름을 여기서 합치지 않는다. */
+  affiliationText?: string | null
   gaName?: string | null
   teamName?: string | null
   careerText?: string | null
@@ -52,7 +54,7 @@ export function buildAdvisorPublicInfoBlocks(input: {
   }>
 }): AdvisorPublicInfoBlock[] {
   const blocks: AdvisorPublicInfoBlock[] = []
-  const affiliation = [input.gaName, input.teamName].filter(Boolean).join(' ')
+  const affiliation = String(input.affiliationText ?? '').trim()
   if (affiliation) blocks.push({ label: '소속', value: affiliation })
   const careerLines = parseCareerDisplayLines(
     String(input.careerText ?? ''),
