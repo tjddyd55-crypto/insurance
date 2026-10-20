@@ -243,6 +243,30 @@ describe('Google Tasks 읽기 전용 (같은 USER 연결, tasks.readonly)', () =
     assert.equal(statusB.body.data.accountEmail, 'bob@example.com')
   })
 
+  it('t388 재현: Google 에서 나중에 만든 목록(이름 무관)·예정일 없는 할 일은 캐시 중이면 안 보이고 refresh(캐시 비움) 후 보인다', async () => {
+    await connect('user-a', 'gA')
+    const first = await loadGoogleTasksForUser(pool, { userId: 'user-a', ...RANGE })
+    assert.equal(first.tasks.some((task) => task.title === '새 목록 날짜 없음'), false)
+    ALICE_TASK_LISTS.push({ meta: { id: 'LNEW', title: '임의 이름 목록' }, tasks: [
+      { id: 'n1', title: '새 목록 날짜 없음', status: 'needsAction' },
+      { id: 'n2', title: '새 목록 완료', due: '2026-10-04T00:00:00.000Z', status: 'completed', completed: '2026-10-04T01:00:00.000Z' },
+      { id: 'n3', title: '새 목록 지난 미완료', due: '2026-09-01T00:00:00.000Z', status: 'needsAction' },
+    ] })
+    try {
+      const cached = await loadGoogleTasksForUser(pool, { userId: 'user-a', ...RANGE })
+      assert.equal(cached.tasks.some((task) => task.taskListId === 'LNEW'), false, '60초 캐시 안에서는 이전 결과')
+      clearGoogleUserCache('user-a')
+      const fresh = await loadGoogleTasksForUser(pool, { userId: 'user-a', ...RANGE })
+      assert.ok(fresh.taskLists.some((list) => list.id === 'LNEW' && list.name === '임의 이름 목록'))
+      const byTitle = Object.fromEntries(fresh.tasks.filter((task) => task.taskListId === 'LNEW').map((task) => [task.title, task]))
+      assert.equal(byTitle['새 목록 날짜 없음'].dueDate, null)
+      assert.equal(byTitle['새 목록 완료'].status, 'completed')
+      assert.equal(byTitle['새 목록 지난 미완료'].status, 'open')
+    } finally {
+      ALICE_TASK_LISTS.pop()
+    }
+  })
+
   it('cache 키는 사용자·목록·기간/상태를 포함하고 사용자끼리 섞이지 않는다', async () => {
     await connect('user-a', 'gA')
     await connect('user-b', 'gB')
