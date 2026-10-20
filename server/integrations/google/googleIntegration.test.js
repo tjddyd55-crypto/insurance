@@ -203,6 +203,62 @@ describe('Google Calendar 연동 (USER 소유, 읽기 전용)', () => {
     assert.equal(hashOAuthToken('x').length > 20, true)
   })
 
+  describe('t396 네이티브 앱(client=native): 시스템 브라우저 동의 후 허용된 앱 scheme 으로 복귀', () => {
+    const callbackPath = (state, code) => `/backend/service-integrations/google/callback?state=${encodeURIComponent(state)}&code=${code}`
+    async function nativeStart(user, body = { client: 'native', returnScheme: 'onefc' }) {
+      const started = await api(user, 'POST', '/backend/api/service-integrations/google_calendar/connect', { body })
+      return { started, state: started.body?.data?.url ? new URL(started.body.data.url).searchParams.get('state') : '' }
+    }
+
+    it('start: open_external·returnUrl, 쿠키 없음, DB 에는 해시와 native 표식(scheme)만', async () => {
+      const { started, state } = await nativeStart('user-a')
+      assert.equal(started.status, 200)
+      assert.equal(started.body.data.action, 'open_external')
+      assert.equal(started.body.data.client, 'native')
+      assert.equal(started.body.data.returnUrl, 'onefc://google-connect')
+      assert.equal(started.headers.get('set-cookie'), null)
+      const rows = [...pool.states.values()]
+      assert.equal(rows.length, 1)
+      assert.equal(rows[0].state_hash, hashOAuthToken(state))
+      assert.equal(rows[0].binding_hash, 'client:native:onefc')
+      assert.equal(rows[0].user_id, 'user-a')
+    })
+
+    it('허용 목록 밖 scheme(임의 앱·https)은 native 로 취급하지 않고 웹 흐름(쿠키 필요)', async () => {
+      for (const returnScheme of ['evil', 'https', 'onefc://x']) {
+        const { started } = await nativeStart('user-a', { client: 'native', returnScheme })
+        assert.equal(started.body.data.action, 'redirect')
+        assert.equal(started.body.data.returnUrl, undefined)
+        assert.match(started.headers.get('set-cookie') ?? '', /onefc_google_oauth_bind=/)
+      }
+    })
+
+    it('callback: 쿠키 없이 바인딩된 사용자에게만 저장 후 onefc://google-connect 로 302 (토큰·이메일 없음)', async () => {
+      const { state } = await nativeStart('user-a')
+      const cb = await api(null, 'GET', callbackPath(state, google.issueCode('gA')))
+      assert.equal(cb.status, 302)
+      const location = cb.headers.get('location')
+      assert.match(location, /^onefc:\/\/google-connect\?google=connected/)
+      assert.doesNotMatch(location, /access|refresh|token|@|user-a/)
+      assert.equal(pool.integrations.get('user-a|google')?.owner_scope, 'USER')
+      assert.equal(pool.integrations.size, 1)
+      assert.equal(pool.states.size, 0)
+    })
+
+    it('Google 동의 거절은 앱으로 error 복귀, 저장 없음. dev scheme 도 허용', async () => {
+      const { state } = await nativeStart('user-b', { client: 'native', returnScheme: 'onefc-dev' })
+      const cb = await api(null, 'GET', `/backend/service-integrations/google/callback?state=${encodeURIComponent(state)}&error=access_denied`)
+      assert.equal(cb.status, 302)
+      assert.equal(cb.headers.get('location'), 'onefc-dev://google-connect?google=error&reason=access_denied')
+      assert.equal(pool.integrations.size, 0)
+    })
+
+    it('비로그인 start 는 401', async () => {
+      const { started } = await nativeStart(null)
+      assert.equal(started.status, 401)
+    })
+  })
+
   describe('데스크톱 앱(client=desktop): 시스템 브라우저 동의, 쿠키 없이 서버 바인딩 state', () => {
     async function desktopStart(user) {
       const started = await api(user, 'POST', '/backend/api/service-integrations/google_calendar/connect', { body: { client: 'desktop' } })

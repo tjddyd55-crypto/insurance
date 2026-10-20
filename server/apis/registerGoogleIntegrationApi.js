@@ -166,7 +166,29 @@ function parseCalendarIds(raw) {
  */
 export function requestedOAuthClient(req) {
   const body = req.body && typeof req.body === 'object' ? req.body : {}
-  return body.client === 'desktop' ? 'desktop' : 'web'
+  if (body.client === 'desktop') return 'desktop'
+  if (body.client === 'native' && requestedNativeScheme(req)) return 'native'
+  return 'web'
+}
+
+/** t396: 네이티브 앱 복귀 scheme 허용 목록(env, 쉼표 구분). 비어 있으면 기본 onefc,onefc-dev. 목록 밖이면 '' */
+export const GOOGLE_OAUTH_NATIVE_SCHEMES_ENV = 'GOOGLE_OAUTH_NATIVE_RETURN_SCHEMES'
+export function allowedNativeSchemes(env = process.env) {
+  const list = String(env[GOOGLE_OAUTH_NATIVE_SCHEMES_ENV] ?? '').split(',').map((v) => v.trim().toLowerCase()).filter(Boolean)
+  return list.length ? list : ['onefc', 'onefc-dev']
+}
+/** @param {import('express').Request} req */
+export function requestedNativeScheme(req, env = process.env) {
+  const body = req.body && typeof req.body === 'object' ? req.body : {}
+  const scheme = String(body.returnScheme ?? '').trim().toLowerCase()
+  return scheme && allowedNativeSchemes(env).includes(scheme) ? scheme : ''
+}
+
+/** 네이티브 복귀 URL. 결과 코드만 담는다(토큰·이메일 없음). */
+export function nativeReturnUrl(scheme, result, reason) {
+  const params = new URLSearchParams({ google: result })
+  if (reason) params.set('reason', reason)
+  return `${scheme}://google-connect?${params.toString()}`
 }
 
 /** @param {string} username */
@@ -282,6 +304,7 @@ export async function startGoogleConnect(pool, req, res, options = {}) {
         ? (fromSettings ? GOOGLE_DRIVE_SETTINGS_STATE_KEY : GOOGLE_DRIVE_STATE_KEY)
         : GOOGLE_CALENDAR_CARD_KEY,
     client,
+    nativeScheme: client === 'native' ? requestedNativeScheme(req) : '',
   })
   if (created.binding) {
     res.setHeader('Set-Cookie', bindingCookie(req, created.binding, Math.floor(OAUTH_STATE_TTL_MS / 1000)))
@@ -290,9 +313,10 @@ export async function startGoogleConnect(pool, req, res, options = {}) {
   res.json({
     success: true,
     data: {
-      action: client === 'desktop' ? 'open_external' : 'redirect',
+      action: client === 'web' ? 'redirect' : 'open_external',
       url: buildGoogleAuthorizationUrl(config, created.state, { purpose, loginHint, extraScopes: purpose === 'connect' ? connectExtraScopes({ ...options, userId }) : [] }),
-      ...(client === 'desktop' ? { client, expiresInSeconds: Math.floor(OAUTH_STATE_TTL_MS / 1000) } : {}),
+      ...(client !== 'web' ? { client, expiresInSeconds: Math.floor(OAUTH_STATE_TTL_MS / 1000) } : {}),
+      ...(client === 'native' ? { returnUrl: `${requestedNativeScheme(req)}://google-connect` } : {}),
     },
   })
 }
@@ -525,13 +549,19 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
   apiRouter.get('/service-integrations/google/callback', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
     res.setHeader('Set-Cookie', bindingCookie(req, '', 0))
-    /** @type {'web' | 'desktop' | ''} */
+    /** @type {'web' | 'desktop' | 'native' | ''} */
     let client = ''
+    let nativeScheme = ''
     let accountMasked = ''
     let purpose = 'connect'
     let fromSettings = false
     const back = (result, reason) => {
       // 데스크톱 state 는 앱 세션으로 보내지 않고 결과 페이지를 보여 준다. 웹·알 수 없는 state 는 기존대로 redirect.
+      if (client === 'native' && nativeScheme) {
+        // 시스템 브라우저 세션을 앱으로 닫는다. scheme 은 시작 시 서버 허용 목록에서 고른 값만(state 에 저장).
+        res.redirect(302, nativeReturnUrl(nativeScheme, purpose === 'connect' ? result : `${purpose}_${result}`, reason))
+        return
+      }
       if (client === 'desktop') {
         res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
         res.setHeader('Referrer-Policy', 'no-referrer')
@@ -553,6 +583,7 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
         providerKeys: [GOOGLE_CALENDAR_CARD_KEY, GOOGLE_WRITE_STATE_KEY, GOOGLE_DRIVE_STATE_KEY, GOOGLE_WRITE_SETTINGS_STATE_KEY, GOOGLE_DRIVE_SETTINGS_STATE_KEY],
       })
       client = consumed.client ?? ''
+      nativeScheme = consumed.nativeScheme && allowedNativeSchemes().includes(consumed.nativeScheme) ? consumed.nativeScheme : ''
       if (consumed.ok && (consumed.providerKey === GOOGLE_WRITE_STATE_KEY || consumed.providerKey === GOOGLE_WRITE_SETTINGS_STATE_KEY)) purpose = 'write'
       if (consumed.ok && (consumed.providerKey === GOOGLE_DRIVE_STATE_KEY || consumed.providerKey === GOOGLE_DRIVE_SETTINGS_STATE_KEY)) purpose = 'drive'
       if (consumed.ok && (consumed.providerKey === GOOGLE_WRITE_SETTINGS_STATE_KEY || consumed.providerKey === GOOGLE_DRIVE_SETTINGS_STATE_KEY)) fromSettings = true
@@ -560,7 +591,7 @@ export function registerGoogleIntegrationApi(apiRouter, { pool, requireAuth, han
         back('error', consumed.reason)
         return
       }
-      if (consumed.client === 'desktop') {
+      if (consumed.client === 'desktop' || consumed.client === 'native') {
         const account = await readActiveAccount(pool, consumed.userId)
         if (!account) {
           back('error', 'user_inactive')
