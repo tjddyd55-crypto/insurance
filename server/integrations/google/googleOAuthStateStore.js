@@ -8,6 +8,12 @@ export const OAUTH_BINDING_COOKIE = 'onefc_google_oauth_bind'
  * 실제 binding 해시(sha256 base64url, 43자, ':' 없음)와 절대 같을 수 없다.
  */
 export const DESKTOP_BINDING_MARKER = 'client:desktop'
+/**
+ * 모바일 네이티브 앱 state 표식(t396). 시스템 브라우저(ASWebAuthenticationSession / Custom Tabs)라 앱 쿠키가 없다.
+ * 끝난 뒤 돌아갈 앱 scheme 을 서버가 허용 목록에서 골라 표식에 함께 저장한다(요청 값 그대로 redirect 하지 않음).
+ */
+export const NATIVE_BINDING_PREFIX = 'client:native:'
+const NATIVE_SCHEME = /^[a-z][a-z0-9-]{1,30}$/
 
 /**
  * @param {string} value
@@ -36,8 +42,10 @@ export async function createOAuthState(pool, input) {
   }
   const now = input.now ?? Date.now()
   const state = randomOAuthToken()
-  const client = input.client === 'desktop' ? 'desktop' : 'web'
-  const binding = client === 'desktop' ? null : randomOAuthToken()
+  const nativeScheme = input.client === 'native' && NATIVE_SCHEME.test(String(input.nativeScheme ?? '')) ? String(input.nativeScheme) : ''
+  const client = input.client === 'desktop' ? 'desktop' : nativeScheme ? 'native' : 'web'
+  const binding = client === 'web' ? randomOAuthToken() : null
+  const marker = client === 'native' ? `${NATIVE_BINDING_PREFIX}${nativeScheme}` : DESKTOP_BINDING_MARKER
   await systemQuery(pool, `DELETE FROM service_integration_oauth_states WHERE expires_at < NOW()`)
   await systemQuery(
     pool,
@@ -45,7 +53,7 @@ export async function createOAuthState(pool, input) {
     INSERT INTO service_integration_oauth_states (state_hash, binding_hash, user_id, provider_key, expires_at)
     VALUES ($1, $2, $3, $4, $5)
     `,
-    [hashOAuthToken(state), binding ? hashOAuthToken(binding) : DESKTOP_BINDING_MARKER, userId, input.providerKey, new Date(now + OAUTH_STATE_TTL_MS)],
+    [hashOAuthToken(state), binding ? hashOAuthToken(binding) : marker, userId, input.providerKey, new Date(now + OAUTH_STATE_TTL_MS)],
   )
   return { state, binding, client, expiresAt: now + OAUTH_STATE_TTL_MS }
 }
@@ -86,14 +94,19 @@ export async function consumeOAuthState(pool, input) {
   if (!row || !allowed.includes(row.provider_key) || !String(row.user_id ?? '').trim()) {
     return { ok: false, reason: 'state_invalid' }
   }
-  const client = row.binding_hash === DESKTOP_BINDING_MARKER ? 'desktop' : 'web'
+  const bindingHash = String(row.binding_hash ?? '')
+  const nativeScheme = bindingHash.startsWith(NATIVE_BINDING_PREFIX) ? bindingHash.slice(NATIVE_BINDING_PREFIX.length) : ''
+  const client = bindingHash === DESKTOP_BINDING_MARKER ? 'desktop' : nativeScheme ? 'native' : 'web'
   const now = input.now ?? Date.now()
   if (new Date(row.expires_at).getTime() < now) {
-    return { ok: false, client, reason: 'state_expired' }
+    return { ok: false, client, ...(nativeScheme ? { nativeScheme } : {}), reason: 'state_expired' }
   }
   const providerKey = String(row.provider_key)
   if (client === 'desktop') {
     return { ok: true, userId: String(row.user_id), client, providerKey }
+  }
+  if (client === 'native') {
+    return { ok: true, userId: String(row.user_id), client, providerKey, nativeScheme }
   }
   const binding = String(input.binding ?? '').trim()
   if (!binding || !sameHash(hashOAuthToken(binding), row.binding_hash)) {
