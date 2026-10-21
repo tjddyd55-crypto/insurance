@@ -3,7 +3,7 @@ import type { ScheduleEvent, ScheduleTask } from '../api/scheduleApi'
 import { countScheduleItemsByDate, dayCountLabel } from './scheduleDayCount'
 import fixture from './__fixtures__/scheduleDayCountCases.json'
 
-describe('countScheduleItemsByDate (공통 fixture)', () => {
+describe('countScheduleItemsByDate (공통 fixture, 미완료 할 일만)', () => {
   for (const c of fixture.cases) {
     it(c.name, () => {
       const counts = countScheduleItemsByDate(c.events as unknown as ScheduleEvent[], c.tasks as unknown as ScheduleTask[])
