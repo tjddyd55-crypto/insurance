@@ -85,6 +85,7 @@ export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?
           today={props.today}
           events={props.events}
           tasks={props.tasks}
+          dayCounts={props.dayCounts}
           selectedDate={props.selectedDate}
           onSelectDate={props.onSelectDate}
           onOpenDay={props.onOpenDay}

@@ -17,6 +17,7 @@ import {
   type ScheduleTask,
 } from '../api/scheduleApi'
 import { filterScheduleTasks } from '../domain/scheduleTasks'
+import { countScheduleItemsByDate } from '../domain/scheduleDayCount'
 import {
   scheduleViewFromParam,
   seoulToday,
@@ -37,6 +38,8 @@ export type ScheduleViewProps = {
   events: ScheduleEvent[]
   /** 출처 필터·완료 포함이 반영된 할 일(Google Tasks · ONE FC 할 일) */
   tasks: ScheduleTask[]
+  /** 달력 숫자 배지: 화면 필터와 무관한 날짜별 항목 수(countScheduleItemsByDate). */
+  dayCounts?: Map<string, number>
   includeCompleted: boolean
   /** PC 목록 보기: 다른 달의 지난(미완료) 할 일 전체도 보기. 기본은 조회 월만. */
   includeOverdue: boolean
@@ -286,6 +289,7 @@ export function useScheduleState(): ScheduleViewProps {
     () => events.filter((event) => sources.includes(scheduleFilterKeyOf(event))),
     [events, sources],
   )
+  const dayCounts = useMemo(() => countScheduleItemsByDate(events, tasks), [events, tasks])
   const visibleTasks = useMemo(
     () => filterScheduleTasks(tasks, sources, includeCompleted),
     [includeCompleted, sources, tasks],
@@ -362,6 +366,7 @@ export function useScheduleState(): ScheduleViewProps {
     calendarIds,
     events: visibleEvents,
     tasks: visibleTasks,
+    dayCounts,
     includeCompleted,
     includeOverdue,
     onToggleOverdue: () => replaceQuery({ overdue: includeOverdue ? '' : '1' }),
