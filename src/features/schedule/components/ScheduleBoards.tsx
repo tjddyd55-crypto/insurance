@@ -18,6 +18,7 @@ import {
   eventStartDay,
   sortScheduleEvents,
 } from '../domain/scheduleEventTime'
+import { countScheduleItemsByDate, dayCountLabel } from '../domain/scheduleDayCount'
 
 const WEEKDAY_SUN_FIRST = ['일', '월', '화', '수', '목', '금', '토']
 const HOURS = Array.from({ length: 24 }, (_, index) => index)
@@ -69,7 +70,7 @@ function TaskChip({ task, base, today, onOpenTask, sourceTag = false }: { task: 
   )
 }
 
-type MonthProps = Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'selectedDate' | 'onSelectDate' | 'onOpenDay' | 'onOpenEvent' | 'onOpenTask'> & {
+type MonthProps = Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'dayCounts' | 'selectedDate' | 'onSelectDate' | 'onOpenDay' | 'onOpenEvent' | 'onOpenTask'> & {
   /** PC 전용: 일/공휴일 빨강·토 파랑. 없으면(모바일) 기존 표시 그대로. */
   holidayMode?: ScheduleHolidayMode
   /** PC 전용: 칸 빈 곳 클릭으로 날짜 선택, 할 일 출처 표시. 없으면(모바일) 기존 그대로. */
@@ -78,8 +79,9 @@ type MonthProps = Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks
 
 const WEEKDAY_TONE = ['sun', '', '', '', '', '', 'sat']
 
-export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSelectDate, onOpenDay, onOpenEvent, onOpenTask, holidayMode, pcCell = false }: MonthProps) {
+export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSelectDate, onOpenDay, onOpenEvent, onOpenTask, holidayMode, pcCell = false, dayCounts }: MonthProps) {
   const sorted = sortScheduleEvents(events)
+  const counts = dayCounts ?? countScheduleItemsByDate(events, tasks)
   // 예정일 없는 할 일은 월간 칸에 올리지 않는다(목록 화면 "날짜 없음"에서 보인다).
   const datedTasks = sortScheduleTasks(tasks.filter((task) => task.dueDate))
   const selectedEvents = selectedDate ? sorted.filter((event) => eventCoversDate(event, selectedDate)) : []
@@ -111,6 +113,8 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
           const tone = holidayMode ? scheduleDayTone(cell.date, holidayMode) : ''
           const holidayName = holidayMode ? koreanHolidayName(cell.date, holidayMode) : ''
           if (tone) classes.push(`schedule-page__cell--${tone}`)
+          const dayCount = counts.get(cell.date) ?? 0
+          const countLabel = dayCountLabel(dayCount)
           return (
             <div
               key={cell.date}
@@ -125,11 +129,12 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
               <button
                 type="button"
                 className="schedule-page__date"
-                aria-label={`${formatDateWithKoreanWeekday(cell.date)}${holidayName ? ` ${holidayName}` : ''} 일정 ${dayEvents.length}건${dayTasks.length > 0 ? `, 할 일 ${dayTasks.length}건` : ''}`}
+                aria-label={`${formatDateWithKoreanWeekday(cell.date)}${holidayName ? ` ${holidayName}` : ''} 일정 ${dayEvents.length}건${dayTasks.length > 0 ? `, 할 일 ${dayTasks.length}건` : ''}${dayCount > 0 ? `, 전체 ${dayCount}건` : ''}`}
                 aria-pressed={cell.date === selectedDate}
                 onClick={() => onSelectDate(cell.date)}
               >
-                {Number(cell.date.slice(8))}
+                <span className="schedule-page__date-num">{Number(cell.date.slice(8))}</span>
+                {countLabel ? <span className="schedule-page__count" aria-hidden="true" data-testid={`schedule-count-${cell.date}`}>{countLabel}</span> : null}
               </button>
               {holidayName ? <span className="schedule-page__holiday-name">{holidayName}</span> : null}
               {visible.map((event) => (

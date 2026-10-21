@@ -1,0 +1,288 @@
+{
+  "description": "달력 숫자 배지 공통 케이스. 웹(insurance)·앱/위젯(insurance-mobile)에 같은 파일을 둔다. 항목은 /api/schedule/events 응답 모양(KST).",
+  "cases": [
+    {
+      "name": "google2_todo1",
+      "events": [
+        {
+          "id": "g1",
+          "source": "google",
+          "allDay": false,
+          "startAt": "2026-10-21T01:00:00Z",
+          "endAt": "2026-10-21T02:00:00Z",
+          "title": "item g1"
+        },
+        {
+          "id": "g2",
+          "source": "google",
+          "allDay": true,
+          "startAt": "2026-10-21",
+          "endAt": "2026-10-22",
+          "title": "item g2"
+        }
+      ],
+      "tasks": [
+        {
+          "id": "t1",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-21",
+          "status": "open",
+          "title": "item t1"
+        }
+      ],
+      "expect": {
+        "2026-10-21": 3
+      },
+      "label": {
+        "2026-10-21": "3"
+      }
+    },
+    {
+      "name": "undated_excluded",
+      "events": [],
+      "tasks": [
+        {
+          "id": "t2",
+          "source": "onefc_todo",
+          "dueDate": null,
+          "status": "open",
+          "title": "item t2"
+        },
+        {
+          "id": "t3",
+          "source": "google_task",
+          "dueDate": null,
+          "status": "open",
+          "title": "item t3"
+        }
+      ],
+      "expect": {},
+      "label": {
+        "2026-10-21": ""
+      }
+    },
+    {
+      "name": "completed_included",
+      "events": [],
+      "tasks": [
+        {
+          "id": "t4",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-21",
+          "status": "completed",
+          "title": "item t4"
+        },
+        {
+          "id": "t5",
+          "source": "google_task",
+          "dueDate": "2026-10-21",
+          "status": "open",
+          "title": "item t5"
+        }
+      ],
+      "expect": {
+        "2026-10-21": 2
+      },
+      "label": {
+        "2026-10-21": "2"
+      }
+    },
+    {
+      "name": "multi_day_all_day_each_day",
+      "events": [
+        {
+          "id": "m1",
+          "source": "google",
+          "allDay": true,
+          "startAt": "2026-10-20",
+          "endAt": "2026-10-23",
+          "title": "item m1"
+        }
+      ],
+      "tasks": [],
+      "expect": {
+        "2026-10-20": 1,
+        "2026-10-21": 1,
+        "2026-10-22": 1
+      },
+      "label": {
+        "2026-10-23": ""
+      }
+    },
+    {
+      "name": "kst_bucketing_and_midnight_end",
+      "events": [
+        {
+          "id": "k1",
+          "source": "google",
+          "allDay": false,
+          "startAt": "2026-10-20T16:00:00Z",
+          "endAt": "2026-10-20T17:00:00Z",
+          "title": "item k1"
+        },
+        {
+          "id": "k2",
+          "source": "google",
+          "allDay": false,
+          "startAt": "2026-10-21T13:00:00Z",
+          "endAt": "2026-10-21T15:00:00Z",
+          "title": "item k2"
+        }
+      ],
+      "tasks": [],
+      "expect": {
+        "2026-10-21": 2
+      },
+      "label": {
+        "2026-10-22": ""
+      }
+    },
+    {
+      "name": "nine_and_ten",
+      "events": [],
+      "tasks": [
+        {
+          "id": "a1",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-09",
+          "status": "open",
+          "title": "item a1"
+        },
+        {
+          "id": "a2",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-09",
+          "status": "open",
+          "title": "item a2"
+        },
+        {
+          "id": "a3",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-09",
+          "status": "open",
+          "title": "item a3"
+        },
+        {
+          "id": "a4",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-09",
+          "status": "open",
+          "title": "item a4"
+        },
+        {
+          "id": "a5",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-09",
+          "status": "open",
+          "title": "item a5"
+        },
+        {
+          "id": "a6",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-09",
+          "status": "open",
+          "title": "item a6"
+        },
+        {
+          "id": "a7",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-09",
+          "status": "open",
+          "title": "item a7"
+        },
+        {
+          "id": "a8",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-09",
+          "status": "open",
+          "title": "item a8"
+        },
+        {
+          "id": "a9",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-09",
+          "status": "open",
+          "title": "item a9"
+        },
+        {
+          "id": "b1",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-10",
+          "status": "open",
+          "title": "item b1"
+        },
+        {
+          "id": "b2",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-10",
+          "status": "open",
+          "title": "item b2"
+        },
+        {
+          "id": "b3",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-10",
+          "status": "open",
+          "title": "item b3"
+        },
+        {
+          "id": "b4",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-10",
+          "status": "open",
+          "title": "item b4"
+        },
+        {
+          "id": "b5",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-10",
+          "status": "open",
+          "title": "item b5"
+        },
+        {
+          "id": "b6",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-10",
+          "status": "open",
+          "title": "item b6"
+        },
+        {
+          "id": "b7",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-10",
+          "status": "open",
+          "title": "item b7"
+        },
+        {
+          "id": "b8",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-10",
+          "status": "open",
+          "title": "item b8"
+        },
+        {
+          "id": "b9",
+          "source": "onefc_todo",
+          "dueDate": "2026-10-10",
+          "status": "open",
+          "title": "item b9"
+        },
+        {
+          "id": "b10",
+          "source": "google_task",
+          "dueDate": "2026-10-10",
+          "status": "completed",
+          "title": "item b10"
+        }
+      ],
+      "expect": {
+        "2026-10-09": 9,
+        "2026-10-10": 10
+      },
+      "label": {
+        "2026-10-09": "9",
+        "2026-10-10": "9+"
+      }
+    }
+  ]
+}

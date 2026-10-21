@@ -179,6 +179,38 @@
   font-size: 0.75rem;
 }
 
+/* 달력 날짜 숫자 배지(항목 수). 고정 높이라 숫자 유무로 칸이 흔들리지 않는다. */
+.schedule-page__month .schedule-page__date {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  min-height: 20px;
+}
+.schedule-page__count {
+  flex: 0 0 auto;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: var(--bg-card, #fff);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+.schedule-page__cell--selected .schedule-page__count {
+  box-shadow: 0 0 0 1px var(--bg-card, #fff);
+}
+.schedule-page--mobile .schedule-page__count {
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  font-size: 0.625rem;
+  line-height: 14px;
+}
+
 /* 출처별 표시: 토큰 조합만 사용 */
 .schedule-page__chip--google,
 .schedule-page__block--google,
