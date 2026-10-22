@@ -127,6 +127,7 @@ export function useTodosWorkspaceState() {
     if (viewMode === 'calendar') void loadCalendar()
   }, [loadCalendar, viewMode])
 
+  /** dueDate 는 할 일 달력에서 누른 날. 없으면 작성 창이 오늘(KST)로 채운다. */
   const openCreateBlank = (dueDate?: string) => {
     setEditingTodo(null)
     setEditorPrefill({

@@ -11,7 +11,6 @@ import { completeTodo, createTodo, deleteTodo, patchTodo, reopenTodo } from '../
 import { formatSeoulYmd } from '../utils/formatSeoulYmd'
 import { suggestDueDateFromText } from '../utils/suggestDueDateFromText'
 import { initialCreateDueDate } from '../utils/defaultTodoDueDate'
-import useIsMobile from '../../../hooks/useIsMobile'
 import { firstLineTodoTitle } from '../utils/todoCopy'
 import { isTodoEditorFormChanged, type TodoEditorForm } from '../utils/todoEditorDirty'
 
@@ -85,10 +84,7 @@ export function TodoEditorDialog({
   const editInitialFormRef = useRef<TodoEditorForm | null>(null)
 
   const nestedConfirmBlockingRef = useRef(false)
-  /** PC: 새 할 일 마감일 기본값 오늘(KST). 모바일 웹은 기존 그대로(빈 값). */
-  const isMobile = useIsMobile()
-  const todayDefault = !isMobile
-  /** 자동으로 채운 마감일. 사용자가 손대지 않았으면 본문 제안이 덮어쓸 수 있다. */
+  /** 자동으로 채운 날짜. 사용자가 손대지 않았으면 '날짜 제안'이 덮어쓸 수 있다. */
   const autoDueRef = useRef('')
 
   const lockRelated = mode === 'create' ? Boolean(prefill?.lockRelated) : false
@@ -103,6 +99,7 @@ export function TodoEditorDialog({
       relatedEntityId: row.relatedEntityId ?? '',
     }
     editInitialFormRef.current = initialForm
+    autoDueRef.current = ''
     setDescription(initialForm.description)
     setDueDate(initialForm.dueDate)
     setRelatedEntityType(initialForm.relatedEntityType)
@@ -114,10 +111,8 @@ export function TodoEditorDialog({
 
   const resetFromPrefill = useCallback((pf: TodoCreatePrefill) => {
     const content = resolveEditorContent(pf.description, pf.title)
-    const explicit = pf.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(pf.dueDate) ? pf.dueDate : null
-    const suggested = explicit ?? suggestDueDateFromText(content)
-    const initialDue = initialCreateDueDate({ explicit, suggested, todayDefault })
-    autoDueRef.current = suggested ? '' : initialDue
+    const initialDue = initialCreateDueDate({ explicit: pf.dueDate })
+    autoDueRef.current = initialDue
     setDescription(content)
     setDueDate(initialDue)
     if (pf.lockRelated && pf.relatedEntityType === 'customer' && pf.relatedEntityId) {
@@ -130,7 +125,7 @@ export function TodoEditorDialog({
     setSearchQ('')
     setSearchHits([])
     setFormError('')
-  }, [todayDefault])
+  }, [])
 
   useEffect(() => {
     if (!open) {
@@ -142,7 +137,7 @@ export function TodoEditorDialog({
     } else if (prefill) {
       resetFromPrefill(prefill)
     } else {
-      const initialDue = initialCreateDueDate({ todayDefault })
+      const initialDue = initialCreateDueDate()
       autoDueRef.current = initialDue
       setDescription('')
       setDueDate(initialDue)
@@ -354,12 +349,15 @@ export function TodoEditorDialog({
                 disabled={busy}
                 onClick={suggestFromDescription}
               >
-                본문에서 오늘/내일/모레 키워드로 마감일 제안
+                본문에서 오늘/내일/모레 키워드로 날짜 제안
               </button>
             </label>
-            <label className="todo-editor-dialog__field">
-              <span className="todo-editor-dialog__label">마감일</span>
+            <div className="todo-editor-dialog__field">
+              <span className="todo-editor-dialog__label">날짜</span>
               <AppDateInput
+                entry="picker"
+                aria-label="날짜"
+                placeholder="날짜 선택"
                 value={dueDate}
                 onChange={(value) => {
                   touchedRef.current = true
@@ -368,7 +366,22 @@ export function TodoEditorDialog({
                 }}
                 disabled={busy}
               />
-            </label>
+              {dueDate.trim() ? (
+                <FormButton
+                  htmlType="button"
+                  variant="action"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => {
+                    touchedRef.current = true
+                    autoDueRef.current = ''
+                    setDueDate('')
+                  }}
+                >
+                  날짜 지우기
+                </FormButton>
+              ) : null}
+            </div>
             {mode === 'create' && lockRelated ? (
               <div className="todo-editor-dialog__locked rounded-lg border border-[var(--border-default)] bg-[var(--bg-soft)] p-3 text-sm">
                 <div className="todo-editor-dialog__label mb-1">연결 대상</div>

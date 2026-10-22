@@ -1,6 +1,8 @@
 import { TodoEditorDialog } from '../../todos/components/TodoEditorDialog'
 import { useCallback, useRef, useState, type ReactNode } from 'react'
+import AppDateInput from '../../../components/common/AppDateInput'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
+import { defaultNewItemDate } from '../../../utils/dateInput'
 import { FormDialog, useConfirmDialog } from '../../../components/dialog'
 import { Button } from '../../../components/ui'
 import { ApiError } from '../../../lib/apiClient'
@@ -99,7 +101,7 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
     return next
   }, [props.token])
 
-  const baseDate = props.selectedDate || props.today
+  const baseDate = defaultNewItemDate(props.selectedDate)
 
   const reset = () => {
     setError('')
@@ -357,11 +359,11 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
               {eventForm.allDay ? '종일 일정' : '시간 지정'}
             </Button>
           </div>
-          <label className="schedule-page__field"><span>시작일</span><FormInput type="date" value={eventForm.date} onChange={(e) => setEventForm({ ...eventForm, date: e.target.value, endDate: eventForm.endDate < e.target.value ? e.target.value : eventForm.endDate })} /></label>
+          <label className="schedule-page__field"><span>시작일</span><AppDateInput entry="picker" aria-label="시작일" value={eventForm.date} onChange={(value) => setEventForm({ ...eventForm, date: value, endDate: eventForm.endDate < value ? value : eventForm.endDate })} /></label>
           {!eventForm.allDay ? (
             <label className="schedule-page__field"><span>시작 시간</span><FormInput type="time" value={eventForm.startTime} onChange={(e) => setEventForm({ ...eventForm, startTime: e.target.value })} /></label>
           ) : null}
-          <label className="schedule-page__field"><span>종료일</span><FormInput type="date" value={eventForm.endDate} min={eventForm.date} onChange={(e) => setEventForm({ ...eventForm, endDate: e.target.value })} /></label>
+          <label className="schedule-page__field"><span>종료일</span><AppDateInput entry="picker" aria-label="종료일" value={eventForm.endDate} min={eventForm.date} onChange={(value) => setEventForm({ ...eventForm, endDate: value })} /></label>
           {!eventForm.allDay ? (
             <label className="schedule-page__field"><span>종료 시간</span><FormInput type="time" value={eventForm.endTime} onChange={(e) => setEventForm({ ...eventForm, endTime: e.target.value })} /></label>
           ) : null}
@@ -388,7 +390,13 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
             <span>목록</span>
             <FormSelect value={taskForm.taskListId} disabled={taskForm.mode === 'edit'} options={taskListOptions.length ? taskListOptions : [{ value: '', label: '할 일 목록 없음' }]} onChange={(e) => setTaskForm({ ...taskForm, taskListId: e.target.value })} />
           </label>
-          <label className="schedule-page__field"><span>마감일</span><FormInput type="date" value={taskForm.dueDate} onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })} /></label>
+          <div className="schedule-page__field">
+            <span>날짜</span>
+            <AppDateInput entry="picker" aria-label="날짜" placeholder="날짜 선택" value={taskForm.dueDate} onChange={(value) => setTaskForm({ ...taskForm, dueDate: value })} />
+            {taskForm.dueDate ? (
+              <FormButton htmlType="button" variant="action" size="sm" onClick={() => setTaskForm({ ...taskForm, dueDate: '' })}>날짜 지우기</FormButton>
+            ) : null}
+          </div>
           <p className="schedule-page__dialog-sub">Google 할 일은 날짜만 저장됩니다(시간 없음).</p>
           <label className="schedule-page__field"><span>메모</span><FormTextarea rows={3} value={taskForm.notes} onChange={(e) => setTaskForm({ ...taskForm, notes: e.target.value })} /></label>
           {error ? <p className="schedule-page__error" role="alert">{error}</p> : null}

@@ -47,6 +47,20 @@ export function ymdToDate(value: string): Date | null {
   return new Date(year, month - 1, day)
 }
 
+const CALENDAR_YMD = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * 새 일정·할 일의 기본 날짜.
+ * 달력에서 고른 날(YYYY-MM-DD)이 있으면 그 문자열을 그대로 쓰고,
+ * 없으면 오늘(Asia/Seoul). Date 로 바꿔 하루를 밀지 않는다.
+ * 수정 화면의 저장값에는 쓰지 않는다.
+ */
+export function defaultNewItemDate(selectedDate?: string | null, now = new Date()): string {
+  const selected = String(selectedDate ?? '').trim()
+  if (CALENDAR_YMD.test(selected)) return selected
+  return todayInSeoul(now)
+}
+
 /** Asia/Seoul 기준 오늘 YYYY-MM-DD */
 export function todayInSeoul(now = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-CA', {

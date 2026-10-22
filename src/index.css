@@ -692,6 +692,16 @@ body:has(.app-root--external-account-vault){
   pointer-events: none;
 }
 
+.app-date-input--picker .app-date-input__text{
+  cursor: pointer;
+  caret-color: transparent;
+}
+
+.app-date-input--picker .field--readonly{
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+}
+
 input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='submit']):not(
     [type='button']
   ):not([type='reset']):not([type='image']):not([type='color']),
@@ -5419,13 +5429,6 @@ div.cta-button.customers-page__action-btn[role='button']{
   width: 3.25rem;
   max-width: 3.75rem;
   text-align: center;
-}
-
-.todos-page--pc .todos-page--pc__table .todos-page--pc__th-created,
-.todos-page--pc .todos-page--pc__table .todos-page--pc__td-created{
-  width: 8.5rem;
-  min-width: 8.5rem;
-  white-space: nowrap;
 }
 
 .todos-page--pc .todos-page--pc__table .todos-page--pc__cb-wrap{
