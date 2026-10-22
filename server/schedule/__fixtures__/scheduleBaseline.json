@@ -1,0 +1,93 @@
+{
+  "range": {
+    "fromYmd": "2026-10-01",
+    "toYmd": "2026-10-31",
+    "todayYmd": "2026-10-22"
+  },
+  "events": [
+    {
+      "id": "crm:special_date:501:2026-10-22",
+      "source": "crm",
+      "type": "customer_alert",
+      "title": "고객A · 알림 기준",
+      "startAt": "2026-10-22",
+      "endAt": "2026-10-23",
+      "allDay": true
+    },
+    {
+      "id": "crm:car_expiry:12:77:2026-10-22",
+      "source": "crm",
+      "type": "car_expiry",
+      "title": "고객B · 자동차 만기 00가0000",
+      "startAt": "2026-10-22",
+      "endAt": "2026-10-23",
+      "allDay": true
+    },
+    {
+      "id": "google:primary:ga1",
+      "source": "google",
+      "type": "google_event",
+      "title": "일반 일정 종일",
+      "startAt": "2026-10-22",
+      "endAt": "2026-10-23",
+      "allDay": true
+    },
+    {
+      "id": "google:primary:gt1",
+      "source": "google",
+      "type": "google_event",
+      "title": "일반 일정 시간",
+      "startAt": "2026-10-22T10:00:00+09:00",
+      "endAt": "2026-10-22T11:00:00+09:00",
+      "allDay": false
+    }
+  ],
+  "tasks": [
+    {
+      "id": "onefc_todo:1",
+      "source": "onefc_todo",
+      "title": "할 일 A",
+      "dueDate": "2026-10-22",
+      "status": "open"
+    },
+    {
+      "id": "onefc_todo:2",
+      "source": "onefc_todo",
+      "title": "할 일 B",
+      "dueDate": "2026-10-22",
+      "status": "open"
+    },
+    {
+      "id": "onefc_todo:4",
+      "source": "onefc_todo",
+      "title": "할 일 완료",
+      "dueDate": "2026-10-22",
+      "status": "completed"
+    },
+    {
+      "id": "onefc_todo:3",
+      "source": "onefc_todo",
+      "title": "할 일 C",
+      "dueDate": "2026-10-25",
+      "status": "open"
+    },
+    {
+      "id": "onefc_todo:5",
+      "source": "onefc_todo",
+      "title": "할 일 날짜없음1",
+      "dueDate": null,
+      "status": "open"
+    },
+    {
+      "id": "onefc_todo:6",
+      "source": "onefc_todo",
+      "title": "할 일 날짜없음2",
+      "dueDate": null,
+      "status": "open"
+    }
+  ],
+  "expectedBadge": {
+    "2026-10-22": 6,
+    "2026-10-25": 1
+  }
+}
