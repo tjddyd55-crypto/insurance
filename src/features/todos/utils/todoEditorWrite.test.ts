@@ -17,10 +17,34 @@ describe('todoEditorWrite', () => {
     expect(todoEditorDueDateForOpen({ mode: 'create', explicit: '2026-10-20T00:00:00Z', now: NOW })).toBe('2026-10-14')
   })
 
-  it('saves dueDate with dueTime null and sends null when the date is cleared', () => {
-    expect(todoEditorDatePayload('2026-10-24')).toEqual({ dueDate: '2026-10-24', dueTime: null })
-    expect(todoEditorDatePayload('  2026-10-24  ')).toEqual({ dueDate: '2026-10-24', dueTime: null })
-    expect(todoEditorDatePayload('')).toEqual({ dueDate: null, dueTime: null })
-    expect(todoEditorDatePayload('   ')).toEqual({ dueDate: null, dueTime: null })
+  it('sends dueTime null for a new todo', () => {
+    expect(todoEditorDatePayload({ mode: 'create', dueDate: '2026-10-25', savedDueTime: '14:00' })).toEqual({
+      dueDate: '2026-10-25',
+      dueTime: null,
+    })
+    expect(todoEditorDatePayload({ mode: 'create', dueDate: '  2026-10-24  ' })).toEqual({
+      dueDate: '2026-10-24',
+      dueTime: null,
+    })
+  })
+
+  it('keeps 14:00 on edit when the title or date changes, and clears both when the date is removed', () => {
+    const savedDueTime = '14:00'
+    expect(todoEditorDatePayload({ mode: 'edit', dueDate: '2026-10-25', savedDueTime })).toEqual({
+      dueDate: '2026-10-25',
+      dueTime: '14:00',
+    })
+    expect(todoEditorDatePayload({ mode: 'edit', dueDate: '2026-10-26', savedDueTime })).toEqual({
+      dueDate: '2026-10-26',
+      dueTime: '14:00',
+    })
+    expect(todoEditorDatePayload({ mode: 'edit', dueDate: '', savedDueTime })).toEqual({
+      dueDate: null,
+      dueTime: null,
+    })
+    expect(todoEditorDatePayload({ mode: 'edit', dueDate: '   ', savedDueTime })).toEqual({
+      dueDate: null,
+      dueTime: null,
+    })
   })
 })

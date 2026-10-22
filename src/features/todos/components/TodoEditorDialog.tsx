@@ -86,6 +86,8 @@ export function TodoEditorDialog({
   const nestedConfirmBlockingRef = useRef(false)
   /** 자동으로 채운 날짜. 사용자가 손대지 않았으면 '날짜 제안'이 덮어쓸 수 있다. */
   const autoDueRef = useRef('')
+  /** 수정으로 연 할 일의 원래 dueTime. 날짜가 있는 동안 저장에 다시 싣고, 화면에는 보이지 않는다. */
+  const savedDueTimeRef = useRef<string | null>(null)
 
   const lockRelated = mode === 'create' ? Boolean(prefill?.lockRelated) : false
   const lockedCustomerSummary =
@@ -100,6 +102,7 @@ export function TodoEditorDialog({
     }
     editInitialFormRef.current = initialForm
     autoDueRef.current = ''
+    savedDueTimeRef.current = row.dueTime ?? null
     setDescription(initialForm.description)
     setDueDate(initialForm.dueDate)
     setRelatedEntityType(initialForm.relatedEntityType)
@@ -113,6 +116,7 @@ export function TodoEditorDialog({
     const content = resolveEditorContent(pf.description, pf.title)
     const initialDue = todoEditorDueDateForOpen({ mode: 'create', explicit: pf.dueDate })
     autoDueRef.current = initialDue
+    savedDueTimeRef.current = null
     setDescription(content)
     setDueDate(initialDue)
     if (pf.lockRelated && pf.relatedEntityType === 'customer' && pf.relatedEntityId) {
@@ -139,6 +143,7 @@ export function TodoEditorDialog({
     } else {
       const initialDue = todoEditorDueDateForOpen({ mode: 'create' })
       autoDueRef.current = initialDue
+      savedDueTimeRef.current = null
       setDescription('')
       setDueDate(initialDue)
       setRelatedEntityType('')
@@ -217,7 +222,11 @@ export function TodoEditorDialog({
       return
     }
     const title = firstLineTodoTitle(content)
-    const datePayload = todoEditorDatePayload(dueDate)
+    const datePayload = todoEditorDatePayload({
+      mode,
+      dueDate,
+      savedDueTime: savedDueTimeRef.current,
+    })
     setBusy(true)
     setFormError('')
     try {

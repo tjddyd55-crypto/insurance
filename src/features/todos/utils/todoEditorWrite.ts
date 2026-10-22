@@ -15,8 +15,19 @@ export function todoEditorDueDateForOpen(params: {
   return initialCreateDueDate({ explicit: params.explicit, now: params.now })
 }
 
-/** 저장 본문의 날짜. 시간 칸은 없고 dueTime 은 항상 null. */
-export function todoEditorDatePayload(dueDate: string): { dueDate: string | null; dueTime: null } {
-  const trimmed = dueDate.trim()
-  return { dueDate: trimmed || null, dueTime: null }
+/**
+ * 할 일 저장의 날짜·시각.
+ * 새 할 일은 dueTime null. 수정은 날짜가 남아 있으면 열 때 저장해 둔 dueTime 을 유지한다.
+ * 날짜를 비우면 dueDate·dueTime 모두 null. 화면에는 시간 칸을 두지 않는다.
+ */
+export function todoEditorDatePayload(input: {
+  mode: 'create' | 'edit'
+  dueDate: string
+  savedDueTime?: string | null
+}): { dueDate: string | null; dueTime: string | null } {
+  const dueDate = input.dueDate.trim()
+  if (!dueDate) return { dueDate: null, dueTime: null }
+  if (input.mode === 'create') return { dueDate, dueTime: null }
+  const savedDueTime = input.savedDueTime?.trim() || null
+  return { dueDate, dueTime: savedDueTime }
 }

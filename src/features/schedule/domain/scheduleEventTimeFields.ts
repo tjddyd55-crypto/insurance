@@ -18,14 +18,22 @@ export type ScheduleTimeWrite = {
 }
 
 export function createScheduleTimeFields(): ScheduleTimeFields {
-  return { allDay: true, startTime: DEFAULT_SCHEDULE_START_TIME, endTime: DEFAULT_SCHEDULE_END_TIME }
+  return {
+    allDay: true,
+    startTime: DEFAULT_SCHEDULE_START_TIME,
+    endTime: sensibleEndTime(DEFAULT_SCHEDULE_START_TIME),
+  }
 }
 
 function isHm(value: string): boolean {
   return HM.test(value)
 }
 
-/** 같은 날 안에서 시작보다 뒤인 끝 시각. 23시대는 23:59. */
+/**
+ * 자동 종료시각의 단일 계산.
+ * 00:00–22:59 는 같은 날 +1시간, 23:00–23:59 는 23:59.
+ * 다음 날 00:xx 로 넘기지 않고 endDate 도 움직이지 않는다.
+ */
 export function sensibleEndTime(startTime: string): string {
   const match = HM.exec(startTime)
   if (!match) return DEFAULT_SCHEDULE_END_TIME
@@ -41,13 +49,13 @@ export function setScheduleTimeSpecified(fields: ScheduleTimeFields, specified: 
   return { allDay: false, startTime, endTime }
 }
 
-/** 저장된 시간 일정은 시간 지정이 켜진 채 그 시각을 연다. 종일은 끈 상태다. */
+/**
+ * 저장된 시간 일정은 그 시각 그대로 연다. 자정을 넘는 23:30→다음날 00:30 도 열기만으로 고치지 않는다.
+ * 종일은 시간 지정이 꺼진 상태다.
+ */
 export function editScheduleTimeFields(event: { allDay: boolean; startTime: string; endTime: string }): ScheduleTimeFields {
   if (event.allDay) return createScheduleTimeFields()
-  return setScheduleTimeSpecified(
-    { allDay: true, startTime: event.startTime, endTime: event.endTime },
-    true,
-  )
+  return { allDay: false, startTime: event.startTime, endTime: event.endTime }
 }
 
 /** 종일 ↔ 시간 지정. 현재 종일이면 시간을 켜고, 시간 일정이면 끈다. */
@@ -63,8 +71,15 @@ export function withScheduleEndTime(fields: ScheduleTimeFields, endTime: string)
   return setScheduleTimeSpecified({ ...fields, allDay: false, endTime }, true)
 }
 
-export function scheduleEventWriteTimes(fields: ScheduleTimeFields): ScheduleTimeWrite {
+function crossesMidnight(date: string | undefined, endDate: string | undefined): boolean {
+  return Boolean(date && endDate && endDate > date)
+}
+
+export function scheduleEventWriteTimes(fields: ScheduleTimeFields & { date?: string; endDate?: string }): ScheduleTimeWrite {
   if (fields.allDay) return { allDay: true, startTime: null, endTime: null }
+  if (crossesMidnight(fields.date, fields.endDate)) {
+    return { allDay: false, startTime: fields.startTime, endTime: fields.endTime }
+  }
   const fixed = setScheduleTimeSpecified(fields, true)
   return { allDay: false, startTime: fixed.startTime, endTime: fixed.endTime }
 }
