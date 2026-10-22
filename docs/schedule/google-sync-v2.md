@@ -1,6 +1,7 @@
 # ONE FC 일정·할 일 입력 경로 통일 + Google Calendar/Tasks 양방향 동기화 (google-sync-v2)
 
-상태: `ONEFC_GOOGLE_SYNC_INPUT_PATH_DESIGN_COMPLETE` (Phase 1 — 설계·기준선만, 운영 코드 변경 없음)
+상태: Phase 1 설계·기준선 + Phase 2 서버 로컬 저장소(이 브랜치). 표시 집계는 변경하지 않음.
+Phase 1 상태 코드: `ONEFC_GOOGLE_SYNC_INPUT_PATH_DESIGN_COMPLETE`
 기준 커밋: insurance `develop` be769250, insurance-mobile `qa/widget-contacts-dev` 45a6f19
 
 > 절대 원칙: 일정 화면의 **표시·집계·배지·정렬·UI 정책은 바꾸지 않는다.** 바꾸는 것은 입력 저장 경로와 동기화 구조뿐이다.
@@ -122,9 +123,20 @@ UNIQUE `(owner_user_id, provider, local_type, local_id)` 와 `(owner_user_id, pr
 | 7 | 네이티브 선택 제거 + 위젯 빠른 추가를 `/api/calendar-items` 로 | insurance-mobile 별도 브랜치(QA 통합은 나중) |
 | 8 | t321 `[할 일]` 사본 은퇴, Dev E2E 양방향, 운영 승인 패키지 (`ONEFC_GOOGLE_SYNC_PROD_APPROVAL_READY`) — 운영 쓰기는 Google 심사 통과 후 | 둘 다 |
 
-## 12. 열린 결정
+## 12. 결정 (Phase 2 에서 승인. 구현 고정은 policy.js)
 1. 연결 해제 시 Google 에서 가져온 항목을 로컬에 남길지(제안: 남김).
 2. t321 알림(만기·상령일·알림일) Calendar 사본을 v2 에서도 유지할지.
 3. 로컬 일정의 필터 키: 기존 'google' 칸 유지(표시 동일) vs 새 'onefc_event'(UI 변경 필요 → 표시 정책 변경이므로 비추천).
 4. 기본 캘린더/목록 외 다른 Google 캘린더도 pull 할지(제안: 현재 표시 선택 calendarIds 와 동일).
 5. 위젯 빠른 추가 기본값: 종일 일정(현재) 유지.
+
+## 13. Phase 2 구현 (feat/schedule-google-sync-v2-server)
+
+승인 범위가 위 Phase 표의 2번(저장소·CRUD)보다 조금 넓다. 표의 4번(push 워커)은 아직 하지 않는다.
+
+- `calendar_items.owner_user_id` 필수(사용자 범위). 할 일은 기존 `todos` 만 사용한다.
+- `external_sync_links`, `sync_outbox` 를 만든다. 로컬 저장과 **같은 트랜잭션**에서 outbox 1행을 갱신한다(같은 항목은 최신 버전만).
+- Google API 는 호출하지 않는다. 푸시 훅이 있어도 **커밋 이후**에만 실행하고, 실패해도 로컬 행은 롤백하지 않는다.
+- 플래그 `ONEFC_GOOGLE_SYNC_V2` 기본 OFF, 운영 런타임·운영 DB 에서는 스키마 문도 실행하지 않는다.
+- `loadScheduleEvents` 는 로컬 테이블을 읽지 않는다. 플래그 OFF 출력은 기준선과 같다.
+- 승인 결정 1–5 는 `server/schedule/googleSyncV2/policy.js`. 연결 해제 핸들러는 로컬 일정을 삭제하지 않는다.
