@@ -142,7 +142,7 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
                   key={event.id}
                   type="button"
                   className={eventButtonClass('schedule-page__chip', event)}
-                  title={`${SCHEDULE_FILTER_LABEL[scheduleFilterKeyOf(event)]} · ${event.title}`}
+                  title={`${event.origin === 'onefc' ? 'ONE FC 일정' : SCHEDULE_FILTER_LABEL[scheduleFilterKeyOf(event)]} · ${event.title}`}
                   onClick={() => onOpenEvent(event)}
                 >
                   {event.title}
@@ -471,7 +471,7 @@ export function ScheduleGoogleDetailDialog({ detail, onCloseDetail, actions }: P
         <div><dt>캘린더</dt><dd>{detail.calendarName || '기본 캘린더'}</dd></div>
         {detail.location ? <div><dt>위치</dt><dd>{detail.location}</dd></div> : null}
         {detail.description ? <div><dt>설명</dt><dd className="schedule-page__detail-desc">{detail.description}</dd></div> : null}
-        <div><dt>출처</dt><dd><ScheduleSourceBadge event={detail} /> {actions && detail.writable ? '' : '읽기 전용'}</dd></div>
+        <div><dt>출처</dt><dd>{detail.origin === 'onefc' ? 'ONE FC 일정' : <><ScheduleSourceBadge event={detail} /> {actions && detail.writable ? '' : '읽기 전용'}</>}</dd></div>
       </dl>
     </FormDialog>
   )

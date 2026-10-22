@@ -2,6 +2,7 @@ import { loadReminderSourceRows } from '../reminders/reminderQuery.js'
 import { assembleReminderEvents } from '../reminders/reminderEvents.js'
 import { loadGoogleCalendarSchedule, loadGoogleTasksSchedule } from '../integrations/googleCalendarAdapter.js'
 import { listTodosForSchedule } from '../apis/todosApi.js'
+import { listOnefcScheduleRows, normalizeOnefcScheduleEvent } from './onefcSchedule.js'
 import { seoulYmd } from '../lib/seoulCalendarDate.js'
 import {
   eventOverlapsRange,
@@ -85,9 +86,18 @@ export async function loadScheduleEvents(pool, scope) {
       })
     : Promise.resolve({ status: 'skipped', tasks: [] })
 
-  const [crm, google, googleTasks, todos] = await Promise.all([crmTask, googleTask, googleTasksTask, todosTask])
+  const localScheduleTask = listOnefcScheduleRows(pool, scope)
+    .then((rows) => rows.map((row) => normalizeOnefcScheduleEvent(row)).filter(Boolean))
+    .catch((error) => {
+      logSourceFailure('onefc schedule source failed', error)
+      return []
+    })
 
-  const merged = mergeScheduleEvents([crm.events, google.events ?? []])
+  const [crm, google, googleTasks, todos, localSchedules] = await Promise.all([
+    crmTask, googleTask, googleTasksTask, todosTask, localScheduleTask,
+  ])
+
+  const merged = mergeScheduleEvents([crm.events, google.events ?? [], localSchedules])
   const ranged = merged.filter((event) => eventOverlapsRange(event, scope.fromYmd, scope.toYmd))
   const events = filterScheduleBySources(ranged, scope.sources)
   events.sort((left, right) => {

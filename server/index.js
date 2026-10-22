@@ -89,6 +89,7 @@ import { registerCustomerMapApi } from './apis/customerMapApi.js'
 import { registerCustomerRegionApi } from './apis/registerCustomerRegionApi.js'
 import { registerReminderCalendarApi } from './apis/registerReminderCalendarApi.js'
 import { registerScheduleApi } from './apis/registerScheduleApi.js'
+import { registerOnefcScheduleApi } from './apis/registerOnefcScheduleApi.js'
 import { registerAdminAiToolsApi } from './apis/adminAiToolsApi.js'
 import { registerCustomerImportApi } from './ai-assistant/customer-import/registerCustomerImportApi.js'
 import { registerAiAssistantApi } from './apis/aiAssistantApi.js'
@@ -1862,6 +1863,7 @@ registerCustomerSpecialDatesApi(apiRouter, { pool, requireAuth, handleDbError })
 registerCustomerRegionApi(apiRouter, { pool, requireAuth, handleDbError })
 registerReminderCalendarApi(apiRouter, { pool, requireAuth, handleDbError })
 registerScheduleApi(apiRouter, { pool, requireAuth, handleDbError })
+registerOnefcScheduleApi(apiRouter, { pool, requireAuth, handleDbError })
 registerAdminAiToolsApi(apiRouter, { pool, requireAuth, requireSuperAdmin })
 registerCustomerImportApi(apiRouter, {
   pool,
