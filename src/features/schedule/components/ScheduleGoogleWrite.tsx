@@ -4,6 +4,12 @@ import AppDateInput from '../../../components/common/AppDateInput'
 import AppTimeInput from '../../../components/common/AppTimeInput'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { defaultNewItemDate } from '../../../utils/dateInput'
+import {
+  createScheduleTimeFields,
+  editScheduleTimeFields,
+  scheduleEventWriteTimes,
+  toggleScheduleTimeSpecified,
+} from '../domain/scheduleEventTimeFields'
 import { FormDialog, useConfirmDialog } from '../../../components/dialog'
 import { Button } from '../../../components/ui'
 import { ApiError } from '../../../lib/apiClient'
@@ -144,7 +150,7 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
       setTodoCreate((current) => ({ due: baseDate, session: (current?.session ?? 0) + 1 }))
       return
     }
-    setEventForm({ mode: 'create', target: 'onefc', eventId: '', calendarId: '', title: '', description: '', date: baseDate, endDate: baseDate, allDay: false, startTime: '09:00', endTime: '10:00' })
+    setEventForm({ mode: 'create', target: 'onefc', eventId: '', calendarId: '', title: '', description: '', date: baseDate, endDate: baseDate, ...createScheduleTimeFields() })
   }
 
   const openEditEvent = (event: ScheduleEvent) => {
@@ -161,9 +167,11 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
       description: event.description,
       date,
       endDate: endDate < date ? date : endDate,
-      allDay: event.allDay,
-      startTime: event.allDay ? '09:00' : kstHm(event.startAt),
-      endTime: event.allDay ? '10:00' : kstHm(event.endAt),
+      ...editScheduleTimeFields({
+        allDay: event.allDay,
+        startTime: event.allDay ? '' : kstHm(event.startAt),
+        endTime: event.allDay ? '' : kstHm(event.endAt),
+      }),
     })
   }
 
@@ -199,9 +207,7 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
       description: eventForm.description,
       date: eventForm.date,
       endDate: eventForm.endDate || eventForm.date,
-      allDay: eventForm.allDay,
-      startTime: eventForm.startTime,
-      endTime: eventForm.endTime,
+      ...scheduleEventWriteTimes(eventForm),
     }
     try {
       if (eventForm.target === 'onefc') {
@@ -355,9 +361,16 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
             </label>
           ) : null}
           <div className="schedule-page__field">
-            <span>종일</span>
-            <Button type="button" size="sm" aria-pressed={eventForm.allDay} variant={eventForm.allDay ? 'primary' : 'secondary'} onClick={() => setEventForm({ ...eventForm, allDay: !eventForm.allDay })}>
-              {eventForm.allDay ? '종일 일정' : '시간 지정'}
+            <Button
+              type="button"
+              size="sm"
+              aria-pressed={!eventForm.allDay}
+              aria-label="시간 지정"
+              variant={!eventForm.allDay ? 'primary' : 'secondary'}
+              disabled={busy}
+              onClick={() => setEventForm({ ...eventForm, ...toggleScheduleTimeSpecified(eventForm) })}
+            >
+              시간 지정
             </Button>
           </div>
           <label className="schedule-page__field"><span>시작일</span><AppDateInput entry="picker" aria-label="시작일" value={eventForm.date} onChange={(value) => setEventForm({ ...eventForm, date: value, endDate: eventForm.endDate < value ? value : eventForm.endDate })} /></label>
