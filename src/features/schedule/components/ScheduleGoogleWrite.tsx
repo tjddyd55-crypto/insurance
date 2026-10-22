@@ -1,6 +1,7 @@
 import { TodoEditorDialog } from '../../todos/components/TodoEditorDialog'
 import { useCallback, useRef, useState, type ReactNode } from 'react'
 import AppDateInput from '../../../components/common/AppDateInput'
+import AppTimeInput from '../../../components/common/AppTimeInput'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { defaultNewItemDate } from '../../../utils/dateInput'
 import { FormDialog, useConfirmDialog } from '../../../components/dialog'
@@ -361,11 +362,17 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
           </div>
           <label className="schedule-page__field"><span>시작일</span><AppDateInput entry="picker" aria-label="시작일" value={eventForm.date} onChange={(value) => setEventForm({ ...eventForm, date: value, endDate: eventForm.endDate < value ? value : eventForm.endDate })} /></label>
           {!eventForm.allDay ? (
-            <label className="schedule-page__field"><span>시작 시간</span><FormInput type="time" value={eventForm.startTime} onChange={(e) => setEventForm({ ...eventForm, startTime: e.target.value })} /></label>
+            <div className="schedule-page__field">
+              <span>시작 시간</span>
+              <AppTimeInput ariaLabel="시작 시간" disabled={busy} value={eventForm.startTime} onChange={(startTime) => setEventForm({ ...eventForm, startTime })} />
+            </div>
           ) : null}
           <label className="schedule-page__field"><span>종료일</span><AppDateInput entry="picker" aria-label="종료일" value={eventForm.endDate} min={eventForm.date} onChange={(value) => setEventForm({ ...eventForm, endDate: value })} /></label>
           {!eventForm.allDay ? (
-            <label className="schedule-page__field"><span>종료 시간</span><FormInput type="time" value={eventForm.endTime} onChange={(e) => setEventForm({ ...eventForm, endTime: e.target.value })} /></label>
+            <div className="schedule-page__field">
+              <span>종료 시간</span>
+              <AppTimeInput ariaLabel="종료 시간" disabled={busy} value={eventForm.endTime} onChange={(endTime) => setEventForm({ ...eventForm, endTime })} />
+            </div>
           ) : null}
           <label className="schedule-page__field"><span>설명</span><FormTextarea rows={3} value={eventForm.description} onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })} /></label>
           {error ? <p className="schedule-page__error" role="alert">{error}</p> : null}

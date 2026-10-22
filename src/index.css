@@ -702,6 +702,85 @@ body:has(.app-root--external-account-vault){
   color: var(--text-primary);
 }
 
+.app-time-input{
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.app-time-input__display{
+  width: 100%;
+  padding-right: 44px;
+  cursor: pointer;
+  caret-color: transparent;
+}
+
+.app-time-input .field--readonly{
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+}
+
+.app-time-input--disabled .field--readonly{
+  background-color: var(--disabled-bg);
+  color: var(--disabled-text);
+  cursor: not-allowed;
+}
+
+.app-time-input__glyph{
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+/* 폼 다이얼로그와 같은 층(10000). body에 붙여 label이 오전/오후 클릭을 가로채지 않게 한다. */
+.app-time-input__popover{
+  position: fixed;
+  z-index: 10000;
+}
+
+.app-time-input__panel{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+}
+
+.app-time-input__part{
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 4.5rem;
+}
+
+.app-time-input__caption,
+.app-time-input__colon{
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.app-time-input__colon{
+  padding-bottom: 12px;
+  font-size: 1rem;
+}
+
+.app-time-input__meridiem{
+  display: flex;
+  gap: 4px;
+}
+
 input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='submit']):not(
     [type='button']
   ):not([type='reset']):not([type='image']):not([type='color']),
