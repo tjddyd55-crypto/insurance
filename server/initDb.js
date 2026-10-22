@@ -4619,6 +4619,13 @@ export async function initDb() {
   console.log('[initDb][crm-user-bulk-sms] schema ensure 완료')
   await ensureNewsletterBoardScopeSchema(pool)
 
+  const { isOnefcGoogleSyncV2Enabled } = await import('./schedule/googleSyncV2/flag.js')
+  if (isOnefcGoogleSyncV2Enabled()) {
+    const { ensureGoogleSyncV2Schema } = await import('./schedule/googleSyncV2/schema.js')
+    await ensureGoogleSyncV2Schema(pool)
+    console.log('[initDb][google-sync-v2] schema ensure 완료')
+  }
+
   console.log(`[initDb] 완료 (${Date.now() - startedAt}ms)`)
 }
 
