@@ -135,6 +135,7 @@ function TimePanel({ id, hourRef, hourDraft, minuteDraft, parts, onHourDraft, on
 
   return (
     <div id={id} className="app-time-input__panel" role="group" aria-label="시간 선택" onKeyDown={(event) => closeOnEscape(event, onClose)}>
+      <div className="app-time-input__clock">
       <div className="app-time-input__part">
         <span className="app-time-input__caption">시</span>
         <FormInput
@@ -164,6 +165,7 @@ function TimePanel({ id, hourRef, hourDraft, minuteDraft, parts, onHourDraft, on
           onFocus={(event) => event.currentTarget.select()}
           onKeyDown={(event) => onMinuteKey(event, parts, onMinuteDraft, onCommit, onClose)}
         />
+      </div>
       </div>
       <div className="app-time-input__meridiem" role="group" aria-label="오전 오후">
         <Button type="button" size="sm" variant={parts.meridiem === 'am' ? 'primary' : 'secondary'} aria-pressed={parts.meridiem === 'am'} onClick={() => onCommit((prev) => ({ ...prev, meridiem: 'am' }))}>
@@ -218,7 +220,7 @@ export default function AppTimeInput({ value, onChange, disabled = false, ariaLa
       const rect = rootRef.current?.getBoundingClientRect()
       if (!rect) return
       const margin = 8
-      const width = Math.min(Math.max(rect.width, 260), window.innerWidth - margin * 2)
+      const width = Math.min(Math.max(rect.width, 300), window.innerWidth - margin * 2)
       const left = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin))
       setAnchor({ top: rect.bottom + 4, left, width })
     }

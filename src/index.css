@@ -749,36 +749,67 @@ body:has(.app-root--external-account-vault){
 
 .app-time-input__panel{
   display: flex;
-  flex-wrap: wrap;
   align-items: flex-end;
-  gap: 8px;
-  padding: 10px;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px;
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: 8px;
 }
 
+.app-time-input__clock{
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+}
+
 .app-time-input__part{
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: center;
   width: 4.5rem;
+  gap: 4px;
 }
 
-.app-time-input__caption,
-.app-time-input__colon{
+.app-time-input__caption{
+  display: block;
+  width: 100%;
+  text-align: center;
   color: var(--text-secondary);
   font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+.app-time-input__part input.form-input{
+  text-align: center;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .app-time-input__colon{
-  padding-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.75rem;
+  height: var(--control-height-md, 40px);
+  color: var(--text-secondary);
   font-size: 1rem;
+  line-height: 1;
 }
 
 .app-time-input__meridiem{
   display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 4px;
+  height: var(--control-height-md, 40px);
+}
+
+.app-time-input__meridiem .button{
+  min-width: 3.25rem;
+  text-align: center;
 }
 
 input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='submit']):not(
