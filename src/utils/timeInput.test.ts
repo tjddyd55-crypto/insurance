@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   formatKoreanClock,
   parseHm24,
+  placeTimePopover,
   readDraftNumber,
   shiftHour12,
   shiftMinute,
+  TIME_POPOVER_PREFERRED_WIDTH,
   toHm24,
 } from './timeInput'
 
@@ -40,5 +42,20 @@ describe('timeInput', () => {
     expect(shiftHour12(1, -1)).toBe(12)
     expect(shiftMinute(59, 1)).toBe(0)
     expect(shiftMinute(0, -1)).toBe(59)
+  })
+
+  it('keeps the time panel at a fixed width instead of stretching to the field', () => {
+    const wide = placeTimePopover({ left: 160, width: 640, bottom: 200 }, 1280)
+    expect(wide.width).toBe(TIME_POPOVER_PREFERRED_WIDTH)
+    expect(wide.left).toBe(160 + 320 - TIME_POPOVER_PREFERRED_WIDTH / 2)
+    expect(wide.top).toBe(204)
+    const mobile = placeTimePopover({ left: 12, width: 360, bottom: 80 }, 390)
+    expect(mobile.width).toBe(TIME_POPOVER_PREFERRED_WIDTH)
+    expect(mobile.left).toBeGreaterThanOrEqual(8)
+    expect(mobile.left + mobile.width).toBeLessThanOrEqual(390 - 8)
+    const narrow = placeTimePopover({ left: 0, width: 320, bottom: 40 }, 320)
+    expect(narrow.width).toBe(320 - 16)
+    expect(narrow.left).toBe(8)
+    expect(narrow.left + narrow.width).toBe(312)
   })
 })

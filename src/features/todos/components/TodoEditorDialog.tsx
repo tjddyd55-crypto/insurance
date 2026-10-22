@@ -10,7 +10,7 @@ import type { TodoDto, TodoSourceType } from '../domain/todoTypes'
 import { completeTodo, createTodo, deleteTodo, patchTodo, reopenTodo } from '../api/todosApi'
 import { formatSeoulYmd } from '../utils/formatSeoulYmd'
 import { suggestDueDateFromText } from '../utils/suggestDueDateFromText'
-import { initialCreateDueDate } from '../utils/defaultTodoDueDate'
+import { todoEditorDatePayload, todoEditorDueDateForOpen } from '../utils/todoEditorWrite'
 import { firstLineTodoTitle } from '../utils/todoCopy'
 import { isTodoEditorFormChanged, type TodoEditorForm } from '../utils/todoEditorDirty'
 
@@ -94,7 +94,7 @@ export function TodoEditorDialog({
   const resetFromEditing = useCallback((row: TodoDto) => {
     const initialForm: TodoEditorForm = {
       description: resolveEditorContent(row.description, row.title),
-      dueDate: row.dueDate ?? '',
+      dueDate: todoEditorDueDateForOpen({ mode: 'edit', savedDueDate: row.dueDate }),
       relatedEntityType: row.relatedEntityType ?? '',
       relatedEntityId: row.relatedEntityId ?? '',
     }
@@ -111,7 +111,7 @@ export function TodoEditorDialog({
 
   const resetFromPrefill = useCallback((pf: TodoCreatePrefill) => {
     const content = resolveEditorContent(pf.description, pf.title)
-    const initialDue = initialCreateDueDate({ explicit: pf.dueDate })
+    const initialDue = todoEditorDueDateForOpen({ mode: 'create', explicit: pf.dueDate })
     autoDueRef.current = initialDue
     setDescription(content)
     setDueDate(initialDue)
@@ -137,7 +137,7 @@ export function TodoEditorDialog({
     } else if (prefill) {
       resetFromPrefill(prefill)
     } else {
-      const initialDue = initialCreateDueDate()
+      const initialDue = todoEditorDueDateForOpen({ mode: 'create' })
       autoDueRef.current = initialDue
       setDescription('')
       setDueDate(initialDue)
@@ -217,6 +217,7 @@ export function TodoEditorDialog({
       return
     }
     const title = firstLineTodoTitle(content)
+    const datePayload = todoEditorDatePayload(dueDate)
     setBusy(true)
     setFormError('')
     try {
@@ -234,8 +235,8 @@ export function TodoEditorDialog({
         await patchTodo(token, editingTodo.id, {
           title,
           description: content,
-          dueDate: dueDate.trim() || null,
-          dueTime: null,
+          dueDate: datePayload.dueDate,
+          dueTime: datePayload.dueTime,
           priority: 'normal',
           relatedEntityType: relatedEntityType.trim() || null,
           relatedEntityId: relatedEntityType.trim() && relatedEntityId.trim() ? relatedEntityId.trim() : null,
@@ -247,8 +248,8 @@ export function TodoEditorDialog({
           sourceId: prefill?.sourceId ?? undefined,
           title,
           description: content,
-          dueDate: dueDate.trim() || null,
-          dueTime: null,
+          dueDate: datePayload.dueDate,
+          dueTime: datePayload.dueTime,
           priority: 'normal',
           relatedEntityType: relatedEntityType.trim() ? relatedEntityType.trim() : null,
           relatedEntityId:

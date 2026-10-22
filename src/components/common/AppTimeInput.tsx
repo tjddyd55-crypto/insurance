@@ -9,6 +9,7 @@ import {
   formatKoreanClock,
   pad2,
   parseHm24,
+  placeTimePopover,
   readDraftNumber,
   shiftHour12,
   shiftMinute,
@@ -219,10 +220,7 @@ export default function AppTimeInput({ value, onChange, disabled = false, ariaLa
     const place = () => {
       const rect = rootRef.current?.getBoundingClientRect()
       if (!rect) return
-      const margin = 8
-      const width = Math.min(Math.max(rect.width, 300), window.innerWidth - margin * 2)
-      const left = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin))
-      setAnchor({ top: rect.bottom + 4, left, width })
+      setAnchor(placeTimePopover(rect, window.innerWidth))
     }
     place()
     window.addEventListener('resize', place)

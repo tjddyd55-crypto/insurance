@@ -55,7 +55,33 @@ export function toggleScheduleTimeSpecified(fields: ScheduleTimeFields): Schedul
   return setScheduleTimeSpecified(fields, fields.allDay)
 }
 
+export function withScheduleStartTime(fields: ScheduleTimeFields, startTime: string): ScheduleTimeFields {
+  return setScheduleTimeSpecified({ ...fields, allDay: false, startTime }, true)
+}
+
+export function withScheduleEndTime(fields: ScheduleTimeFields, endTime: string): ScheduleTimeFields {
+  return setScheduleTimeSpecified({ ...fields, allDay: false, endTime }, true)
+}
+
 export function scheduleEventWriteTimes(fields: ScheduleTimeFields): ScheduleTimeWrite {
   if (fields.allDay) return { allDay: true, startTime: null, endTime: null }
-  return { allDay: false, startTime: fields.startTime, endTime: fields.endTime }
+  const fixed = setScheduleTimeSpecified(fields, true)
+  return { allDay: false, startTime: fixed.startTime, endTime: fixed.endTime }
+}
+
+export function buildScheduleEventInput(form: {
+  calendarId: string
+  title: string
+  description: string
+  date: string
+  endDate: string
+} & ScheduleTimeFields) {
+  return {
+    calendarId: form.calendarId,
+    title: form.title,
+    description: form.description,
+    date: form.date,
+    endDate: form.endDate || form.date,
+    ...scheduleEventWriteTimes(form),
+  }
 }

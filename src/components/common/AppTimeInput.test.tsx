@@ -54,6 +54,10 @@ describe('AppTimeInput', () => {
     act(() => {
       display.click()
     })
+    const popover = document.body.querySelector('.app-time-input__popover') as HTMLElement
+    expect(popover).not.toBeNull()
+    expect(popover.style.width).toBe('328px')
+    expect(document.body.querySelector('input[type="time"]')).toBeNull()
     expect(document.body.querySelector('[aria-label="시간 선택"]')).not.toBeNull()
     const afternoon = Array.from(document.body.querySelectorAll('button')).find((button) => button.textContent === '오후')
     act(() => {

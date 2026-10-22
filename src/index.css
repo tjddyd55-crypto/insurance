@@ -745,13 +745,19 @@ body:has(.app-root--external-account-vault){
 .app-time-input__popover{
   position: fixed;
   z-index: 10000;
+  max-width: calc(100vw - 16px);
+  box-sizing: border-box;
 }
 
 .app-time-input__panel{
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  flex-wrap: nowrap;
   gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
   padding: 12px;
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
@@ -769,7 +775,9 @@ body:has(.app-root--external-account-vault){
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 4.5rem;
+  width: 4.25rem;
+  min-width: 0;
+  flex: 0 1 4.25rem;
   gap: 4px;
 }
 
@@ -808,7 +816,11 @@ body:has(.app-root--external-account-vault){
 }
 
 .app-time-input__meridiem .button{
-  min-width: 3.25rem;
+  width: 3.25rem;
+  min-width: 0;
+  flex: 0 1 3.25rem;
+  padding-left: 0;
+  padding-right: 0;
   text-align: center;
 }
 

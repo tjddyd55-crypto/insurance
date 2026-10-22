@@ -74,3 +74,17 @@ export function shiftHour12(hour12: number, delta: number): number {
 export function shiftMinute(minute: number, delta: number): number {
   return (clampMinute(minute) + delta + 60) % 60
 }
+
+/** PC에서 입력칸 너비만큼 늘어나지 않는 시간 패널. 뷰포트보다 넓어지지 않는다. */
+export const TIME_POPOVER_PREFERRED_WIDTH = 328
+
+export function placeTimePopover(
+  rect: { left: number; width: number; bottom: number },
+  viewportWidth: number,
+  margin = 8,
+): { top: number; left: number; width: number } {
+  const width = Math.min(TIME_POPOVER_PREFERRED_WIDTH, Math.max(0, viewportWidth - margin * 2))
+  const center = rect.left + rect.width / 2
+  const left = Math.max(margin, Math.min(center - width / 2, viewportWidth - width - margin))
+  return { top: rect.bottom + 4, left, width }
+}

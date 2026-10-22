@@ -5,10 +5,12 @@ import AppTimeInput from '../../../components/common/AppTimeInput'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { defaultNewItemDate } from '../../../utils/dateInput'
 import {
+  buildScheduleEventInput,
   createScheduleTimeFields,
   editScheduleTimeFields,
-  scheduleEventWriteTimes,
   toggleScheduleTimeSpecified,
+  withScheduleEndTime,
+  withScheduleStartTime,
 } from '../domain/scheduleEventTimeFields'
 import { FormDialog, useConfirmDialog } from '../../../components/dialog'
 import { Button } from '../../../components/ui'
@@ -201,14 +203,7 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
     if (eventForm.target === 'google' && !eventForm.calendarId) return setError('저장할 캘린더를 선택해 주세요.')
     setBusy(true)
     setError('')
-    const input = {
-      calendarId: eventForm.calendarId,
-      title: eventForm.title,
-      description: eventForm.description,
-      date: eventForm.date,
-      endDate: eventForm.endDate || eventForm.date,
-      ...scheduleEventWriteTimes(eventForm),
-    }
+    const input = buildScheduleEventInput(eventForm)
     try {
       if (eventForm.target === 'onefc') {
         if (eventForm.mode === 'create') await createOnefcSchedule(props.token, { ...input, requestId: requestIdRef.current })
@@ -377,14 +372,14 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
           {!eventForm.allDay ? (
             <div className="schedule-page__field">
               <span>시작 시간</span>
-              <AppTimeInput ariaLabel="시작 시간" disabled={busy} value={eventForm.startTime} onChange={(startTime) => setEventForm({ ...eventForm, startTime })} />
+              <AppTimeInput ariaLabel="시작 시간" disabled={busy} value={eventForm.startTime} onChange={(startTime) => setEventForm({ ...eventForm, ...withScheduleStartTime(eventForm, startTime) })} />
             </div>
           ) : null}
           <label className="schedule-page__field"><span>종료일</span><AppDateInput entry="picker" aria-label="종료일" value={eventForm.endDate} min={eventForm.date} onChange={(value) => setEventForm({ ...eventForm, endDate: value })} /></label>
           {!eventForm.allDay ? (
             <div className="schedule-page__field">
               <span>종료 시간</span>
-              <AppTimeInput ariaLabel="종료 시간" disabled={busy} value={eventForm.endTime} onChange={(endTime) => setEventForm({ ...eventForm, endTime })} />
+              <AppTimeInput ariaLabel="종료 시간" disabled={busy} value={eventForm.endTime} onChange={(endTime) => setEventForm({ ...eventForm, ...withScheduleEndTime(eventForm, endTime) })} />
             </div>
           ) : null}
           <label className="schedule-page__field"><span>설명</span><FormTextarea rows={3} value={eventForm.description} onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })} /></label>
