@@ -24,15 +24,13 @@ function readCrmLocalTemplates(userKey: string): ScenarioTemplate[] {
 export async function importLegacyLocalTemplates(
   token: string,
   userKey: string,
-  referencedTemplateIds: ReadonlySet<string>,
   existingLegacyIds: Set<string>,
 ): Promise<void> {
   if (!userKey || userKey === 'guest') return
   const locals = readCrmLocalTemplates(userKey)
   for (const template of locals) {
-    if (template.sourceType === 'system') continue
     if (existingLegacyIds.has(template.id)) continue
-    if (!shouldUploadLegacyTemplate(template, referencedTemplateIds)) continue
+    if (!shouldUploadLegacyTemplate(template)) continue
     await createCoverageTemplateApi(token, {
       name: template.name,
       description: template.description,

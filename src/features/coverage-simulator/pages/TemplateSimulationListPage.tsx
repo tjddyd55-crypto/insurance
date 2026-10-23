@@ -10,7 +10,8 @@ import { SaveConsultationTitleDialog } from '../components/SaveConsultationTitle
 import { useCoverageSimulatorCustomer } from '../context/CoverageSimulatorCustomerContext'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { formatConsultationListDate } from '../domain/formatConsultationDate'
-import { startConsultationFromUserTemplate } from '../domain/startConsultation'
+import { simulationTemplateMetadataLabel } from '../domain/simulationTemplateMetadata'
+import { startConsultationFromUserTemplate, startDirectConsultation } from '../domain/startConsultation'
 import type { SavedScenarioSummary } from '../domain/types'
 import { useCoverageSimulatorCrmStorage } from '../context/CoverageSimulatorCrmStorageContext'
 import { getScenarioTemplateById } from '../storage/templateRepository'
@@ -44,12 +45,8 @@ function TemplateSimulationListPageContent() {
   const [renameSaving, setRenameSaving] = useState(false)
   const [renameValidationError, setRenameValidationError] = useState<string | null>(null)
 
-  if (!templateId || !template) {
-    return <Navigate to={basePath} replace />
-  }
-
   const rows = useMemo(
-    () => listConsultationsByTemplateId(userKey, templateId, customerDraft.customerId),
+    () => (templateId ? listConsultationsByTemplateId(userKey, templateId, customerDraft.customerId) : []),
     [customerDraft.customerId, listVersion, storageVersion, templateId, userKey],
   )
 
@@ -57,13 +54,27 @@ function TemplateSimulationListPageContent() {
     setListVersion((value) => value + 1)
   }, [])
 
+  if (!templateId) {
+    return <Navigate to={basePath} replace />
+  }
+
+  const pageTitle = simulationTemplateMetadataLabel(templateId, template?.name)
+
   const openScenario = (id: string) => {
     navigate(`${basePath}/scenarios/${id}`)
   }
 
   const createNewSimulation = () => {
-    const saved = startConsultationFromUserTemplate(userKey, template, customerDraft)
-    navigate(`${basePath}/scenarios/${saved.id}`)
+    void (async () => {
+      try {
+        const saved = template
+          ? await startConsultationFromUserTemplate(userKey, template, customerDraft)
+          : await startDirectConsultation(userKey, '새 시뮬레이션', customerDraft)
+        navigate(`${basePath}/scenarios/${saved.id}`)
+      } catch {
+        showToast('시뮬레이션을 만들지 못했습니다.')
+      }
+    })()
   }
 
   const handleRenameConfirm = (nextTitle: string) => {
@@ -116,7 +127,7 @@ function TemplateSimulationListPageContent() {
         <button type="button" className="coverage-simulator-icon-btn" onClick={() => navigate(basePath)} aria-label="뒤로">
           ←
         </button>
-        <div className="coverage-simulator-appbar__title">{template.name}</div>
+        <div className="coverage-simulator-appbar__title">{pageTitle}</div>
         <span />
       </header>
       <main className="coverage-simulator-content">

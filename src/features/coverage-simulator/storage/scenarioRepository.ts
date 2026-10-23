@@ -23,6 +23,7 @@ export const filterSavedByDisease = filterConsultationsByDisease
 export const filterSavedByCustomer = filterConsultationsByCustomer
 export {
   deleteConsultationAsync,
+  listConsultationsByCustomerId,
   listConsultationsByDisease,
   listConsultationsByTemplateId,
   renameConsultation,

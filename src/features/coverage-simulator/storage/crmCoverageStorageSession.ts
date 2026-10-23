@@ -107,15 +107,12 @@ export async function hydrateCrmCoverageStorage(userKey: string, token: string):
   const templatesMigrated = localStorage.getItem(templateMigrationFlagKey(userKey)) === '1'
   if (!templatesMigrated && userKey !== 'guest') {
     try {
-      const referenced = new Set(
-        session.consultations.map((row) => row.templateId).filter((id): id is string => Boolean(id)),
-      )
       const existingLegacyIds = new Set(
         session.templates
           .map((row) => row.legacyClientId)
           .filter((id): id is string => Boolean(id)),
       )
-      await importLegacyLocalTemplates(token, userKey, referenced, existingLegacyIds)
+      await importLegacyLocalTemplates(token, userKey, existingLegacyIds)
       const refreshedTemplates = await fetchCoverageTemplates(token)
       session.templates = refreshedTemplates.map(apiTemplateToDomain)
       localStorage.setItem(templateMigrationFlagKey(userKey), '1')
