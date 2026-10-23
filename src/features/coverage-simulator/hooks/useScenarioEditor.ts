@@ -5,7 +5,7 @@ import { consultationContentSnapshot } from '../domain/consultationSnapshot'
 import { readSessionCustomerDraft } from '../context/CoverageSimulatorCustomerContext'
 import { emptyCustomerDraft, type ConsultationCustomerDraft } from '../domain/customerContext'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
-import { createDraftFromSystemDisease } from '../domain/startConsultation'
+import { createEmptyConsultationDraft } from '../domain/startConsultation'
 import {
   insertCoverageItemAfter,
   insertTimeMarkerAfter,
@@ -14,9 +14,7 @@ import {
   resetScenarioItems,
   updateCoverageItem,
 } from '../domain/scenarioOperations'
-import { buildSystemTemplateSnapshot } from '../domain/systemTemplateCatalog'
-import { createConsultationFromTemplate } from '../domain/templateOperations'
-import { createCancerDefaultItems, createScenarioFromTemplate } from '../domain/templates'
+import { createCancerDefaultItems } from '../domain/templates'
 import { calculateScenarioTotals } from '../domain/totals'
 import type { CoverageSimulatorFormMode } from '../domain/coverageSimulatorFormMode'
 import type { CoverageScenario, CoverageScenarioItem, DiseaseType } from '../domain/types'
@@ -68,32 +66,19 @@ export function useScenarioEditor(options?: UseScenarioEditorOptions) {
         persistedSnapshotRef.current = consultationContentSnapshot(saved)
         return
       }
-    }
-    if (isNewDraft) {
-      const customer = readSessionCustomerDraft(userKey)
-      const draft = createDraftFromSystemDisease(diseaseType, customer)
-      if (draft) {
-        setScenario(draft)
-        persistedSnapshotRef.current = null
-        return
-      }
-    }
-    const systemTemplate = buildSystemTemplateSnapshot(diseaseType)
-    if (systemTemplate) {
-      setScenario(
-        createConsultationFromTemplate(systemTemplate, {
-          diseaseType,
-          description: systemTemplate.description ?? '',
-          customer: readSessionCustomerDraft(userKey),
-        }),
-      )
+      setScenario(null)
       persistedSnapshotRef.current = null
       return
     }
-    const created = createScenarioFromTemplate(diseaseType)
-    setScenario(created)
+    if (isNewDraft) {
+      const customer = readSessionCustomerDraft(userKey)
+      setScenario(createEmptyConsultationDraft(customer, ''))
+      persistedSnapshotRef.current = null
+      return
+    }
+    setScenario(null)
     persistedSnapshotRef.current = null
-  }, [diseaseType, embedded, isNewDraft, scenarioId, storageVersion, userKey])
+  }, [embedded, isNewDraft, scenarioId, storageVersion, userKey])
 
   const totals = useMemo(
     () => (scenario ? calculateScenarioTotals(scenario) : { currentTotal: 0, proposedTotal: 0 }),

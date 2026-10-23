@@ -15,7 +15,6 @@ import {
   getCrmConsultationById,
   isCrmCoverageStorageReady,
   listCrmConsultations,
-  listCrmUserTemplates,
   saveCrmConsultation,
 } from './crmCoverageStorageSession'
 import { simulationBelongsToTemplate } from './coverageSimulatorTemplateSync'
@@ -60,24 +59,8 @@ export function listConsultationsByTemplateId(
   customerId?: string | null,
 ): SavedScenarioSummary[] {
   const identity = resolveTemplateMatchIdentity(userKey, templateId)
-  const claimedByOthers = new Set<string>()
-  if (!isPreviewUserKey(userKey) && isCrmCoverageStorageReady(userKey)) {
-    for (const server of listCrmUserTemplates()) {
-      if (server.id === identity.id) continue
-      claimedByOthers.add(server.id)
-      if (server.legacyClientId) claimedByOthers.add(server.legacyClientId)
-    }
-  }
   return listConsultations(userKey).filter((row) => {
-    if (
-      !simulationBelongsToTemplate(identity, row.templateId, {
-        diseaseType: row.diseaseType,
-        templateNameSnapshot: row.templateNameSnapshot,
-        claimedByOtherTemplate: Boolean(row.templateId && claimedByOthers.has(row.templateId)),
-      })
-    ) {
-      return false
-    }
+    if (!simulationBelongsToTemplate(identity, row.templateId)) return false
     if (customerId) return row.customerId === customerId
     return true
   })

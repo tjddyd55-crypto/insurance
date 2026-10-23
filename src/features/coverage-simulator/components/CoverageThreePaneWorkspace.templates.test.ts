@@ -17,6 +17,10 @@ describe('CoverageThreePaneWorkspace template actions', () => {
     expect(workspaceSource).not.toContain('window.prompt')
     expect(workspaceSource).toContain('기본값 편집')
     expect(workspaceSource).toContain('시나리오 이름 변경')
+    expect(workspaceSource).toContain('listSavedScenarios(userKey)')
+    expect(workspaceSource).toContain('listConsultationsByCustomerId')
+    expect(workspaceSource).not.toContain('listConsultationsByTemplateId')
+    expect(workspaceSource).toContain('simulationTemplateMetadataLabel')
   })
 
   it('uses modal SSOT for simulation title rename', () => {
