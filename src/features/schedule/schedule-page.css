@@ -740,3 +740,12 @@
     grid-template-columns: minmax(0, 4fr) minmax(200px, 1fr);
   }
 }
+
+/* t491u 상단 오른쪽 Google 상태(공용 Button 모양 그대로, 점 색만) */
+.schedule-page__google-status {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.schedule-page__google-status--on .schedule-page__google-status-dot { color: var(--success); }
+.schedule-page__google-status--off .schedule-page__google-status-dot { color: var(--text-muted); }
+.schedule-page__google-status--warn .schedule-page__google-status-dot { color: var(--danger); }

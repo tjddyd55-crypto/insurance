@@ -116,7 +116,7 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
   const openChooser = () => {
     reset()
     setChooserOpen(true)
-    void loadTargets().catch((loadError) => setError(messageOf(loadError)))
+    if (enabled) void loadTargets().catch((loadError) => setError(messageOf(loadError)))
   }
 
   const askConsent = async () => {
@@ -281,9 +281,10 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
     </div>
   ) : null
 
-  const toolbarButton: ReactNode = enabled ? (
+  // ONE FC 할 일은 Google 연결과 무관하게 추가할 수 있으므로 버튼은 항상 보인다.
+  const toolbarButton: ReactNode = (
     <Button type="button" variant="primary" size="sm" onClick={openChooser}>새 항목 추가</Button>
-  ) : null
+  )
 
   const noticeNode: ReactNode = notice ? <span className="schedule-page__refresh-message" role="status">{notice}</span> : null
 
@@ -311,19 +312,19 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
       />
       {chooserOpen ? (
         <FormDialog open title="새 항목 추가" closeOnBackdrop closeOnEsc onClose={() => setChooserOpen(false)}>
-          <p className="schedule-page__dialog-sub">{baseDate} · 저장할 위치를 고르세요.{targets?.accountEmail ? ` (Google: ${targets.accountEmail})` : ''}</p>
+          <p className="schedule-page__dialog-sub">{baseDate} · ONE FC에 저장합니다.</p>
           <div className="schedule-page__dialog-actions schedule-page__new-kinds">
-            <FormButton htmlType="button" variant="secondary" onClick={() => choose('google_event')}>Google 일정</FormButton>
-            <FormButton htmlType="button" variant="secondary" onClick={() => choose('google_task')}>Google 할 일</FormButton>
-            <FormButton htmlType="button" variant="secondary" onClick={() => choose('onefc_todo')}>ONE FC 할 일</FormButton>
+            <FormButton htmlType="button" variant="secondary" disabled={!enabled} onClick={() => choose('google_event')}>일정 추가</FormButton>
+            <FormButton htmlType="button" variant="secondary" onClick={() => choose('onefc_todo')}>할 일 추가</FormButton>
           </div>
+          {!enabled ? <p className="schedule-page__dialog-sub">일정 추가는 Google 연동 후 사용할 수 있습니다.</p> : null}
           {error ? <p className="schedule-page__error" role="alert">{error}</p> : null}
         </FormDialog>
       ) : null}
       {eventForm ? (
         <FormDialog
           open
-          title={eventForm.mode === 'create' ? 'Google 일정 추가' : 'Google 일정 수정'}
+          title={eventForm.mode === 'create' ? '일정 추가' : '일정 수정'}
           disableClose={busy}
           onClose={() => setEventForm(null)}
           footer={(

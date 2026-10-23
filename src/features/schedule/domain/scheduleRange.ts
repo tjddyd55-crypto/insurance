@@ -114,3 +114,12 @@ export function periodTitle(view: ScheduleView, anchor: string): string {
   }
   return `${year}년 ${month}월`
 }
+
+/** 이전/다음 버튼 글자. 월간은 이동할 달(연도가 바뀌면 연도 포함), 그 외는 이전/다음. */
+export function scheduleShiftLabel(view: ScheduleView, anchor: string, delta: number): string {
+  if (view !== 'month' && view !== 'list') return delta < 0 ? '이전' : '다음'
+  const target = shiftAnchor('month', anchor, delta)
+  const [year, month] = target.split('-').map(Number)
+  return year === Number(anchor.slice(0, 4)) ? `${month}월` : `${year}년 ${month}월`
+}
+

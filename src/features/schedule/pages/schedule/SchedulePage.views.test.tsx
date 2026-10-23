@@ -11,8 +11,9 @@ vi.mock('../../../../components/dialog/BaseDialog', () => ({
 
 const { default: SchedulePCView } = await import('./SchedulePCView')
 const { default: ScheduleMobileView } = await import('./ScheduleMobileView')
-const { readScheduleEventsResponse } = await import('../../api/scheduleApi')
-const { parseScheduleSources, toggleScheduleSource } = await import('../../hooks/useScheduleState')
+const { readScheduleEventsResponse, SCHEDULE_FILTER_KEYS } = await import('../../api/scheduleApi')
+const { parseScheduleSources, toggleScheduleSource, toggleScheduleFilterGroup } = await import('../../hooks/useScheduleState')
+const { scheduleShiftLabel } = await import('../../domain/scheduleRange')
 const { eventCoversDate, eventEndDay, eventStartDay } = await import('../../domain/scheduleEventTime')
 const { filterScheduleTasks, groupListTasks, isOverdueTask } = await import('../../domain/scheduleTasks')
 
@@ -189,16 +190,19 @@ describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
     }
   })
 
-  it('월간: 기간 제목, 출처 badge, +N, 필터 칩(전체/Google 일정/Google 할 일/ONE FC 할 일/알림일/자동차 만기/상령일)', () => {
+  it('월간: 기간 제목, 출처 badge, +N, 필터 칩(일정/할 일/알림일/자동차 만기/상령일/완료 포함)', () => {
     for (const mobile of [false, true]) {
       const html = render(props({ tasks: [] }), mobile)
-      expect(html).toContain('일정 관리')
+      expect(html).not.toContain('일정 관리</h1>')
       expect(html).toContain('2026년 10월')
-      expect(html).toContain('이전')
+      expect(html).toContain('>9월<')
       expect(html).toContain('오늘')
-      expect(html).toContain('다음')
-      for (const label of ['월간', '주간', '일간', '전체', 'Google 일정', 'Google 할 일', 'ONE FC 할 일', '알림일', '자동차 만기', '상령일', '완료 포함']) {
+      expect(html).toContain('>11월<')
+      for (const label of ['월간', '주간', '일간', '>일정<', '>할 일<', '알림일', '자동차 만기', '상령일', '완료 포함', '새 항목 추가']) {
         expect(html).toContain(label)
+      }
+      for (const label of ['>전체<', '>Google 일정<', '>Google 할 일<', '>ONE FC 할 일<']) {
+        expect(html).not.toContain(label)
       }
       expect(html).not.toContain('개인 일정')
       expect(html).toContain('schedule-page__chip--google')
@@ -507,24 +511,39 @@ describe('일정 관리 PC 압축 상단', () => {
   it('PC 는 안내 배너 없이 짧은 상태 chip 만, 모든 컨트롤 유지', () => {
     const off = render(props({ google: { configured: true, connected: false, status: 'disconnected', calendars: [] }, events: EVENTS.filter((event) => event.source === 'crm') }))
     expect(off).toContain('schedule-page--compact')
-    expect(off).toContain('Google 미연동')
+    expect(off).toContain('Google 미연결')
     expect(off).not.toContain('Google을 연결하면')
     expect(off).not.toContain('schedule-page__google-hint')
-    for (const label of ['이전', '오늘', '다음', '월간', '주간', '일간', '목록', '일정 새로고침', '마지막 갱신', '전체', 'Google 일정', 'Google 할 일', 'ONE FC 할 일', '알림일', '자동차 만기', '상령일', '완료 포함', '공휴일 표시']) {
+    for (const label of ['오늘', '월간', '주간', '일간', '목록', '일정 새로고침', '마지막 갱신', '>일정<', '>할 일<', '알림일', '자동차 만기', '상령일', '완료 포함', '공휴일 표시']) {
       expect(off).toContain(label)
     }
     expect(off).toContain('schedule-page__chip--customer_alert')
-    const pending = render(props({ google: { configured: true, connected: false, status: 'disconnected', connectAllowed: false, calendars: [] } }))
-    expect(pending).toContain('Google 준비 중')
-    expect(pending).not.toContain('Google 미연동')
+    const on = render(props({}))
+    expect(on).toContain('schedule-page__google-status--on')
+    expect(on).toContain('Google 연동 중')
     const reauth = render(props({ google: { configured: true, connected: true, status: 'needs_reauth', calendars: [] } }))
     expect(reauth).toContain('Google 재연결 필요')
-    const failed = render(props({ google: { configured: true, connected: true, status: 'error', calendars: [] } }))
-    expect(failed).toContain('Google 불러오기 실패')
     const scope = render(props({ google: { configured: true, connected: true, status: 'connected', calendars: [], tasks: { status: 'scope_missing', needsReconsent: true, taskLists: [] } }, sourceStatus: { google: 'connected', google_task: 'scope_missing', onefc_todo: 'ok', crm: 'ok' } }))
-    expect(scope).toContain('Google 할 일 권한 필요')
+    expect(scope).toContain('Google 재연결 필요')
     const todoFail = render(props({ sourceStatus: { google: 'connected', google_task: 'connected', onefc_todo: 'error', crm: 'ok' } }))
     expect(todoFail).toContain('ONE FC 할 일 불러오기 실패')
+  })
+
+  it('이전/다음 달 글자: 연도 바뀜 포함', () => {
+    expect(scheduleShiftLabel('month', '2026-10-01', -1)).toBe('9월')
+    expect(scheduleShiftLabel('month', '2026-10-01', 1)).toBe('11월')
+    expect(scheduleShiftLabel('month', '2026-12-15', 1)).toBe('2027년 1월')
+    expect(scheduleShiftLabel('month', '2026-01-15', -1)).toBe('2025년 12월')
+    expect(scheduleShiftLabel('week', '2026-10-01', -1)).toBe('이전')
+  })
+
+  it('필터 묶음: 일정=Google 일정, 할 일=ONE FC+Google 할 일, 서로 독립', () => {
+    const all = [...SCHEDULE_FILTER_KEYS]
+    expect(toggleScheduleFilterGroup(all, 'todo')).toEqual(['google', 'customer_alert', 'car_expiry', 'insurance_age'])
+    expect(toggleScheduleFilterGroup(['google'], 'todo')).toEqual(['google', 'google_task', 'onefc_todo'])
+    expect(toggleScheduleFilterGroup(['google'], 'event')).toEqual([])
+    expect(toggleScheduleFilterGroup(['google', 'onefc_todo'], 'todo')).toEqual(['google', 'google_task', 'onefc_todo'])
+    expect(parseScheduleSources('none')).toEqual([])
   })
 
   it('모바일 웹은 압축 마크업을 쓰지 않는다', () => {
