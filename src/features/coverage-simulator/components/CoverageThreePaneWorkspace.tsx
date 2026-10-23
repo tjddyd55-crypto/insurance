@@ -13,10 +13,13 @@ import { CoverageSimulatorNameCreateDialog } from './CoverageSimulatorNameCreate
 import { SaveConsultationTitleDialog } from './SaveConsultationTitleDialog'
 import { coverageSimulatorExitPath, useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { CoverageThreePaneEditorNavigationProvider } from '../context/CoverageThreePaneEditorNavigation'
-import { formatConsultationListDate } from '../domain/formatConsultationDate'
 import { emptyCustomerDraft } from '../domain/customerContext'
 import { cloneUserTemplate, createEmptyUserTemplate } from '../domain/templateOperations'
-import { simulationTemplateMetadataLabel } from '../domain/simulationTemplateMetadata'
+import {
+  simulationListPrimaryLabel,
+  simulationListSecondaryLabel,
+  simulationTemplateMetadataLabel,
+} from '../domain/simulationTemplateMetadata'
 import { startConsultationFromUserTemplate, startDirectConsultation } from '../domain/startConsultation'
 import type { SavedScenarioSummary } from '../domain/types'
 import { useCoverageSimulatorCrmStorage } from '../context/CoverageSimulatorCrmStorageContext'
@@ -69,15 +72,6 @@ export type CoverageThreePaneWorkspaceProps = {
     templateId: string | null
     simulationId: string | null
   }) => void
-}
-
-function simulationRowCustomerLabel(row: SavedScenarioSummary): string {
-  return row.customerNameSnapshot ?? row.customerName ?? '미연결'
-}
-
-function simulationRowTitleLabel(row: SavedScenarioSummary): string {
-  const title = row.title?.trim()
-  return title || '제목 없음'
 }
 
 export function CoverageThreePaneWorkspace({
@@ -299,7 +293,7 @@ export function CoverageThreePaneWorkspace({
     setAddSimulationOpen(true)
   }
 
-  const onCreateSimulation = async (name: string) => {
+  const onCreateSimulation = async (name: string, withoutTemplate = false) => {
     try {
       const customerDraft = customerFilter
         ? {
@@ -307,10 +301,11 @@ export function CoverageThreePaneWorkspace({
             customerNameSnapshot: customerFilter.customerName?.trim() || null,
           }
         : emptyCustomerDraft()
-      const saved = selectedTemplate
+      const fromTemplate = Boolean(selectedTemplate) && !withoutTemplate
+      const saved = fromTemplate && selectedTemplate
         ? await startConsultationFromUserTemplate(userKey, selectedTemplate, customerDraft)
         : await startDirectConsultation(userKey, name, customerDraft)
-      const renamed = selectedTemplate
+      const renamed = fromTemplate
         ? await renameConsultationAsync(userKey, saved.id, name)
         : saved
       setAddSimulationOpen(false)
@@ -666,12 +661,15 @@ export function CoverageThreePaneWorkspace({
                       onClick={() => openSimulation(row.id)}
                     >
                       <span className="cs-three-pane-simulation-row__customer">
-                        {useTitlePrimary ? simulationRowTitleLabel(row) : simulationRowCustomerLabel(row)}
+                        {simulationListPrimaryLabel(row.title)}
                       </span>
                       <span className="cs-three-pane-simulation-row__date">
-                        {useTitlePrimary
-                          ? `수정 ${formatConsultationListDate(row.updatedAt)} · ${templateLabel}`
-                          : `${formatConsultationListDate(row.updatedAt)} · ${templateLabel}`}
+                        {simulationListSecondaryLabel({
+                          customerName: row.customerNameSnapshot ?? row.customerName,
+                          updatedAt: row.updatedAt,
+                          templateLabel,
+                          customerScoped: useTitlePrimary,
+                        })}
                       </span>
                     </button>
                     <button
@@ -802,7 +800,10 @@ export function CoverageThreePaneWorkspace({
             setAddSimulationOpen(false)
             setNewSimulationName('')
           }}
-          onConfirm={onCreateSimulation}
+          onConfirm={(name) => onCreateSimulation(name, false)}
+          onConfirmWithoutTemplate={
+            selectedTemplate ? (name) => onCreateSimulation(name, true) : undefined
+          }
         />
 
         {confirmDialog}
