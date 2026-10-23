@@ -31,6 +31,18 @@ type SessionState = {
 
 let session: SessionState | null = null
 const listeners = new Set<() => void>()
+const legacyMigrationLocks = new Set<string>()
+
+function claimLegacyMigration(kind: 'templates' | 'consultations', userKey: string): boolean {
+  const key = `${kind}:${userKey}`
+  if (legacyMigrationLocks.has(key)) return false
+  legacyMigrationLocks.add(key)
+  return true
+}
+
+function releaseLegacyMigration(kind: 'templates' | 'consultations', userKey: string): void {
+  legacyMigrationLocks.delete(`${kind}:${userKey}`)
+}
 
 function bumpVersion() {
   if (session) {
@@ -105,7 +117,7 @@ export async function hydrateCrmCoverageStorage(userKey: string, token: string):
   session.consultations = simulations.map(apiSimulationToDomain)
 
   const templatesMigrated = localStorage.getItem(templateMigrationFlagKey(userKey)) === '1'
-  if (!templatesMigrated && userKey !== 'guest') {
+  if (!templatesMigrated && userKey !== 'guest' && claimLegacyMigration('templates', userKey)) {
     try {
       const existingLegacyIds = new Set(
         session.templates
@@ -114,21 +126,23 @@ export async function hydrateCrmCoverageStorage(userKey: string, token: string):
       )
       await importLegacyLocalTemplates(token, userKey, existingLegacyIds)
       const refreshedTemplates = await fetchCoverageTemplates(token)
-      session.templates = refreshedTemplates.map(apiTemplateToDomain)
+      if (session) session.templates = refreshedTemplates.map(apiTemplateToDomain)
       localStorage.setItem(templateMigrationFlagKey(userKey), '1')
     } catch {
+      releaseLegacyMigration('templates', userKey)
       // flag 미설정 — 다음 진입에서 로컬 템플릿 업로드를 다시 시도
     }
   }
 
   const migrated = localStorage.getItem(migrationFlagKey(userKey)) === '1'
-  if (!migrated) {
+  if (!migrated && claimLegacyMigration('consultations', userKey)) {
     try {
       await importLegacyConsultations(token, userKey)
       const refreshed = await fetchCoverageSimulations(token)
-      session.consultations = refreshed.map(apiSimulationToDomain)
+      if (session) session.consultations = refreshed.map(apiSimulationToDomain)
       localStorage.setItem(migrationFlagKey(userKey), '1')
     } catch {
+      releaseLegacyMigration('consultations', userKey)
       // 실패 시 flag 미설정 — local legacy 유지
     }
   }

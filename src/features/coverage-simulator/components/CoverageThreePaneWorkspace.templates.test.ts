@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 const dir = dirname(fileURLToPath(import.meta.url))
 const workspaceSource = readFileSync(join(dir, 'CoverageThreePaneWorkspace.tsx'), 'utf8')
 const saveDialogSource = readFileSync(join(dir, 'SaveConsultationTitleDialog.tsx'), 'utf8')
+const nameDialogSource = readFileSync(join(dir, 'CoverageSimulatorNameCreateDialog.tsx'), 'utf8')
 
 describe('CoverageThreePaneWorkspace template actions', () => {
   it('refreshes template list via templateVersion dependency', () => {
@@ -21,6 +22,10 @@ describe('CoverageThreePaneWorkspace template actions', () => {
     expect(workspaceSource).toContain('listConsultationsByCustomerId')
     expect(workspaceSource).not.toContain('listConsultationsByTemplateId')
     expect(workspaceSource).toContain('simulationTemplateMetadataLabel')
+    expect(workspaceSource).toContain('simulationListPrimaryLabel(row.title)')
+    expect(workspaceSource).toContain('onConfirmWithoutTemplate')
+    expect(nameDialogSource).toContain('템플릿 없이')
+    expect(nameDialogSource).toContain('onConfirmWithoutTemplate')
   })
 
   it('uses modal SSOT for simulation title rename', () => {
