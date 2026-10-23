@@ -10,6 +10,7 @@ import { SaveConsultationTitleDialog } from '../components/SaveConsultationTitle
 import { useCoverageSimulatorCustomer } from '../context/CoverageSimulatorCustomerContext'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { diseaseTypeTitle, isKnownDiseaseType } from '../domain/diseaseTypeLabels'
+import { simulationTemplateMetadataLabel } from '../domain/simulationTemplateMetadata'
 import { SimulationListPanel } from '../components/SimulationListPanel'
 import type { SavedScenarioSummary } from '../domain/types'
 import { useCoverageSimulatorCrmStorage } from '../context/CoverageSimulatorCrmStorageContext'
@@ -18,6 +19,7 @@ import {
   listConsultationsByDisease,
   renameConsultationAsync,
 } from '../storage/scenarioRepository'
+import { getScenarioTemplateById } from '../storage/templateRepository'
 
 function SimulationListPageContent() {
   const navigate = useNavigate()
@@ -115,13 +117,6 @@ function SimulationListPageContent() {
             className="coverage-simulator-primary-btn"
             onClick={() => navigate(`${basePath}/${diseaseType}/new`)}
           >
-            기본 시뮬레이션으로 시작
-          </button>
-          <button
-            type="button"
-            className="coverage-simulator-secondary-btn"
-            onClick={() => navigate(`${basePath}/${diseaseType}/new`)}
-          >
             + 새 시뮬레이션 만들기
           </button>
         </div>
@@ -132,6 +127,12 @@ function SimulationListPageContent() {
           onSelect={openScenario}
           showRowMenu
           onRowMenu={setMenuRow}
+          templateMetadataLabel={(row) =>
+            simulationTemplateMetadataLabel(
+              row.templateId,
+              row.templateId ? getScenarioTemplateById(userKey, row.templateId)?.name : null,
+            )
+          }
         />
       </main>
       <SimulationListActionSheet

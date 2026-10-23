@@ -1,5 +1,5 @@
 import '../../insurer-news/components/collections/newsletterCollections.css'
-import { useState } from 'react'
+import { useEffect, useState, type RefObject } from 'react'
 import { FormButton } from '../../../components/form'
 import { StatusMessage } from '../../../components/feedback'
 import { useAuth } from '../../auth/AuthProvider'
@@ -17,10 +17,18 @@ export function NewsletterBinderSourcePanel({
   sectionId,
   sectionTitle,
   onImported,
+  onSelectedCountChange,
+  onBusyChange,
+  submitActionRef,
+  hideFooter = false,
 }: {
   sectionId: string
   sectionTitle: string
   onImported: (message: string) => void
+  onSelectedCountChange?: (count: number) => void
+  onBusyChange?: (busy: boolean) => void
+  submitActionRef?: RefObject<(() => void) | null>
+  hideFooter?: boolean
 }) {
   const { user, token } = useAuth()
   const blocked = isPublicGeneralAccount(user)
@@ -28,6 +36,14 @@ export function NewsletterBinderSourcePanel({
   const [selected, setSelected] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    onSelectedCountChange?.(selected.length)
+  }, [onSelectedCountChange, selected.length])
+
+  useEffect(() => {
+    onBusyChange?.(busy)
+  }, [busy, onBusyChange])
 
   const submit = async () => {
     if (busy || selected.length === 0) return
@@ -48,6 +64,12 @@ export function NewsletterBinderSourcePanel({
     }
   }
 
+  if (submitActionRef) {
+    submitActionRef.current = () => {
+      void submit()
+    }
+  }
+
   if (blocked) {
     return <p className="personal-binder-material-picker__empty">이 계정에서는 소식지를 이용할 수 없습니다.</p>
   }
@@ -63,18 +85,20 @@ export function NewsletterBinderSourcePanel({
         selectedIds={selected}
         onSelectedIdsChange={setSelected}
       />
-      <div className="newsletter-binder-source__footer">
-        <FormButton
-          variant="primary"
-          size="sm"
-          loading={busy}
-          loadingText="PDF 변환 중…"
-          disabled={selected.length === 0}
-          onClick={() => void submit()}
-        >
-          {selected.length}개 바인더에 담기
-        </FormButton>
-      </div>
+      {hideFooter ? null : (
+        <div className="newsletter-binder-source__footer">
+          <FormButton
+            variant="primary"
+            size="sm"
+            loading={busy}
+            loadingText="PDF 변환 중…"
+            disabled={selected.length === 0}
+            onClick={() => void submit()}
+          >
+            {selected.length}개 바인더에 담기
+          </FormButton>
+        </div>
+      )}
     </div>
   )
 }

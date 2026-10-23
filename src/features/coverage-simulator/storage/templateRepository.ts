@@ -3,16 +3,42 @@ import {
   compareScenarioTemplates,
 } from '../domain/scenarioSeed'
 import type { ScenarioTemplate, ScenarioTemplateSummary } from '../domain/templateTypes'
+import { isPreviewUserKey, scenarioLibraryInitStorageKey, templateStorageKey } from './previewStorageKeys'
 import {
-  scenarioLibraryInitStorageKey,
-  templateStorageKey,
-} from './previewStorageKeys'
+  isSystemDefaultTemplate,
+  type TemplateMatchIdentity,
+} from './coverageSimulatorTemplateSync'
+import {
+  deleteCrmUserTemplate,
+  duplicateCrmUserTemplate,
+  getCrmUserTemplateById,
+  isCrmCoverageStorageReady,
+  listCrmUserTemplates,
+  saveCrmUserTemplate,
+} from './crmCoverageStorageSession'
+
+function usesServerTemplates(userKey: string): boolean {
+  return !isPreviewUserKey(userKey) && isCrmCoverageStorageReady(userKey)
+}
+
+function toSummary(template: ScenarioTemplate): ScenarioTemplateSummary {
+  return {
+    id: template.id,
+    name: template.name,
+    description: template.description,
+    sourceType: template.sourceType,
+    seedKey: template.seedKey,
+    itemCount: template.items.length,
+    updatedAt: template.updatedAt,
+  }
+}
 
 function normalizeTemplate(raw: ScenarioTemplate): ScenarioTemplate {
-  return {
-    ...raw,
-    sourceType: raw.sourceType === 'system' ? 'user' : raw.sourceType,
-  }
+  return { ...raw }
+}
+
+function visibleUserTemplates(rows: ScenarioTemplate[]): ScenarioTemplate[] {
+  return rows.filter((row) => !isSystemDefaultTemplate(row))
 }
 
 function readRaw(userKey: string): ScenarioTemplate[] {
@@ -34,7 +60,10 @@ function writeRaw(userKey: string, templates: ScenarioTemplate[]): void {
   localStorage.setItem(key, JSON.stringify(templates))
 }
 
-/** One-time seed bootstrap — deleted seeds are not recreated on later visits. */
+/**
+ * 예전 미리보기 시드 삽입. 템플릿 목록·신규 시뮬레이션 경로에서는 호출하지 않는다.
+ * 시스템 기본 템플릿은 UI에 넣지 않고 서버로도 올리지 않는다.
+ */
 export function ensureScenarioLibraryBootstrap(userKey: string): void {
   const initKey = scenarioLibraryInitStorageKey(userKey)
   const storageKey = templateStorageKey(userKey)
@@ -49,7 +78,6 @@ export function ensureScenarioLibraryBootstrap(userKey: string): void {
 }
 
 function readAll(userKey: string): ScenarioTemplate[] {
-  ensureScenarioLibraryBootstrap(userKey)
   return readRaw(userKey)
 }
 
@@ -58,18 +86,10 @@ function writeAll(userKey: string, templates: ScenarioTemplate[]): void {
 }
 
 export function listScenarioTemplates(userKey: string): ScenarioTemplateSummary[] {
-  return readAll(userKey)
-    .slice()
-    .sort(compareScenarioTemplates)
-    .map((template) => ({
-      id: template.id,
-      name: template.name,
-      description: template.description,
-      sourceType: template.sourceType,
-      seedKey: template.seedKey,
-      itemCount: template.items.length,
-      updatedAt: template.updatedAt,
-    }))
+  if (usesServerTemplates(userKey)) {
+    return visibleUserTemplates(listCrmUserTemplates()).map(toSummary)
+  }
+  return visibleUserTemplates(readRaw(userKey)).slice().sort(compareScenarioTemplates).map(toSummary)
 }
 
 /** @deprecated use listScenarioTemplates */
@@ -78,7 +98,24 @@ export function listUserTemplates(userKey: string): ScenarioTemplateSummary[] {
 }
 
 export function getScenarioTemplateById(userKey: string, id: string): ScenarioTemplate | null {
-  return readAll(userKey).find((row) => row.id === id) ?? null
+  if (usesServerTemplates(userKey)) {
+    const serverTemplates = listCrmUserTemplates()
+    const serverHit =
+      getCrmUserTemplateById(id) ?? serverTemplates.find((row) => row.legacyClientId === id) ?? null
+    if (!serverHit || isSystemDefaultTemplate(serverHit)) return null
+    return serverHit
+  }
+  const local = readRaw(userKey).find((row) => row.id === id) ?? null
+  if (!local || isSystemDefaultTemplate(local)) return null
+  return local
+}
+
+export function resolveTemplateMatchIdentity(userKey: string, templateId: string): TemplateMatchIdentity {
+  const template = getScenarioTemplateById(userKey, templateId)
+  return {
+    id: template?.id ?? templateId,
+    legacyClientId: template?.legacyClientId ?? null,
+  }
 }
 
 /** @deprecated use getScenarioTemplateById */
@@ -106,6 +143,41 @@ export function saveScenarioTemplate(userKey: string, template: ScenarioTemplate
 /** @deprecated use saveScenarioTemplate */
 export function saveUserTemplate(userKey: string, template: ScenarioTemplate): ScenarioTemplate {
   return saveScenarioTemplate(userKey, template)
+}
+
+export async function persistScenarioTemplate(
+  userKey: string,
+  template: ScenarioTemplate,
+): Promise<ScenarioTemplate> {
+  if (isSystemDefaultTemplate(template)) {
+    return template
+  }
+  if (usesServerTemplates(userKey)) {
+    return saveCrmUserTemplate({ ...template, sourceType: 'user' })
+  }
+  return saveScenarioTemplate(userKey, template)
+}
+
+export async function removeScenarioTemplate(userKey: string, id: string): Promise<void> {
+  if (isSystemDefaultTemplate({ id, sourceType: 'user' })) return
+  if (usesServerTemplates(userKey)) {
+    const resolved = getScenarioTemplateById(userKey, id)
+    if (!resolved) return
+    await deleteCrmUserTemplate(resolved.id)
+    return
+  }
+  deleteScenarioTemplate(userKey, id)
+}
+
+export async function copyScenarioTemplate(
+  userKey: string,
+  source: ScenarioTemplate,
+  copy: ScenarioTemplate,
+): Promise<ScenarioTemplate> {
+  if (usesServerTemplates(userKey) && /^\d+$/.test(source.id)) {
+    return duplicateCrmUserTemplate(source.id)
+  }
+  return persistScenarioTemplate(userKey, copy)
 }
 
 export function deleteScenarioTemplate(userKey: string, id: string): void {

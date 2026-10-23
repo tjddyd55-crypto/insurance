@@ -657,6 +657,22 @@
   border-bottom: none;
 }
 
+.personal-binder-section-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.personal-binder-section-card__header .customer-detail-accordion__chevron {
+  margin-left: auto;
+  transition: opacity 0.15s ease;
+}
+
+.personal-binder-toc__empty {
+  margin: 8px 12px 12px;
+}
+
 .personal-binder-editor--toc .personal-binder-toc__section > header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 28px;
@@ -1861,9 +1877,56 @@
   margin: var(--space-2, 8px) var(--space-5, 20px) 0;
 }
 
+.personal-binder-material-picker__stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.personal-binder-material-picker__footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-surface);
+}
+
+.personal-binder-material-picker__footer-count {
+  margin-right: auto;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.personal-binder-material-picker-dialog .newsletter-binder-source,
+.personal-binder-material-picker-dialog .newsletter-picker {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.personal-binder-material-picker-dialog .newsletter-picker__controls,
+.personal-binder-material-picker-dialog .newsletter-picker__bar,
+.personal-binder-material-picker-dialog .newsletter-binder-source__target {
+  flex-shrink: 0;
+}
+
+.personal-binder-material-picker-dialog .newsletter-picker__grid,
+.personal-binder-material-picker-dialog .newsletter-picker__empty {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .personal-binder-material-picker__body {
   flex: 1 1 auto;
-  min-height: 280px;
+  min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
   padding: var(--space-3, 12px) var(--space-5, 20px) var(--space-5, 20px);

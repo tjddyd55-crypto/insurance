@@ -17,6 +17,8 @@ import {
   listCrmConsultations,
   saveCrmConsultation,
 } from './crmCoverageStorageSession'
+import { simulationBelongsToTemplate } from './coverageSimulatorTemplateSync'
+import { resolveTemplateMatchIdentity } from './templateRepository'
 
 export function listConsultations(userKey: string): SavedScenarioSummary[] {
   const rows = isPreviewUserKey(userKey)
@@ -56,8 +58,9 @@ export function listConsultationsByTemplateId(
   templateId: string,
   customerId?: string | null,
 ): SavedScenarioSummary[] {
+  const identity = resolveTemplateMatchIdentity(userKey, templateId)
   return listConsultations(userKey).filter((row) => {
-    if (row.templateId !== templateId) return false
+    if (!simulationBelongsToTemplate(identity, row.templateId)) return false
     if (customerId) return row.customerId === customerId
     return true
   })

@@ -4,6 +4,8 @@ export type TemplateSourceType = 'system' | 'user'
 
 export type ScenarioTemplate = {
   id: string
+  /** 브라우저 로컬 id. 서버 행은 숫자 id 와 이 값을 함께 가진다. */
+  legacyClientId?: string | null
   name: string
   description?: string
   sourceType: TemplateSourceType

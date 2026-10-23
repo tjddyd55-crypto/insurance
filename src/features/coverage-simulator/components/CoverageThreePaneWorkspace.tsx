@@ -13,23 +13,29 @@ import { CoverageSimulatorNameCreateDialog } from './CoverageSimulatorNameCreate
 import { SaveConsultationTitleDialog } from './SaveConsultationTitleDialog'
 import { coverageSimulatorExitPath, useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { CoverageThreePaneEditorNavigationProvider } from '../context/CoverageThreePaneEditorNavigation'
-import { formatConsultationListDate } from '../domain/formatConsultationDate'
 import { emptyCustomerDraft } from '../domain/customerContext'
 import { cloneUserTemplate, createEmptyUserTemplate } from '../domain/templateOperations'
-import { startConsultationFromUserTemplate } from '../domain/startConsultation'
+import {
+  simulationListPrimaryLabel,
+  simulationListSecondaryLabel,
+  simulationTemplateMetadataLabel,
+} from '../domain/simulationTemplateMetadata'
+import { startConsultationFromUserTemplate, startDirectConsultation } from '../domain/startConsultation'
 import type { SavedScenarioSummary } from '../domain/types'
 import { useCoverageSimulatorCrmStorage } from '../context/CoverageSimulatorCrmStorageContext'
 import { useScenarioEditor } from '../hooks/useScenarioEditor'
 import { useTemplateEditor } from '../hooks/useTemplateEditor'
 import {
-  deleteScenarioTemplate,
+  copyScenarioTemplate,
   getScenarioTemplateById,
   listScenarioTemplates,
-  saveScenarioTemplate,
+  persistScenarioTemplate,
+  removeScenarioTemplate,
 } from '../storage/templateRepository'
 import {
   deleteScenarioAsync,
-  listConsultationsByTemplateId,
+  listConsultationsByCustomerId,
+  listSavedScenarios,
   renameConsultationAsync,
 } from '../storage/scenarioRepository'
 
@@ -66,15 +72,6 @@ export type CoverageThreePaneWorkspaceProps = {
     templateId: string | null
     simulationId: string | null
   }) => void
-}
-
-function simulationRowCustomerLabel(row: SavedScenarioSummary): string {
-  return row.customerNameSnapshot ?? row.customerName ?? '미연결'
-}
-
-function simulationRowTitleLabel(row: SavedScenarioSummary): string {
-  const title = row.title?.trim()
-  return title || '제목 없음'
 }
 
 export function CoverageThreePaneWorkspace({
@@ -185,42 +182,28 @@ export function CoverageThreePaneWorkspace({
   }, [initialSimulationId])
 
   useEffect(() => {
-    if (templates.length === 0) return
     if (selectedTemplateId && templates.some((t) => t.id === selectedTemplateId)) return
 
     if (initialTemplateId && templates.some((t) => t.id === initialTemplateId)) {
       setSelectedTemplateId(initialTemplateId)
-      if (initialSimulationId) {
-        setContentMode({ type: 'simulation', simulationId: initialSimulationId })
-      }
       return
     }
 
     const nextTemplateId = templates[0]?.id ?? null
     if (nextTemplateId === selectedTemplateId) return
     setSelectedTemplateId(nextTemplateId)
-    setContentMode({ type: 'empty' })
-    notifySelection(nextTemplateId, null)
-  }, [
-    initialSimulationId,
-    initialTemplateId,
-    notifySelection,
-    selectedTemplateId,
-    templates,
-  ])
+  }, [initialTemplateId, selectedTemplateId, templates])
 
   const selectedTemplate = selectedTemplateId ? getScenarioTemplateById(userKey, selectedTemplateId) : null
 
   const simulationRows = useMemo(() => {
-    if (!selectedTemplateId) return []
     void listVersion
     void storageVersion
-    return listConsultationsByTemplateId(
-      userKey,
-      selectedTemplateId,
-      customerFilter?.customerId ?? null,
-    )
-  }, [customerFilter?.customerId, listVersion, selectedTemplateId, storageVersion, userKey])
+    if (customerFilter?.customerId) {
+      return listConsultationsByCustomerId(userKey, customerFilter.customerId)
+    }
+    return listSavedScenarios(userKey)
+  }, [customerFilter?.customerId, listVersion, storageVersion, userKey])
 
   const refreshLists = useCallback(() => setListVersion((v) => v + 1), [])
 
@@ -233,6 +216,11 @@ export function CoverageThreePaneWorkspace({
   const templateEditor = useTemplateEditor({
     templateIdOverride: contentMode.type === 'template-edit' ? contentMode.templateId : null,
     embedded: true,
+    onTemplateIdentityChange: (nextId) => {
+      setSelectedTemplateId(nextId)
+      setContentMode({ type: 'template-edit', templateId: nextId })
+      notifySelection(nextId, null)
+    },
   })
 
   const bumpTemplateList = useCallback(() => {
@@ -301,13 +289,11 @@ export function CoverageThreePaneWorkspace({
   }, [notifySelection, selectedTemplateId])
 
   const openAddSimulationModal = () => {
-    if (!selectedTemplate) return
-    setNewSimulationName(selectedTemplate.name)
+    setNewSimulationName(selectedTemplate?.name ?? '새 시뮬레이션')
     setAddSimulationOpen(true)
   }
 
-  const onCreateSimulation = async (name: string) => {
-    if (!selectedTemplate) return
+  const onCreateSimulation = async (name: string, withoutTemplate = false) => {
     try {
       const customerDraft = customerFilter
         ? {
@@ -315,8 +301,13 @@ export function CoverageThreePaneWorkspace({
             customerNameSnapshot: customerFilter.customerName?.trim() || null,
           }
         : emptyCustomerDraft()
-      const saved = await startConsultationFromUserTemplate(userKey, selectedTemplate, customerDraft)
-      const renamed = await renameConsultationAsync(userKey, saved.id, name)
+      const fromTemplate = Boolean(selectedTemplate) && !withoutTemplate
+      const saved = fromTemplate && selectedTemplate
+        ? await startConsultationFromUserTemplate(userKey, selectedTemplate, customerDraft)
+        : await startDirectConsultation(userKey, name, customerDraft)
+      const renamed = fromTemplate
+        ? await renameConsultationAsync(userKey, saved.id, name)
+        : saved
       setAddSimulationOpen(false)
       setNewSimulationName('')
       refreshLists()
@@ -326,8 +317,8 @@ export function CoverageThreePaneWorkspace({
     }
   }
 
-  const onCreateScenario = (name: string) => {
-    const saved = saveScenarioTemplate(userKey, createEmptyUserTemplate(name))
+  const onCreateScenario = async (name: string) => {
+    const saved = await persistScenarioTemplate(userKey, createEmptyUserTemplate(name))
     setAddScenarioOpen(false)
     setNewScenarioName('')
     bumpTemplateList()
@@ -343,19 +334,33 @@ export function CoverageThreePaneWorkspace({
       tone: 'danger',
     })
     if (!ok) return
-    deleteScenarioTemplate(userKey, templateId)
+    await removeScenarioTemplate(userKey, templateId)
     setTemplateMenuId(null)
     bumpTemplateList()
     if (selectedTemplateId === templateId) {
       const remaining = listScenarioTemplates(userKey)
       const nextTemplateId = remaining[0]?.id ?? null
       setSelectedTemplateId(nextTemplateId)
-      setContentMode({ type: 'empty' })
-      notifySelection(nextTemplateId, null)
+      setContentMode((current) =>
+        current.type === 'template-edit' && current.templateId === templateId
+          ? { type: 'empty' }
+          : current,
+      )
+      const simulationId =
+        contentMode.type === 'simulation'
+          ? contentMode.simulationId
+          : contentMode.type === 'pdf'
+            ? contentMode.scenarioId
+            : null
+      const keepSimulation =
+        contentMode.type === 'template-edit' && contentMode.templateId === templateId
+          ? null
+          : simulationId
+      notifySelection(nextTemplateId, keepSimulation)
     }
   }
 
-  const onRenameTemplateConfirm = (nextName: string) => {
+  const onRenameTemplateConfirm = async (nextName: string) => {
     if (!renameTemplateId) return
     const source = getScenarioTemplateById(userKey, renameTemplateId)
     if (!source) {
@@ -372,7 +377,7 @@ export function CoverageThreePaneWorkspace({
       setRenameTemplateError(null)
       return
     }
-    saveScenarioTemplate(userKey, { ...source, name: trimmed })
+    await persistScenarioTemplate(userKey, { ...source, name: trimmed })
     bumpTemplateList()
     setRenameTemplateId(null)
     setRenameTemplateError(null)
@@ -449,13 +454,6 @@ export function CoverageThreePaneWorkspace({
     .join(' ')
 
   const contentPane = (() => {
-    if (!selectedTemplateId) {
-      return (
-        <div className="cs-three-pane-empty">
-          <p>시나리오를 선택해 주세요.</p>
-        </div>
-      )
-    }
     if (contentMode.type === 'pdf') {
       return (
         <CoverageEmbeddedPdfPreview
@@ -586,13 +584,19 @@ export function CoverageThreePaneWorkspace({
                       <button
                         type="button"
                         onClick={() => {
-                          const source = getScenarioTemplateById(userKey, template.id)
-                          if (!source) return
-                          const copy = saveScenarioTemplate(userKey, cloneUserTemplate(source))
-                          setTemplateMenuId(null)
-                          bumpTemplateList()
-                          selectTemplate(copy.id)
-                          openTemplateEdit(copy.id)
+                          void (async () => {
+                            const source = getScenarioTemplateById(userKey, template.id)
+                            if (!source) return
+                            const copy = await copyScenarioTemplate(
+                              userKey,
+                              source,
+                              cloneUserTemplate(source),
+                            )
+                            setTemplateMenuId(null)
+                            bumpTemplateList()
+                            selectTemplate(copy.id)
+                            openTemplateEdit(copy.id)
+                          })()
                         }}
                       >
                         복제
@@ -623,23 +627,25 @@ export function CoverageThreePaneWorkspace({
 
           <aside className="cs-three-pane__column cs-three-pane__column--simulation">
             <header className="cs-three-pane__column-header">
-              <h2>{selectedTemplate ? `${selectedTemplate.name} 시뮬레이션` : '시뮬레이션'}</h2>
+              <h2>시뮬레이션</h2>
               <button
                 type="button"
                 className="cs-three-pane__add"
-                disabled={!selectedTemplate}
                 onClick={openAddSimulationModal}
               >
                 {addSimulationLabel}
               </button>
             </header>
             <div className="cs-three-pane__scroll">
-              {!selectedTemplateId ? (
-                <p className="cs-three-pane__empty-list">시나리오를 선택해 주세요.</p>
-              ) : simulationRows.length === 0 ? (
+              {simulationRows.length === 0 ? (
                 <p className="cs-three-pane__empty-list">저장된 시뮬레이션이 없습니다.</p>
               ) : (
-                simulationRows.map((row) => (
+                simulationRows.map((row) => {
+                  const templateLabel = simulationTemplateMetadataLabel(
+                    row.templateId,
+                    row.templateId ? getScenarioTemplateById(userKey, row.templateId)?.name : null,
+                  )
+                  return (
                   <div
                     key={row.id}
                     className="cs-three-pane-simulation-row"
@@ -655,12 +661,15 @@ export function CoverageThreePaneWorkspace({
                       onClick={() => openSimulation(row.id)}
                     >
                       <span className="cs-three-pane-simulation-row__customer">
-                        {useTitlePrimary ? simulationRowTitleLabel(row) : simulationRowCustomerLabel(row)}
+                        {simulationListPrimaryLabel(row.title)}
                       </span>
                       <span className="cs-three-pane-simulation-row__date">
-                        {useTitlePrimary
-                          ? `수정 ${formatConsultationListDate(row.updatedAt)}`
-                          : formatConsultationListDate(row.updatedAt)}
+                        {simulationListSecondaryLabel({
+                          customerName: row.customerNameSnapshot ?? row.customerName,
+                          updatedAt: row.updatedAt,
+                          templateLabel,
+                          customerScoped: useTitlePrimary,
+                        })}
                       </span>
                     </button>
                     <button
@@ -709,7 +718,8 @@ export function CoverageThreePaneWorkspace({
                       </div>
                     ) : null}
                   </div>
-                ))
+                  )
+                })
               )}
             </div>
           </aside>
@@ -790,7 +800,10 @@ export function CoverageThreePaneWorkspace({
             setAddSimulationOpen(false)
             setNewSimulationName('')
           }}
-          onConfirm={onCreateSimulation}
+          onConfirm={(name) => onCreateSimulation(name, false)}
+          onConfirmWithoutTemplate={
+            selectedTemplate ? (name) => onCreateSimulation(name, true) : undefined
+          }
         />
 
         {confirmDialog}
