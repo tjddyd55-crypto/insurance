@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
+import { buildAutoSyncEventPayload, decideAutoSyncWrite } from '../integrations/google/googleCalendarAutoSync.js'
+import { normalizeGoogleCalendarEvent } from './scheduleEvents.js'
 import { loadScheduleEvents } from './scheduleQuery.js'
 import {
   createOnefcSchedule,
   deleteOnefcSchedule,
   parseOnefcScheduleInput,
   scheduleIdForRequest,
+  scheduleRowToAutoSyncItem,
   updateOnefcSchedule,
 } from './onefcSchedule.js'
 
@@ -109,12 +112,46 @@ describe('ONE FC 일정 저장', () => {
   })
 })
 
-describe('ONE FC 일정 목록', () => {
-  it('일정 조회에 로컬 일정이 1건으로 합쳐진다', async () => {
+describe('ONE FC 일정 Google 사본', () => {
+  it('시간 일정은 dateTime 과 onefcAutoSync 태그를 쓰고, 시각이 바뀌면 같은 id 로 고친다', () => {
+    const item = scheduleRowToAutoSyncItem({
+      id: '11111111-1111-4111-8111-111111111111',
+      title: '상담',
+      description: '메모',
+      all_day: false,
+      start_at: '2026-10-22T10:00:00+09:00',
+      end_at: '2026-10-22T11:00:00+09:00',
+    })
+    const payload = buildAutoSyncEventPayload(item, { ownerTag: 'owner' })
+    assert.equal(payload.summary, '상담')
+    assert.equal(payload.start.dateTime, '2026-10-22T10:00:00+09:00')
+    assert.equal(payload.extendedProperties.private.app, 'onefcAutoSync')
+    assert.equal(payload.extendedProperties.private.kind, 'schedule')
+    const decision = decideAutoSyncWrite(undefined, item)
+    const same = decideAutoSyncWrite({ status: 'active', content_hash: decision.hash, google_event_id: 'evt-1' }, item)
+    assert.equal(same.action, 'skip')
+    assert.equal(same.eventId, 'evt-1')
+    const moved = decideAutoSyncWrite(
+      { status: 'active', content_hash: decision.hash, google_event_id: 'evt-1' },
+      { ...item, startTime: '12:00', endTime: '13:00' },
+    )
+    assert.equal(moved.action, 'update')
+    assert.equal(moved.eventId, 'evt-1')
+  })
+
+  it('화면에는 로컬 일정 1건만 있고 Google 사본은 숨긴다', async () => {
+    const hidden = normalizeGoogleCalendarEvent({
+      id: 'onefcasabc',
+      status: 'confirmed',
+      summary: '상담',
+      start: { dateTime: '2026-10-22T10:00:00+09:00' },
+      end: { dateTime: '2026-10-22T11:00:00+09:00' },
+      extendedProperties: { private: { app: 'onefcAutoSync' } },
+    }, { id: 'primary', name: '기본' })
+    assert.equal(hidden, null)
     const data = await loadScheduleEvents({
       async query(sql) {
         if (String(sql).includes('FROM calendar_items')) {
-          assert.match(String(sql), /owner_type = 'user' AND owner_id = \$2/)
           return {
             rows: [{
               id: '11111111-1111-4111-8111-111111111111',

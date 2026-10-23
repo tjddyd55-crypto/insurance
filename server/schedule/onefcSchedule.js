@@ -2,7 +2,7 @@
  * ONE FC 일정. 기존 calendar_items 컬럼만 쓴다.
  * 소유는 owner_type='user' + owner_id. 소프트 삭제는 이미 있는 deleted_at.
  * requestId 가 있으면 (사용자, requestId) 해시로 id 를 정해 컬럼 추가 없이 재시도를 한 행으로 묶는다.
- * Google 로 복사하지 않는다(자동 연동은 이 릴리스 범위 밖).
+ * Google 쓰기 성공 여부와 저장은 분리된다.
  */
 import crypto from 'node:crypto'
 import { addDaysYmd, seoulYmd } from '../lib/seoulCalendarDate.js'
@@ -157,6 +157,35 @@ export function normalizeOnefcScheduleEvent(row) {
     writable: true,
     readOnlyReason: '',
     origin: 'onefc',
+  }
+}
+
+/**
+ * 자동 연동 desired item. 제목은 사용자가 입력한 그대로(대괄호 접두사 없음).
+ * @param {Record<string, unknown>} row
+ */
+export function scheduleRowToAutoSyncItem(row) {
+  const id = String(row?.id ?? '').trim()
+  const start = asDate(row?.start_at)
+  const end = asDate(row?.end_at)
+  if (!id || !start || !end) return null
+  const allDay = row.all_day === true
+  const startYmd = seoulYmd(start)
+  const endYmd = seoulYmd(end)
+  const endDate = allDay ? addDaysYmd(endYmd, -1) : endYmd
+  return {
+    key: `schedule:${id}`,
+    kind: 'schedule',
+    sourceType: 'schedule',
+    sourceId: id,
+    date: startYmd,
+    endDate: endDate < startYmd ? startYmd : endDate,
+    allDay,
+    startTime: allDay ? null : seoulHm(start),
+    endTime: allDay ? null : seoulHm(end),
+    name: String(row.title ?? ''),
+    description: String(row.description ?? ''),
+    completed: false,
   }
 }
 

@@ -1,4 +1,5 @@
 import { parseGaId } from '../lib/parseGaId.js'
+import { markScheduleDeleted, notifyScheduleChanged } from '../integrations/google/googleCalendarAutoSync.js'
 import {
   createOnefcSchedule,
   deleteOnefcSchedule,
@@ -64,7 +65,7 @@ function sendError(error, res, handleDbError, req) {
 }
 
 /**
- * 사용자 소유 ONE FC 일정(calendar_items). Google 로 복사하지 않는다(자동 연동 미포함).
+ * 사용자 소유 ONE FC 일정. Google 호출은 커밋 뒤에만 알리고, 실패해도 로컬 행은 유지한다.
  * @param {import('express').Router} apiRouter
  * @param {{ pool: import('pg').Pool, requireAuth: import('express').RequestHandler, handleDbError: Function }} deps
  */
@@ -74,6 +75,7 @@ export function registerOnefcScheduleApi(apiRouter, { pool, requireAuth, handleD
     if (!scope) return
     try {
       const saved = await createOnefcSchedule(pool, scope, req.body ?? {})
+      notifyScheduleChanged(pool, scope.userId)
       const status = saved.duplicate ? 200 : 201
       res.status(status).json({
         success: true,
@@ -89,6 +91,7 @@ export function registerOnefcScheduleApi(apiRouter, { pool, requireAuth, handleD
     if (!scope) return
     try {
       const row = await updateOnefcSchedule(pool, { ...scope, id: req.params.id }, req.body ?? {})
+      notifyScheduleChanged(pool, scope.userId)
       res.json({ success: true, data: { event: normalizeOnefcScheduleEvent(row) } })
     } catch (error) {
       sendError(error, res, handleDbError, req)
@@ -99,7 +102,11 @@ export function registerOnefcScheduleApi(apiRouter, { pool, requireAuth, handleD
     const scope = readScope(req, res)
     if (!scope) return
     try {
-      await deleteOnefcSchedule(pool, { ...scope, id: req.params.id })
+      const row = await deleteOnefcSchedule(pool, { ...scope, id: req.params.id })
+      await markScheduleDeleted(pool, scope.userId, row.id).catch((error) => {
+        console.warn('[gcal-autosync] mark schedule deleted failed', { code: String(error?.code ?? 'error') })
+      })
+      notifyScheduleChanged(pool, scope.userId)
       res.json({ success: true, data: { deleted: true } })
     } catch (error) {
       sendError(error, res, handleDbError, req)
