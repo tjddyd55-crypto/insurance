@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isValidDateString, normalizeDateInput } from './dateInput'
+import { defaultNewItemDate, isValidDateString, normalizeDateInput } from './dateInput'
 
 describe('normalizeDateInput', () => {
   it('formats continuous digits into YYYY-MM-DD', () => {
@@ -19,6 +19,15 @@ describe('normalizeDateInput', () => {
   it('strips non-digit characters', () => {
     expect(normalizeDateInput('2026년07월08일')).toBe('2026-07-08')
     expect(normalizeDateInput('abc20260708xyz')).toBe('2026-07-08')
+  })
+})
+
+describe('defaultNewItemDate', () => {
+  it('일정·할 일 추가: 고른 날이 있으면 그대로, 없으면 오늘(KST)', () => {
+    const kstMorning = new Date('2026-10-13T15:30:00Z')
+    expect(defaultNewItemDate('2026-11-02', kstMorning)).toBe('2026-11-02')
+    expect(defaultNewItemDate('', kstMorning)).toBe('2026-10-14')
+    expect(defaultNewItemDate(null, kstMorning)).toBe('2026-10-14')
   })
 })
 
