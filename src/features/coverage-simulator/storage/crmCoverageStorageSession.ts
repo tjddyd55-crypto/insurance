@@ -15,8 +15,10 @@ import {
   updateCoverageTemplateApi,
 } from './coverageSimulatorStorage.api'
 import { readAllLocalConsultations } from './localConsultationRepository'
+import { importLegacyLocalTemplates } from './importLegacyLocalTemplates'
 
 const MIGRATION_FLAG_PREFIX = 'onefc:coverage-simulator:migrated-to-server:v1:'
+const TEMPLATE_MIGRATION_FLAG_PREFIX = 'onefc:coverage-simulator:templates-migrated-to-server:v1:'
 
 type SessionState = {
   userKey: string
@@ -60,6 +62,10 @@ function migrationFlagKey(userKey: string): string {
   return `${MIGRATION_FLAG_PREFIX}${userKey}`
 }
 
+function templateMigrationFlagKey(userKey: string): string {
+  return `${TEMPLATE_MIGRATION_FLAG_PREFIX}${userKey}`
+}
+
 async function importLegacyConsultations(token: string, userKey: string) {
   if (userKey === 'guest') return
   const legacy = readAllLocalConsultations(userKey)
@@ -97,6 +103,26 @@ export async function hydrateCrmCoverageStorage(userKey: string, token: string):
   ])
   session.templates = templates.map(apiTemplateToDomain)
   session.consultations = simulations.map(apiSimulationToDomain)
+
+  const templatesMigrated = localStorage.getItem(templateMigrationFlagKey(userKey)) === '1'
+  if (!templatesMigrated && userKey !== 'guest') {
+    try {
+      const referenced = new Set(
+        session.consultations.map((row) => row.templateId).filter((id): id is string => Boolean(id)),
+      )
+      const existingLegacyIds = new Set(
+        session.templates
+          .map((row) => row.legacyClientId)
+          .filter((id): id is string => Boolean(id)),
+      )
+      await importLegacyLocalTemplates(token, userKey, referenced, existingLegacyIds)
+      const refreshedTemplates = await fetchCoverageTemplates(token)
+      session.templates = refreshedTemplates.map(apiTemplateToDomain)
+      localStorage.setItem(templateMigrationFlagKey(userKey), '1')
+    } catch {
+      // flag 미설정 — 다음 진입에서 로컬 템플릿 업로드를 다시 시도
+    }
+  }
 
   const migrated = localStorage.getItem(migrationFlagKey(userKey)) === '1'
   if (!migrated) {

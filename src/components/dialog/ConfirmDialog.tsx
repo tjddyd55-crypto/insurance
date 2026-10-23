@@ -11,6 +11,8 @@ export type ConfirmDialogProps = {
   cancelLabel?: string
   busy?: boolean
   tone?: 'default' | 'danger'
+  /** 안내(alert) 전용. 취소 버튼 없이 확인만 둔다. */
+  hideCancel?: boolean
   closeOnBackdrop?: boolean
   closeOnEsc?: boolean
   onConfirm: () => void | Promise<void>
@@ -36,6 +38,7 @@ export function ConfirmDialog({
   cancelLabel = '취소',
   busy = false,
   tone = 'default',
+  hideCancel = false,
   closeOnBackdrop = false,
   closeOnEsc = false,
   onConfirm,
@@ -55,9 +58,11 @@ export function ConfirmDialog({
       <h3 className="text-lg font-semibold text-[var(--text-main)]">{title}</h3>
       <div className="mt-3 text-sm text-[var(--text-secondary)] whitespace-pre-wrap break-words">{message}</div>
       <DialogActions className="user-modal-actions">
-        <Button type="button" variant="secondary" onClick={onCancel} disabled={busy}>
-          {cancelLabel}
-        </Button>
+        {hideCancel ? null : (
+          <Button type="button" variant="secondary" onClick={onCancel} disabled={busy}>
+            {cancelLabel}
+          </Button>
+        )}
         <Button
           type="button"
           variant={tone === 'danger' ? 'danger' : 'primary'}

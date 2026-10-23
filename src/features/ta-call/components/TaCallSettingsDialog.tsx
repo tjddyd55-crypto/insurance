@@ -1,4 +1,5 @@
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
+import { useConfirmDialog } from '../../../components/dialog'
 import FormButton from '../../../components/form/FormButton'
 import FormInput from '../../../components/form/FormInput'
 import {
@@ -39,15 +40,22 @@ export default function TaCallSettingsDialog({
   onChangeInsuranceAgeMax,
   onChangeExcludeMinors,
 }: TaCallSettingsDialogProps) {
+  const { confirm, confirmDialog } = useConfirmDialog()
   const handleEscape = () => {
-    if (dirty) {
-      const ok = window.confirm('변경사항이 저장되지 않았습니다. 닫으시겠습니까?')
-      if (!ok) return
-    }
-    onClose()
+    void (async () => {
+      if (dirty) {
+        const ok = await confirm({
+          title: '닫기',
+          message: '변경사항이 저장되지 않았습니다. 닫으시겠습니까?',
+        })
+        if (!ok) return
+      }
+      onClose()
+    })()
   }
 
   return (
+    <>
     <BaseDialog
       open={open}
       onClose={onClose}
@@ -179,5 +187,7 @@ export default function TaCallSettingsDialog({
         </FormButton>
       </div>
     </BaseDialog>
+    {confirmDialog}
+    </>
   )
 }

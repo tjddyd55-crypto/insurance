@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
 import FormButton from '../../../components/form/FormButton'
@@ -66,6 +66,9 @@ export function MaterialAddSourceDialog({
   // t307 PR-B: 4번째 출처 Google Drive (GOOGLE_DRIVE_ENABLED + 연결된 계정일 때만 탭 노출)
   const [driveAvailable, setDriveAvailable] = useState(false)
   const [driveError, setDriveError] = useState('')
+  const [newsletterSelectedCount, setNewsletterSelectedCount] = useState(0)
+  const [newsletterBusy, setNewsletterBusy] = useState(false)
+  const newsletterSubmitRef = useRef<(() => void) | null>(null)
   useEffect(() => {
     if (!open || !token?.trim()) return
     let cancelled = false
@@ -241,7 +244,7 @@ export function MaterialAddSourceDialog({
         ) : null}
 
         {tab === 'storage' ? (
-          <div className="personal-binder-storage-embed">
+          <div className="personal-binder-storage-embed personal-binder-material-picker__stage">
             <StorageWorkspace
               token={token}
               customerId={null}
@@ -257,10 +260,14 @@ export function MaterialAddSourceDialog({
         ) : null}
 
         {tab === 'newsletter' && showNewsletterTab && targetSectionId ? (
-          <div className="personal-binder-material-add-modal__inset">
+          <div className="personal-binder-material-picker__stage">
             <NewsletterBinderSourcePanel
               sectionId={targetSectionId}
               sectionTitle={targetSectionTitle}
+              hideFooter
+              submitActionRef={newsletterSubmitRef}
+              onSelectedCountChange={setNewsletterSelectedCount}
+              onBusyChange={setNewsletterBusy}
               onImported={(message) => {
                 onNewslettersImported?.(message)
                 onClose()
@@ -335,6 +342,20 @@ export function MaterialAddSourceDialog({
             </div>
           </>
         ) : null}
+        <footer className="personal-binder-material-picker__footer">
+          <span className="personal-binder-material-picker__footer-count">
+            {tab === 'newsletter' ? newsletterSelectedCount : 0}개 선택
+          </span>
+          <FormButton variant="secondary" onClick={onClose}>취소</FormButton>
+          <FormButton
+            variant="primary"
+            disabled={tab !== 'newsletter' || newsletterSelectedCount === 0 || newsletterBusy}
+            loading={tab === 'newsletter' && newsletterBusy}
+            onClick={() => newsletterSubmitRef.current?.()}
+          >
+            선택한 자료 {tab === 'newsletter' ? newsletterSelectedCount : 0}개 추가
+          </FormButton>
+        </footer>
       </div>
     </BaseDialog>
   )

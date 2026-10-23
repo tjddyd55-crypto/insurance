@@ -142,6 +142,7 @@ export async function deleteCoverageSimulationApi(token: string, id: string): Pr
 export function apiTemplateToDomain(row: ApiScenarioTemplate): ScenarioTemplate {
   return {
     id: row.id,
+    legacyClientId: row.legacyClientId ?? null,
     name: row.name,
     description: row.description,
     sourceType: 'user',
