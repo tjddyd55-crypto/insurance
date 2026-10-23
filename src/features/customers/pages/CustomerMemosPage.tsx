@@ -5,7 +5,6 @@ import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
 import { TodoEditorDialog, type TodoCreatePrefill } from '../../todos/components/TodoEditorDialog'
 import { firstLineTodoTitle } from '../../todos/utils/todoCopy'
-import { suggestDueDateFromText } from '../../todos/utils/suggestDueDateFromText'
 import { getCustomerById, type UpdateCustomerBody } from '../api/customersApi'
 import { CustomerInlineNotesSection } from '../components/CustomerInlineNotesSection'
 import type { CustomerNotesBag, CustomerRecord } from '../domain/types'
@@ -55,7 +54,6 @@ export default function CustomerMemosPage() {
         sourceId: payload.noteId,
         title: firstLineTodoTitle(txt),
         description: txt,
-        dueDate: suggestDueDateFromText(txt),
         relatedEntityType: 'customer',
         relatedEntityId: String(customerId),
         lockRelated: true,

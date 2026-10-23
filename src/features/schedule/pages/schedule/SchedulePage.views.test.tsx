@@ -394,7 +394,7 @@ describe('일정 관리: 할 일 (Google Tasks · ONE FC 할 일, 읽기 전용)
     expect(may).not.toContain('지난 일')
   })
 
-  it('Google 할 일 상세: 제목·목록·예정일·메모·상태·Google 출처, 편집 UI 없음', () => {
+  it('Google 할 일 상세: 제목·목록·날짜·메모·상태·Google 출처, 편집 UI 없음', () => {
     const html = render(props({ taskDetail: TASKS[0] }))
     expect(html).toContain('서류 제출')
     expect(html).toContain('업무 목록')
