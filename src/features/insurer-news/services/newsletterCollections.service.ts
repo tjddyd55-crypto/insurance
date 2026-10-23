@@ -136,7 +136,7 @@ export async function loadNewsletterSourceDetail(
 }
 
 export const NEWSLETTER_SOURCE_KIND_LABEL: Record<NewsletterSourceKind, string> = {
-  INSURER: '원수사',
-  GA: 'GA',
-  PUBLIC: '공용',
+  INSURER: '원수사소식지',
+  GA: 'GA전용 소식지',
+  PUBLIC: '공용 게시판',
 }

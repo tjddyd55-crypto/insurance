@@ -6,12 +6,15 @@ import '../sms-module.css'
 import '../sms-automation.css'
 
 export default function SmsAutomationPage() {
-  const state = useSmsAutomationRulesState()
+  const { confirmDialog, ...viewProps } = useSmsAutomationRulesState()
   return (
-    <ResponsiveLayout<SmsAutomationViewProps>
-      PC={SmsAutomationPCView}
-      Mobile={SmsAutomationMobileView}
-      viewProps={state}
-    />
+    <>
+      <ResponsiveLayout<SmsAutomationViewProps>
+        PC={SmsAutomationPCView}
+        Mobile={SmsAutomationMobileView}
+        viewProps={viewProps}
+      />
+      {confirmDialog}
+    </>
   )
 }

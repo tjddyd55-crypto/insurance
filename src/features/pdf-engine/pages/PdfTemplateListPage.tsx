@@ -17,7 +17,7 @@ import '../pdf-engine.css'
 
 export default function PdfTemplateListPage() {
   const { token } = useAuth()
-  const { confirm, confirmDialog } = useConfirmDialog()
+  const { confirm, alert, confirmDialog } = useConfirmDialog()
   const [rows, setRows] = useState<PdfTemplateSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -53,7 +53,7 @@ export default function PdfTemplateListPage() {
       await deleteAdminPdfTemplate(token, id)
       setRows((prev) => prev.filter((r) => r.id !== id))
     } catch (e) {
-      window.alert(e instanceof ApiError ? e.message : '삭제에 실패했습니다.')
+      void alert(e instanceof ApiError ? e.message : '삭제에 실패했습니다.')
     }
   }
 

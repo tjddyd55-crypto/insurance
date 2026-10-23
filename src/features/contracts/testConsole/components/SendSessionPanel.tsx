@@ -1,4 +1,5 @@
 import { FormButton } from '../../../../components/form'
+import { useConfirmDialog } from '../../../../components/dialog'
 import { buildCustomerPublicSignUrl } from '../../userHistory/contractSignatureHistoryClient'
 import { SendSessionStatusBadge } from '../../userHistory/components/SendSessionStatusBadge'
 import { staffDocumentStatusLabel } from '../../userHistory/sendSessionStaffDisplay'
@@ -49,6 +50,7 @@ export function SendSessionPanel({
   staffAuthToken,
   layout = 'desktop',
 }: Props) {
+  const { alert, prompt, confirmDialog } = useConfirmDialog()
   const staffTok = staffAuthToken?.trim() ?? ''
   const isMobile = layout === 'mobile'
   const session = detail ?? (lastCreated ? mapLastToDetailShape(lastCreated) : null)
@@ -63,7 +65,7 @@ export function SendSessionPanel({
   const completedDocColumnLabel = consoleIsConfirmation ? '완료 확인서 PDF' : '완료 계약서 PDF'
 
   const notifyDownloadError = (message: string) => {
-    window.alert(message)
+    void alert(message)
   }
 
   const copyLink = async (linkCode: string) => {
@@ -71,7 +73,7 @@ export function SendSessionPanel({
     try {
       await navigator.clipboard.writeText(url)
     } catch {
-      window.prompt('링크를 복사하세요', url)
+      await prompt({ title: '링크를 복사하세요', defaultValue: url })
     }
   }
 
@@ -263,6 +265,7 @@ export function SendSessionPanel({
           </p>
         ) : null}
         {session ? renderPostSendActions() : null}
+        {confirmDialog}
       </div>
     )
   }
@@ -286,6 +289,7 @@ export function SendSessionPanel({
         선택한 고객에 등록된 휴대폰으로만 링크가 열립니다.
       </p>
       {renderPostSendActions()}
+      {confirmDialog}
     </div>
   )
 }

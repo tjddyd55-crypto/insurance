@@ -36,6 +36,7 @@ import {
 import { genPdfFieldKeyFromLabel } from '../pdfFieldKey'
 import { PdfOverlayCanvas, type OverlayMark, type OverlayPick, type PdfOverlayDebugMeta } from './PdfOverlayCanvas'
 import FormInput from '../../../components/form/FormInput'
+import { useConfirmDialog } from '../../../components/dialog'
 
 /** 1차 UX: 좌표 숫자 편집 숨김. 고급 설정으로 되살릴 때 `true` 로 전환해 `PlacementMetaEditor` 를 연결. */
 const SHOW_PLACEMENT_NUMERIC_EDITOR = false
@@ -124,6 +125,7 @@ export function PdfCoordinateEditor({
   templateId,
   editorVariant = 'compact',
 }: Props) {
+  const { confirm, alert, confirmDialog } = useConfirmDialog()
   const compactEditor = editorVariant === 'compact'
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   /**
@@ -300,14 +302,22 @@ export function PdfCoordinateEditor({
   }
 
   const handleRemoveField = (key: string) => {
-    if (!window.confirm('해당 필드를 삭제할까요? 모든 좌표도 함께 제거됩니다.')) return
-    const next = fields.filter((f) => f.fieldKey !== key).map((f, i) => ({ ...f, orderIndex: i }))
-    onChange(next)
-    if (selectedKey === key) {
-      setSelectedKey(null)
-      setSelectedPlacementIndex(null)
-      setPendingRadioPlacement(null)
-    }
+    void (async () => {
+      const ok = await confirm({
+        title: '필드 삭제',
+        message: '해당 필드를 삭제할까요? 모든 좌표도 함께 제거됩니다.',
+        confirmLabel: '삭제',
+        tone: 'danger',
+      })
+      if (!ok) return
+      const next = fields.filter((f) => f.fieldKey !== key).map((f, i) => ({ ...f, orderIndex: i }))
+      onChange(next)
+      if (selectedKey === key) {
+        setSelectedKey(null)
+        setSelectedPlacementIndex(null)
+        setPendingRadioPlacement(null)
+      }
+    })()
   }
 
   const handlePatchField = (key: string, patch: Partial<PdfFieldSpec>) => {
@@ -358,7 +368,7 @@ export function PdfCoordinateEditor({
       if (!target || (target.fieldType !== 'radio' && target.fieldType !== 'checkbox')) return false
       const opts = [...(target.options ?? [])]
       if (opts.some((o) => o.trim() === t)) {
-        window.alert('같은 필드 안에 이미 같은 이름의 옵션이 있습니다.')
+        void alert('같은 필드 안에 이미 같은 이름의 옵션이 있습니다.')
         return false
       }
       onChange(
@@ -367,7 +377,7 @@ export function PdfCoordinateEditor({
       setActiveOptionValue(t)
       return true
     },
-    [fields, onChange],
+    [alert, fields, onChange],
   )
 
   const renameSelectableOptionAt = useCallback(
@@ -384,7 +394,7 @@ export function PdfCoordinateEditor({
       const nextLabel = trimmed === '' ? anchor : trimmed
 
       if (trimmed !== '' && opts.some((o, j) => j !== index && String(o ?? '').trim() === nextLabel)) {
-        window.alert('다른 옵션과 같은 이름은 사용할 수 없습니다.')
+        void alert('다른 옵션과 같은 이름은 사용할 수 없습니다.')
         return
       }
 
@@ -400,7 +410,7 @@ export function PdfCoordinateEditor({
         setActiveOptionValue(nextLabel)
       }
     },
-    [fields, onChange, activeOptionValue],
+    [alert, fields, onChange, activeOptionValue],
   )
 
   const removeSelectableOptionAt = useCallback(
@@ -412,7 +422,7 @@ export function PdfCoordinateEditor({
       if (anchor === undefined) return
 
       if (f.fieldType === 'checkbox' && opts.length <= 1) {
-        window.alert('체크박스 필드는 최소 1개의 옵션이 필요합니다.')
+        void alert('체크박스 필드는 최소 1개의 옵션이 필요합니다.')
         return
       }
 
@@ -429,7 +439,7 @@ export function PdfCoordinateEditor({
         else setActiveOptionValue(opts[0] ?? null)
       }
     },
-    [fields, onChange, activeOptionValue],
+    [alert, fields, onChange, activeOptionValue],
   )
 
   const handleRemovePlacement = (key: string, index: number) => {
@@ -476,7 +486,7 @@ export function PdfCoordinateEditor({
   const handlePick = useCallback(
     (pick: OverlayPick) => {
       if (!selectedKey) {
-        window.alert('먼저 왼쪽에서 필드를 선택한 뒤 PDF 위를 드래그하세요.')
+        void alert('먼저 왼쪽에서 필드를 선택한 뒤 PDF 위를 드래그하세요.')
         return
       }
       const target = fields.find((f) => f.fieldKey === selectedKey) ?? null
@@ -485,11 +495,11 @@ export function PdfCoordinateEditor({
       if (target?.fieldType === 'radio') {
         const opts = target.options ?? []
         if (opts.length === 0) {
-          window.alert('라디오 필드에 아직 옵션이 없습니다. 먼저 옵션을 추가해 주세요.')
+          void alert('라디오 필드에 아직 옵션이 없습니다. 먼저 옵션을 추가해 주세요.')
           return
         }
         if (!activeOptionValue || !opts.includes(activeOptionValue)) {
-          window.alert('먼저 라디오 옵션을 추가하거나 선택해 주세요.')
+          void alert('먼저 라디오 옵션을 추가하거나 선택해 주세요.')
           return
         }
         optionValue = activeOptionValue
@@ -548,7 +558,7 @@ export function PdfCoordinateEditor({
       /* 방금 추가/수정한 placement 를 자동 선택한다. */
       setSelectedPlacementIndex(nextIndex)
     },
-    [fields, onChange, selectedKey, activeOptionValue, selectedPlacementIndex],
+    [alert, fields, onChange, selectedKey, activeOptionValue, selectedPlacementIndex],
   )
 
   const handleCommitRadioPlacement = useCallback(() => {
@@ -557,11 +567,11 @@ export function PdfCoordinateEditor({
     if (!target || target.fieldType !== 'radio') return
     const opts = target.options ?? []
     if (!activeOptionValue || !opts.includes(activeOptionValue)) {
-      window.alert('좌표를 저장할 옵션을 먼저 선택해 주세요.')
+      void alert('좌표를 저장할 옵션을 먼저 선택해 주세요.')
       return
     }
     if (!pendingRadioPlacement) {
-      window.alert('PDF 위에서 영역을 먼저 드래그해 주세요.')
+      void alert('PDF 위에서 영역을 먼저 드래그해 주세요.')
       return
     }
     const finalPlacement: PdfPlacement = {
@@ -573,7 +583,7 @@ export function PdfCoordinateEditor({
     onChange(fields.map((f) => (f.fieldKey === selectedKey ? { ...f, placements: merged } : f)))
     setPendingRadioPlacement(null)
     setSelectedPlacementIndex(merged.length - 1)
-  }, [activeOptionValue, fields, onChange, pendingRadioPlacement, selectedKey])
+  }, [alert, activeOptionValue, fields, onChange, pendingRadioPlacement, selectedKey])
 
   const handleDocumentReady = useCallback((doc: PDFDocumentProxy) => {
     setNumPages(Math.max(1, doc.numPages))
@@ -1261,6 +1271,7 @@ export function PdfCoordinateEditor({
           />
         </div>
       </section>
+      {confirmDialog}
     </div>
   )
 }

@@ -22,10 +22,11 @@ import { useCoverageSimulatorCrmStorage } from '../context/CoverageSimulatorCrmS
 import { useScenarioEditor } from '../hooks/useScenarioEditor'
 import { useTemplateEditor } from '../hooks/useTemplateEditor'
 import {
-  deleteScenarioTemplate,
+  copyScenarioTemplate,
   getScenarioTemplateById,
   listScenarioTemplates,
-  saveScenarioTemplate,
+  persistScenarioTemplate,
+  removeScenarioTemplate,
 } from '../storage/templateRepository'
 import {
   deleteScenarioAsync,
@@ -233,6 +234,11 @@ export function CoverageThreePaneWorkspace({
   const templateEditor = useTemplateEditor({
     templateIdOverride: contentMode.type === 'template-edit' ? contentMode.templateId : null,
     embedded: true,
+    onTemplateIdentityChange: (nextId) => {
+      setSelectedTemplateId(nextId)
+      setContentMode({ type: 'template-edit', templateId: nextId })
+      notifySelection(nextId, null)
+    },
   })
 
   const bumpTemplateList = useCallback(() => {
@@ -326,8 +332,8 @@ export function CoverageThreePaneWorkspace({
     }
   }
 
-  const onCreateScenario = (name: string) => {
-    const saved = saveScenarioTemplate(userKey, createEmptyUserTemplate(name))
+  const onCreateScenario = async (name: string) => {
+    const saved = await persistScenarioTemplate(userKey, createEmptyUserTemplate(name))
     setAddScenarioOpen(false)
     setNewScenarioName('')
     bumpTemplateList()
@@ -343,7 +349,7 @@ export function CoverageThreePaneWorkspace({
       tone: 'danger',
     })
     if (!ok) return
-    deleteScenarioTemplate(userKey, templateId)
+    await removeScenarioTemplate(userKey, templateId)
     setTemplateMenuId(null)
     bumpTemplateList()
     if (selectedTemplateId === templateId) {
@@ -355,7 +361,7 @@ export function CoverageThreePaneWorkspace({
     }
   }
 
-  const onRenameTemplateConfirm = (nextName: string) => {
+  const onRenameTemplateConfirm = async (nextName: string) => {
     if (!renameTemplateId) return
     const source = getScenarioTemplateById(userKey, renameTemplateId)
     if (!source) {
@@ -372,7 +378,7 @@ export function CoverageThreePaneWorkspace({
       setRenameTemplateError(null)
       return
     }
-    saveScenarioTemplate(userKey, { ...source, name: trimmed })
+    await persistScenarioTemplate(userKey, { ...source, name: trimmed })
     bumpTemplateList()
     setRenameTemplateId(null)
     setRenameTemplateError(null)
@@ -586,13 +592,19 @@ export function CoverageThreePaneWorkspace({
                       <button
                         type="button"
                         onClick={() => {
-                          const source = getScenarioTemplateById(userKey, template.id)
-                          if (!source) return
-                          const copy = saveScenarioTemplate(userKey, cloneUserTemplate(source))
-                          setTemplateMenuId(null)
-                          bumpTemplateList()
-                          selectTemplate(copy.id)
-                          openTemplateEdit(copy.id)
+                          void (async () => {
+                            const source = getScenarioTemplateById(userKey, template.id)
+                            if (!source) return
+                            const copy = await copyScenarioTemplate(
+                              userKey,
+                              source,
+                              cloneUserTemplate(source),
+                            )
+                            setTemplateMenuId(null)
+                            bumpTemplateList()
+                            selectTemplate(copy.id)
+                            openTemplateEdit(copy.id)
+                          })()
                         }}
                       >
                         복제

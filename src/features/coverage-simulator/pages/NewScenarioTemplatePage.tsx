@@ -8,7 +8,7 @@ import type { ScenarioTemplate } from '../domain/templateTypes'
 import {
   getScenarioTemplateById,
   listScenarioTemplates,
-  saveScenarioTemplate,
+  persistScenarioTemplate,
 } from '../storage/templateRepository'
 
 export function NewScenarioTemplatePage() {
@@ -22,8 +22,9 @@ export function NewScenarioTemplatePage() {
   const scenarioSummaries = listScenarioTemplates(userKey)
 
   const finishCreate = (template: ScenarioTemplate) => {
-    const saved = saveScenarioTemplate(userKey, template)
-    navigate(`${basePath}/templates/${saved.id}/edit`, { replace: true })
+    void persistScenarioTemplate(userKey, template).then((saved) => {
+      navigate(`${basePath}/templates/${saved.id}/edit`, { replace: true })
+    })
   }
 
   const onEmptyStart = () => {

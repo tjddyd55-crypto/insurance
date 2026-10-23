@@ -6,7 +6,7 @@ import { SmsAutomationSummaryCards } from '../../components/automation/SmsAutoma
 import { SmsModuleNav } from '../../components/SmsModuleNav'
 import type { UseSmsAutomationRulesStateResult } from '../../hooks/useSmsAutomationRulesState'
 
-export type SmsAutomationViewProps = UseSmsAutomationRulesStateResult
+export type SmsAutomationViewProps = Omit<UseSmsAutomationRulesStateResult, 'confirmDialog'>
 
 function AlertBox({ error, notice }: { error: string | null; notice: string | null }) {
   if (error) {

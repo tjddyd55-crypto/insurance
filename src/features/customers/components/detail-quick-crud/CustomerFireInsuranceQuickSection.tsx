@@ -53,7 +53,7 @@ export function CustomerFireInsuranceQuickSection({
     customerId: customer.id,
     enabled: shouldFetch,
   })
-  const { confirm, confirmDialog } = useConfirmDialog()
+  const { confirm, alert, confirmDialog } = useConfirmDialog()
 
   const [modal, setModal] = useState<ModalState>({ mode: 'closed' })
   const addressLabelId = useId()
@@ -186,12 +186,12 @@ export function CustomerFireInsuranceQuickSection({
         const msg =
           e instanceof ApiError ? e.message : e instanceof Error ? e.message : '삭제에 실패했습니다.'
         console.error('[CustomerFireInsuranceQuickSection] delete failed', e)
-        window.alert(msg)
+        void alert(msg)
       } finally {
         setSaving(false)
       }
     },
-    [confirm, customer.id, reload, token],
+    [alert, confirm, customer.id, reload, token],
   )
 
   const canMutate = Boolean(token?.trim())

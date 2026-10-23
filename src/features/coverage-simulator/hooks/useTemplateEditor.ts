@@ -14,11 +14,12 @@ import {
 import { scenarioToUserTemplate, templateToEditableScenario } from '../domain/templateOperations'
 import { calculateScenarioTotals } from '../domain/totals'
 import type { CoverageScenario, CoverageScenarioItem } from '../domain/types'
-import { getScenarioTemplateById, saveScenarioTemplate } from '../storage/templateRepository'
+import { getScenarioTemplateById, persistScenarioTemplate } from '../storage/templateRepository'
 
 export type UseTemplateEditorOptions = {
   templateIdOverride?: string | null
   embedded?: boolean
+  onTemplateIdentityChange?: (nextId: string) => void
 }
 
 export function useTemplateEditor(options?: UseTemplateEditorOptions) {
@@ -26,6 +27,7 @@ export function useTemplateEditor(options?: UseTemplateEditorOptions) {
   const params = useParams()
   const templateId = options?.templateIdOverride ?? params.templateId
   const embedded = options?.embedded ?? false
+  const onTemplateIdentityChange = options?.onTemplateIdentityChange
   const { basePath, userKey } = useCoverageSimulatorScope()
 
   const [scenario, setScenario] = useState<CoverageScenario | null>(null)
@@ -59,8 +61,14 @@ export function useTemplateEditor(options?: UseTemplateEditorOptions) {
   const persist = (next: CoverageScenario) => {
     if (!templateId) return
     const existing = getScenarioTemplateById(userKey, templateId)
-    const saved = saveScenarioTemplate(userKey, scenarioToUserTemplate(next, existing ?? undefined))
-    setScenario(templateToEditableScenario(saved))
+    void persistScenarioTemplate(userKey, scenarioToUserTemplate(next, existing ?? undefined)).then(
+      (saved) => {
+        setScenario(templateToEditableScenario(saved))
+        if (saved.id !== templateId) {
+          onTemplateIdentityChange?.(saved.id)
+        }
+      },
+    )
   }
 
   const closeForm = useCallback(() => {

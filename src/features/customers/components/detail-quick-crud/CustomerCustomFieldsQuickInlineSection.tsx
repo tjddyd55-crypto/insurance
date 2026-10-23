@@ -40,7 +40,7 @@ export function CustomerCustomFieldsQuickInlineSection({
     customerId: customer.id,
     enabled: shouldFetch,
   })
-  const { confirm, confirmDialog } = useConfirmDialog()
+  const { confirm, alert, confirmDialog } = useConfirmDialog()
 
   const [modal, setModal] = useState<ModalState>({ mode: 'closed' })
   const [saving, setSaving] = useState(false)
@@ -133,12 +133,12 @@ export function CustomerCustomFieldsQuickInlineSection({
       } catch (e) {
         const msg =
           e instanceof ApiError ? e.message : e instanceof Error ? e.message : '삭제에 실패했습니다.'
-        window.alert(msg)
+        void alert(msg)
       } finally {
         setSaving(false)
       }
     },
-    [confirm, customer.id, reload, token],
+    [alert, confirm, customer.id, reload, token],
   )
 
   if (!shouldFetch) {
