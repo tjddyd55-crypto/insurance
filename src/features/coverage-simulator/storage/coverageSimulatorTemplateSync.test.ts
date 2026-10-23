@@ -4,6 +4,7 @@ import {
   isPristineSeedTemplate,
   shouldUploadLegacyTemplate,
   simulationBelongsToTemplate,
+  systemTemplateIdForStoredTemplateId,
 } from './coverageSimulatorTemplateSync'
 
 describe('coverage simulator template sync', () => {
@@ -19,6 +20,43 @@ describe('coverage simulator template sync', () => {
     expect(isPristineSeedTemplate(seed!)).toBe(true)
     expect(shouldUploadLegacyTemplate(seed!, new Set())).toBe(false)
     expect(shouldUploadLegacyTemplate(seed!, new Set([seed!.id]))).toBe(true)
+  })
+
+  it('maps system and legacy seed ids onto the system catalog id', () => {
+    expect(systemTemplateIdForStoredTemplateId('system:cancer')).toBe('system:cancer')
+    expect(systemTemplateIdForStoredTemplateId('seed:heart')).toBe('system:heart')
+    expect(systemTemplateIdForStoredTemplateId('local-uuid')).toBeNull()
+    expect(
+      simulationBelongsToTemplate({ id: 'system:cancer', systemCatalogId: 'system:cancer' }, 'system:cancer'),
+    ).toBe(true)
+    expect(
+      simulationBelongsToTemplate({ id: 'system:cancer', systemCatalogId: 'system:cancer' }, 'seed:cancer'),
+    ).toBe(true)
+    expect(
+      simulationBelongsToTemplate(
+        {
+          id: 'system:cancer',
+          systemCatalogId: 'system:cancer',
+          name: '암 치료',
+          aliasIds: ['legacy-seed-cancer'],
+        },
+        'legacy-seed-cancer',
+      ),
+    ).toBe(true)
+    expect(
+      simulationBelongsToTemplate(
+        { id: 'system:cancer', systemCatalogId: 'system:cancer', name: '암 치료' },
+        'orphan-seed-uuid',
+        { diseaseType: 'cancer', templateNameSnapshot: '암 치료' },
+      ),
+    ).toBe(true)
+    expect(
+      simulationBelongsToTemplate(
+        { id: 'system:cancer', systemCatalogId: 'system:cancer', name: '암 치료' },
+        'orphan-seed-uuid',
+        { diseaseType: 'cancer', templateNameSnapshot: '암 치료', claimedByOtherTemplate: true },
+      ),
+    ).toBe(false)
   })
 
   it('uploads a user template even when nothing references it yet', () => {
