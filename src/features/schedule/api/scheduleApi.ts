@@ -287,8 +287,9 @@ export type GoogleEventInput = {
   date: string
   endDate: string
   allDay: boolean
-  startTime: string
-  endTime: string
+  /** 종일(allDay true)이면 null. 시간 일정은 HH:mm. */
+  startTime: string | null
+  endTime: string | null
 }
 
 export async function createGoogleEvent(token: string, input: GoogleEventInput & { requestId: string }) {
