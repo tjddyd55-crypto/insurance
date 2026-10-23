@@ -40,7 +40,7 @@ export function GaApprovalPanel({
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
-  const { confirm, prompt, confirmDialog } = useConfirmDialog()
+  const { confirm, confirmDialog } = useConfirmDialog()
 
   useEffect(() => {
     if (!token || !isSuper) return
@@ -91,7 +91,7 @@ export function GaApprovalPanel({
 
   async function onReject(row: GaApprovalRequestRow) {
     if (!token) return
-    const reason = await prompt({ title: '거절 사유(선택)', defaultValue: '' })
+    const reason = window.prompt('거절 사유(선택)', '')
     if (reason === null) return
     setBusyId(row.id)
     setNotice('')

@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useConfirmDialog } from '../../../components/dialog'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   createSmsAutomationRule,
@@ -45,7 +44,6 @@ export type UseSmsAutomationRulesStateResult = {
   setPreviewBaseDate: (value: string) => void
   reload: () => Promise<void>
   clearNotice: () => void
-  confirmDialog: ReactNode
 }
 
 function ruleToForm(rule: SmsAutomationRule): SmsAutomationRuleFormState {
@@ -64,7 +62,6 @@ function ruleToForm(rule: SmsAutomationRule): SmsAutomationRuleFormState {
 
 export function useSmsAutomationRulesState(): UseSmsAutomationRulesStateResult {
   const { token } = useAuth()
-  const { confirm, confirmDialog } = useConfirmDialog()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -210,13 +207,7 @@ export function useSmsAutomationRulesState(): UseSmsAutomationRulesStateResult {
     if (!token?.trim() || form.id == null) {
       return
     }
-    const ok = await confirm({
-      title: '규칙 삭제',
-      message: '이 자동문자 규칙을 삭제하시겠습니까?',
-      confirmLabel: '삭제',
-      tone: 'danger',
-    })
-    if (!ok) {
+    if (!window.confirm('이 자동문자 규칙을 삭제하시겠습니까?')) {
       return
     }
     setSaving(true)
@@ -235,7 +226,7 @@ export function useSmsAutomationRulesState(): UseSmsAutomationRulesStateResult {
     } finally {
       setSaving(false)
     }
-  }, [confirm, form.id, reload, token])
+  }, [form.id, reload, token])
 
   const loadPreview = useCallback(
     async (baseDate?: string) => {
@@ -289,6 +280,5 @@ export function useSmsAutomationRulesState(): UseSmsAutomationRulesStateResult {
     setPreviewBaseDate,
     reload,
     clearNotice,
-    confirmDialog,
   }
 }

@@ -70,7 +70,7 @@ export default function ContractSignatureHistoryPage({
   const params = useParams<{ customerId?: string }>()
   const [searchParams] = useSearchParams()
   const { token } = useAuth()
-  const { confirm, prompt, confirmDialog } = useConfirmDialog()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const t = token?.trim() ?? ''
   const historyMobile = useMediaQuery(HISTORY_MOBILE_MQ)
 
@@ -187,7 +187,7 @@ export default function ContractSignatureHistoryPage({
     try {
       await navigator.clipboard.writeText(url)
     } catch {
-      await prompt({ title: '링크를 복사하세요', defaultValue: url })
+      window.prompt('링크를 복사하세요', url)
     }
   }
 

@@ -50,7 +50,7 @@ export function CustomerCarsQuickSection({
     customerId: customer.id,
     enabled: shouldFetch,
   })
-  const { confirm, alert, confirmDialog } = useConfirmDialog()
+  const { confirm, confirmDialog } = useConfirmDialog()
 
   const [modal, setModal] = useState<ModalState>({ mode: 'closed' })
   const [saving, setSaving] = useState(false)
@@ -169,12 +169,12 @@ export function CustomerCarsQuickSection({
         const msg =
           e instanceof ApiError ? e.message : e instanceof Error ? e.message : '삭제에 실패했습니다.'
         console.error('[CustomerCarsQuickSection] delete failed', e)
-        void alert(msg)
+        window.alert(msg)
       } finally {
         setSaving(false)
       }
     },
-    [alert, confirm, customer.id, reload, token],
+    [confirm, customer.id, reload, token],
   )
 
   const canMutate = Boolean(token?.trim())

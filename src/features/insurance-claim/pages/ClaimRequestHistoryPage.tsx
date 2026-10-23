@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useConfirmDialog } from '../../../components/dialog'
 import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import {
@@ -51,7 +50,6 @@ function statusBadgeClass(status: string): string {
 
 export default function ClaimRequestHistoryPage() {
   const { token } = useAuth()
-  const { confirm, confirmDialog } = useConfirmDialog()
   const navigate = useNavigate()
   const [rows, setRows] = useState<ClaimRequestDraft[]>([])
   const [message, setMessage] = useState('')
@@ -110,13 +108,9 @@ export default function ClaimRequestHistoryPage() {
     if (!token) {
       return
     }
-    const confirmed = await confirm({
-      title: '청구 내역 삭제',
-      message:
-        '이 청구 내역을 삭제하시겠습니까? 생성된 청구서, 동의서, 추가 첨부파일, 서명 파일도 함께 삭제됩니다. 이 작업은 되돌릴 수 없습니다.',
-      confirmLabel: '삭제',
-      tone: 'danger',
-    })
+    const confirmed = window.confirm(
+      '이 청구 내역을 삭제하시겠습니까? 생성된 청구서, 동의서, 추가 첨부파일, 서명 파일도 함께 삭제됩니다. 이 작업은 되돌릴 수 없습니다.',
+    )
     if (!confirmed) {
       return
     }
@@ -267,7 +261,6 @@ export default function ClaimRequestHistoryPage() {
           </div>
         </>
       )}
-      {confirmDialog}
     </main>
   )
 }

@@ -97,7 +97,7 @@ function formatGaGroupLabel(r: GaCompanyRow): string {
 
 export default function GaManagementPage() {
   const { user, token } = useAuth()
-  const { confirm, alert, confirmDialog } = useConfirmDialog()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [rows, setRows] = useState<GaCompanyRow[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -227,7 +227,7 @@ export default function GaManagementPage() {
         ),
       )
     } catch (e) {
-      void alert(e instanceof Error ? e.message : '상태 변경에 실패했습니다.')
+      window.alert(e instanceof Error ? e.message : '상태 변경에 실패했습니다.')
     }
   }
 
@@ -298,7 +298,7 @@ export default function GaManagementPage() {
       await deleteGaCompany(token, r.id)
       await load()
     } catch (e) {
-      void alert(e instanceof Error ? e.message : '삭제에 실패했습니다.')
+      window.alert(e instanceof Error ? e.message : '삭제에 실패했습니다.')
     }
   }
 

@@ -78,7 +78,7 @@ function formatDelegateRole(role: GaDelegateRole): string {
 
 export default function GaDelegateManagementPage() {
   const { user, token } = useAuth()
-  const { confirm, alert, confirmDialog } = useConfirmDialog()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [rows, setRows] = useState<GaDelegateRow[]>([])
   const [gaList, setGaList] = useState<GaCompanyRow[]>([])
   const [loadError, setLoadError] = useState('')
@@ -176,7 +176,7 @@ export default function GaDelegateManagementPage() {
         prev.map((r) => (r.id === row.id ? { ...r, ...updated, status: normalizeUserStatus(updated.status) } : r)),
       )
     } catch (e) {
-      void alert(e instanceof Error ? e.message : '상태 변경에 실패했습니다.')
+      window.alert(e instanceof Error ? e.message : '상태 변경에 실패했습니다.')
     }
   }
 
@@ -229,7 +229,7 @@ export default function GaDelegateManagementPage() {
       await deleteAdminUser(token, r.id)
       setRows((prev) => prev.filter((x) => x.id !== r.id))
     } catch (e) {
-      void alert(e instanceof Error ? e.message : '삭제에 실패했습니다.')
+      window.alert(e instanceof Error ? e.message : '삭제에 실패했습니다.')
     }
   }
 
