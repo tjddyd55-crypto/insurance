@@ -51,7 +51,7 @@ function summarizeExcelPreview(preview: GaGroupExcelPreviewRow[]) {
 
 export default function GaGroupManagementPage() {
   const { user, token } = useAuth()
-  const { confirm, alert, confirmDialog } = useConfirmDialog()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [rows, setRows] = useState<GaGroupRow[]>([])
   const [listQuery, setListQuery] = useState('')
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -189,7 +189,7 @@ export default function GaGroupManagementPage() {
       await loadList()
       setSelectedId(created.id)
     } catch (err) {
-      void alert(err instanceof Error ? err.message : '생성에 실패했습니다.')
+      window.alert(err instanceof Error ? err.message : '생성에 실패했습니다.')
     } finally {
       setCreateBusy(false)
     }
@@ -208,7 +208,7 @@ export default function GaGroupManagementPage() {
       })
       setRows((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)))
     } catch (err) {
-      void alert(err instanceof Error ? err.message : '저장에 실패했습니다.')
+      window.alert(err instanceof Error ? err.message : '저장에 실패했습니다.')
     } finally {
       setSaveBusy(false)
     }
@@ -246,7 +246,7 @@ export default function GaGroupManagementPage() {
       await loadList()
       return true
     } catch (err) {
-      void alert(err instanceof Error ? err.message : '연결에 실패했습니다.')
+      window.alert(err instanceof Error ? err.message : '연결에 실패했습니다.')
       return false
     } finally {
       setLinkBusy(false)
@@ -303,7 +303,7 @@ export default function GaGroupManagementPage() {
       setExcelFileHash(result.fileHash)
       setExcelDuplicate(result.duplicateFile)
     } catch (err) {
-      void alert(err instanceof Error ? err.message : '엑셀 검증에 실패했습니다.')
+      window.alert(err instanceof Error ? err.message : '엑셀 검증에 실패했습니다.')
       setExcelPreview(null)
     } finally {
       setExcelBusy(false)
@@ -346,7 +346,7 @@ export default function GaGroupManagementPage() {
         allowMoveFromOtherGroup: needsMove,
         forceDuplicateFile,
       })
-      void alert(
+      window.alert(
         `등록 완료 — 신규 ${result.summary.created ?? 0}, 연결 ${result.summary.linked ?? 0}, 건너뜀 ${result.summary.skipped ?? 0}, 오류 ${result.summary.errors ?? 0}`,
       )
       setExcelPreview(null)
@@ -354,7 +354,7 @@ export default function GaGroupManagementPage() {
       await loadMembers()
       await loadList()
     } catch (err) {
-      void alert(err instanceof Error ? err.message : '등록에 실패했습니다.')
+      window.alert(err instanceof Error ? err.message : '등록에 실패했습니다.')
     } finally {
       setExcelBusy(false)
     }

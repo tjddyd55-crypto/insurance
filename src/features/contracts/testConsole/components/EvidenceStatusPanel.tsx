@@ -1,5 +1,4 @@
 import { FormButton } from '../../../../components/form'
-import { useConfirmDialog } from '../../../../components/dialog'
 import { useAuth } from '../../../auth/AuthProvider'
 import { buildCustomerPublicSignUrl } from '../../userHistory/contractSignatureHistoryClient'
 import {
@@ -22,7 +21,6 @@ type Props = {
 
 export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desktop' }: Props) {
   const { token } = useAuth()
-  const { alert, prompt, confirmDialog } = useConfirmDialog()
   const t = token?.trim() ?? ''
   const isMobile = layout === 'mobile'
 
@@ -42,7 +40,7 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desk
     }
     const r = await downloadStaffSignedPdfFile(t, detail.id, docId)
     if (!r.ok) {
-      void alert(r.message)
+      window.alert(r.message)
     }
   }
 
@@ -52,7 +50,7 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desk
     }
     const r = await downloadStaffEvidencePdfFile(t, detail.id)
     if (!r.ok) {
-      void alert(r.message)
+      window.alert(r.message)
     }
   }
 
@@ -61,7 +59,7 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desk
     try {
       await navigator.clipboard.writeText(url)
     } catch {
-      await prompt({ title: '링크를 복사하세요', defaultValue: url })
+      window.prompt('링크를 복사하세요', url)
     }
   }
 
@@ -229,7 +227,6 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desk
             </details>
           </>
         )}
-        {confirmDialog}
       </div>
     )
   }
@@ -368,7 +365,6 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desk
         <li>문서 완료를 진행합니다.</li>
         <li>이 화면에서 상태 새로고침 후 evidenceHash(prefix)를 확인합니다.</li>
       </ol>
-      {confirmDialog}
     </div>
   )
 }

@@ -7,7 +7,6 @@ import Underline from '@tiptap/extension-underline'
 import StarterKit from '@tiptap/starter-kit'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import { useEffect, useRef, type ReactNode } from 'react'
-import { useConfirmDialog } from '../../../components/dialog'
 import { NoticeLinkPreview } from '../extensions/NoticeLinkPreviewExtension'
 import { ResizableImage } from '../extensions/ResizableImageExtension'
 import { insertNoticeLinkPreview, isStandaloneUrl, applyNoticeAlign, isNoticeAlignActive } from '../utils/adminNoticeEditorUtils'
@@ -114,7 +113,6 @@ export function AdminNoticeRichEditor({
   linkPreviewTokenRef.current = linkPreviewToken
   const noticeApiVariantRef = useRef(noticeApiVariant)
   noticeApiVariantRef.current = noticeApiVariant
-  const { alert, prompt, confirmDialog } = useConfirmDialog()
 
   const editor = useEditor({
     extensions: [
@@ -196,15 +194,15 @@ export function AdminNoticeRichEditor({
       editor.chain().focus().setImage({ src: publicUrl, alt: file.name }).run()
     } catch (error) {
       console.error('[admin-notices] image upload failed', error)
-      void alert('이미지 업로드에 실패했습니다.')
+      window.alert('이미지 업로드에 실패했습니다.')
     }
   }
 
-  const setLink = async () => {
+  const setLink = () => {
     const { from, to } = editor.state.selection
     const hasSelection = from !== to
     const previousUrl = String(editor.getAttributes('link').href ?? '')
-    const url = await prompt({ title: '링크 URL', defaultValue: previousUrl || 'https://' })
+    const url = window.prompt('링크 URL', previousUrl || 'https://')
     if (url == null) {
       return
     }
@@ -230,7 +228,7 @@ export function AdminNoticeRichEditor({
       return
     }
 
-    const label = await prompt({ title: '링크 텍스트', defaultValue: trimmedUrl })
+    const label = window.prompt('링크 텍스트', trimmedUrl)
     if (label == null || !label.trim()) {
       return
     }
@@ -358,7 +356,7 @@ export function AdminNoticeRichEditor({
         >
           1.
         </ToolbarButton>
-        <ToolbarButton disabled={disabled} title="URL 링크" onClick={() => void setLink()}>
+        <ToolbarButton disabled={disabled} title="URL 링크" onClick={setLink}>
           링크
         </ToolbarButton>
         <ToolbarButton disabled={disabled} title="이미지 첨부" onClick={() => fileInputRef.current?.click()}>
@@ -386,7 +384,6 @@ export function AdminNoticeRichEditor({
           void runImageUpload(file)
         }}
       />
-      {confirmDialog}
     </div>
   )
 }

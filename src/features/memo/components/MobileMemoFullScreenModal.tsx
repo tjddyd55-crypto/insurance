@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FormButton, FormTextarea } from '../../../components/form'
-import { useConfirmDialog } from '../../../components/dialog'
 import { useMemoWorkspace } from '../context/MemoWorkspaceContext'
 import DeleteConfirmModal, { MemoDeleteConfirmFooter } from './DeleteConfirmModal'
 
@@ -22,7 +21,6 @@ export function MobileMemoFullScreenModal({
   onSaved,
 }: MobileMemoFullScreenModalProps) {
   const { addNote, commitNoteContent, deleteNote } = useMemoWorkspace()
-  const { confirm, confirmDialog } = useConfirmDialog()
   const [draft, setDraft] = useState(initialContent)
   const [saving, setSaving] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -48,19 +46,14 @@ export function MobileMemoFullScreenModal({
   isDirtyRef.current = isDirty
 
   const closeEditor = useCallback(() => {
-    void (async () => {
-      if (isDirtyRef.current) {
-        const ok = await confirm({
-          title: '닫기',
-          message: '변경사항이 저장되지 않았습니다. 닫으시겠습니까?',
-        })
-        if (!ok) {
-          return
-        }
+    if (isDirtyRef.current) {
+      const ok = window.confirm('변경사항이 저장되지 않았습니다. 닫으시겠습니까?')
+      if (!ok) {
+        return
       }
-      onCloseRef.current()
-    })()
-  }, [confirm])
+    }
+    onCloseRef.current()
+  }, [])
 
   useEffect(() => {
     if (!open) {
@@ -92,19 +85,11 @@ export function MobileMemoFullScreenModal({
       }
 
       if (isDirtyRef.current) {
-        void (async () => {
-          const ok = await confirm({
-            title: '닫기',
-            message: '변경사항이 저장되지 않았습니다. 닫으시겠습니까?',
-          })
-          if (!ok) {
-            rearmHistoryBackTrap()
-            return
-          }
-          historyBackArmedRef.current = false
-          onCloseRef.current()
-        })()
-        return
+        const ok = window.confirm('변경사항이 저장되지 않았습니다. 닫으시겠습니까?')
+        if (!ok) {
+          rearmHistoryBackTrap()
+          return
+        }
       }
 
       historyBackArmedRef.current = false
@@ -130,7 +115,7 @@ export function MobileMemoFullScreenModal({
         // no-op
       }
     }
-  }, [confirm, open])
+  }, [open])
 
   const handleSave = useCallback(async () => {
     setSaving(true)
@@ -227,7 +212,6 @@ export function MobileMemoFullScreenModal({
           삭제한 메모는 복구할 수 없습니다.
         </p>
       </DeleteConfirmModal>
-      {confirmDialog}
     </>
   )
 }

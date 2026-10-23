@@ -3,7 +3,6 @@ import { getCustomerById, saveCustomer, searchCustomers } from '../../customers/
 import type { CustomerRecord } from '../../customers/domain/types'
 import { generateCustomerText } from '../../customers/utils/customerText'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { useConfirmDialog } from '../../../components/dialog'
 import {
   CONTRACT_TYPES,
   DRIVER_AGE_OPTIONS,
@@ -102,7 +101,6 @@ export function ApplicationFormPage() {
   const location = useLocation()
   const { id, customerId: customerIdParam } = useParams()
   const { token, user } = useAuth()
-  const { alert, confirmDialog } = useConfirmDialog()
 
   const [recordId, setRecordId] = useState<string | undefined>(id)
   const [formData, setFormData] = useState<InsuranceApplicationFormData>(
@@ -357,7 +355,7 @@ export function ApplicationFormPage() {
     const text = generateCustomerText(c)
     try {
       await navigator.clipboard.writeText(text)
-      void alert('복사되었습니다')
+      window.alert('복사되었습니다')
       setStatusText('복사되었습니다')
     } catch {
       setStatusText('복사에 실패했습니다.')
@@ -393,7 +391,7 @@ export function ApplicationFormPage() {
   const handleSubmit = () => {
     if (!recordId) {
       setStatusText('신청 전 먼저 저장해 주세요.')
-      void alert('신청 전 먼저 저장해 주세요.')
+      window.alert('신청 전 먼저 저장해 주세요.')
       return
     }
     navigate(`/form/result/${recordId}`)
@@ -413,7 +411,6 @@ export function ApplicationFormPage() {
           <h1>신청서 로딩 중</h1>
           <p>저장된 데이터를 확인하고 있습니다.</p>
         </header>
-        {confirmDialog}
       </main>
     )
   }
@@ -812,7 +809,6 @@ export function ApplicationFormPage() {
           </>
         )}
       </div>
-      {confirmDialog}
     </main>
   )
 }
