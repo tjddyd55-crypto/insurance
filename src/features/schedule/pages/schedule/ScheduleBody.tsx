@@ -64,8 +64,7 @@ export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?
     <>
       <ScheduleChrome
         {...props}
-        toolbarExtra={(props.compact && props.calendarDecor && (props.view === 'month' || props.view === 'week')) || googleWrite.enabled
-          ? (
+        toolbarExtra={(
             <>
               {googleWrite.noticeNode}
               {googleWrite.toolbarButton}
@@ -73,8 +72,7 @@ export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?
                 ? <ScheduleHolidaySetting mode={holidayMode} onChange={setHolidayMode} />
                 : null}
             </>
-          )
-          : undefined}
+          )}
       />
       {!props.compact && props.calendarDecor && (props.view === 'month' || props.view === 'week') ? (
         <ScheduleHolidaySetting mode={holidayMode} onChange={setHolidayMode} />

@@ -70,7 +70,7 @@ export type ScheduleViewProps = {
   onToday: () => void
   onSelectDate: (date: string) => void
   onOpenDay: (date: string) => void
-  onToggleSource: (source: ScheduleFilterKey | 'all') => void
+  onToggleSource: (source: ScheduleFilterKey | 'all' | ScheduleFilterGroup) => void
   onToggleCalendar: (calendarId: string) => void
   onOpenEvent: (event: ScheduleEvent) => void
   onCloseDetail: () => void
@@ -120,8 +120,39 @@ export function parseScheduleSources(raw: string | null): ScheduleFilterKey[] {
   if (!raw || raw === 'all') {
     return SCHEDULE_FILTER_KEYS
   }
+  if (raw === 'none') {
+    return []
+  }
   const picked = raw.split(',').filter((item): item is ScheduleFilterKey => SCHEDULE_FILTER_KEYS.includes(item as ScheduleFilterKey))
   return picked.length > 0 ? picked : SCHEDULE_FILTER_KEYS
+}
+
+/** 화면 필터 묶음: 일정(Google 일정) · 할 일(ONE FC 할 일 + Google 할 일). 나머지는 출처 하나씩. */
+export type ScheduleFilterGroup = 'event' | 'todo' | 'customer_alert' | 'car_expiry' | 'insurance_age'
+
+export const SCHEDULE_FILTER_GROUPS: Array<{ id: ScheduleFilterGroup; label: string; keys: ScheduleFilterKey[] }> = [
+  { id: 'event', label: '일정', keys: ['google'] },
+  { id: 'todo', label: '할 일', keys: ['onefc_todo', 'google_task'] },
+  { id: 'customer_alert', label: '알림일', keys: ['customer_alert'] },
+  { id: 'car_expiry', label: '자동차 만기', keys: ['car_expiry'] },
+  { id: 'insurance_age', label: '상령일', keys: ['insurance_age'] },
+]
+
+export function isScheduleFilterGroupOn(current: ScheduleFilterKey[], group: ScheduleFilterGroup): boolean {
+  const keys = SCHEDULE_FILTER_GROUPS.find((item) => item.id === group)?.keys ?? []
+  return keys.length > 0 && keys.every((key) => current.includes(key))
+}
+
+/** 묶음 하나를 켜고 끈다(서로 독립). 순서는 SCHEDULE_FILTER_KEYS 기준. */
+export function toggleScheduleFilterGroup(current: ScheduleFilterKey[], group: ScheduleFilterGroup): ScheduleFilterKey[] {
+  const keys = SCHEDULE_FILTER_GROUPS.find((item) => item.id === group)?.keys ?? []
+  const on = isScheduleFilterGroupOn(current, group)
+  const next = on ? current.filter((key) => !keys.includes(key)) : [...current, ...keys]
+  return SCHEDULE_FILTER_KEYS.filter((key) => next.includes(key))
+}
+
+function isFilterGroup(value: string): value is ScheduleFilterGroup {
+  return SCHEDULE_FILTER_GROUPS.some((item) => item.id === value)
 }
 
 /** 전체 → 하나만, 하나씩 켜고 끄기, 모두 꺼지거나 모두 켜지면 전체. */
@@ -401,8 +432,10 @@ export function useScheduleState(): ScheduleViewProps {
     onSelectDate: (date) => setSelectedDate((current) => (current === date ? '' : date)),
     onOpenDay: (date) => goToView('day', date),
     onToggleSource: (source) => {
-      const next = toggleScheduleSource(sources, source)
-      replaceQuery({ sources: next.length === SCHEDULE_FILTER_KEYS.length ? '' : next.join(',') })
+      const next = source !== 'all' && isFilterGroup(source)
+        ? toggleScheduleFilterGroup(sources, source)
+        : toggleScheduleSource(sources, source)
+      replaceQuery({ sources: next.length === SCHEDULE_FILTER_KEYS.length ? '' : next.length === 0 ? 'none' : next.join(',') })
     },
     onToggleCalendar: (calendarId) => {
       const current = calendarIds.length > 0

@@ -9,6 +9,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom'
 
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
 import { useConfirmDialog } from '../../../components/dialog'
+import { EmptyState } from '../../../components/feedback/EmptyState'
 import FormButton from '../../../components/form/FormButton'
 import FormInput from '../../../components/form/FormInput'
 import FormTextarea from '../../../components/form/FormTextarea'
@@ -26,11 +27,9 @@ import {
 } from '../personalBinderShare.api'
 import { splitBinderFileDisplayName } from '../utils/binderFileDisplay'
 import { MaterialAddSourceDialog } from '../components/MaterialAddSourceDialog'
+import { BINDER_EMPTY_SECTION_MESSAGE } from '../domain/binderToc'
 import { formatSelectedPages } from '../domain/pageSelection'
-import {
-  downloadPersonalBinderPdf,
-  printPersonalBinderPdf,
-} from '../personalBinderPdf'
+import { downloadPersonalBinderPdf } from '../personalBinderPdf'
 import {
   addPersonalBinderItem,
   createPersonalBinderSection,
@@ -434,16 +433,12 @@ export default function PersonalBinderEditorPage({
     if (!materialSectionId) return
     void selectMaterial(materialSectionId, material)
   }
-  const exportBinder = async (mode: 'download' | 'print') => {
+  const exportBinder = async () => {
     if (exporting) return
     setExporting(true)
     setError('')
     try {
-      if (mode === 'download') {
-        await downloadPersonalBinderPdf(token, binder.id, binder.title)
-      } else {
-        await printPersonalBinderPdf(token, binder.id)
-      }
+      await downloadPersonalBinderPdf(token, binder.id, binder.title)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '바인더 PDF를 만들지 못했습니다.')
     } finally {
@@ -515,17 +510,9 @@ export default function PersonalBinderEditorPage({
             variant="secondary"
             size="sm"
             loading={exporting}
-            onClick={() => void exportBinder('download')}
+            onClick={() => void exportBinder()}
           >
             PDF
-          </FormButton>
-          <FormButton
-            variant="secondary"
-            size="sm"
-            loading={exporting}
-            onClick={() => void exportBinder('print')}
-          >
-            출력
           </FormButton>
           <FormButton variant="primary" size="sm" loading={saving} onClick={() => void saveBinder()}>
             저장
@@ -583,6 +570,7 @@ export default function PersonalBinderEditorPage({
               key={section.id}
               className={[
                 'personal-binder-section-card',
+                sectionCollapsed ? 'personal-binder-section-card--collapsed' : '',
                 layout === 'embedded' ? 'personal-binder-toc__section' : '',
               ]
                 .filter(Boolean)
@@ -595,25 +583,44 @@ export default function PersonalBinderEditorPage({
                 setDragSectionId(null)
               }}
             >
-              <header>
-                <FormButton
-                  variant="action"
-                  className="personal-binder-section-card__toggle"
-                  onClick={() =>
-                    setCollapsed((current) => {
-                      const next = new Set(current)
-                      if (next.has(section.id)) next.delete(section.id)
-                      else next.add(section.id)
-                      return next
-                    })
-                  }
-                >
+              <header
+                className="personal-binder-section-card__header"
+                role="button"
+                tabIndex={0}
+                aria-expanded={!sectionCollapsed}
+                onClick={() =>
+                  setCollapsed((current) => {
+                    const next = new Set(current)
+                    if (next.has(section.id)) next.delete(section.id)
+                    else next.add(section.id)
+                    return next
+                  })
+                }
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') return
+                  event.preventDefault()
+                  setCollapsed((current) => {
+                    const next = new Set(current)
+                    if (next.has(section.id)) next.delete(section.id)
+                    else next.add(section.id)
+                    return next
+                  })
+                }}
+              >
+                <div className="personal-binder-section-card__toggle">
                   <span className="personal-binder-toc__section-index" aria-hidden="true">
                     {formatBinderSectionIndex(sectionIndex, layout === 'embedded')}
                   </span>
                   <strong className="personal-binder-toc__section-title">{section.title}</strong>
                   {layout !== 'embedded' ? <small>{orderedItems.length}개 자료</small> : null}
-                </FormButton>
+                  <span className="customer-detail-accordion__chevron" aria-hidden="true">
+                    {sectionCollapsed ? '▸' : '▾'}
+                  </span>
+                </div>
+                <div
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
                 <PersonalBinderOverflowMenu
                   menuKey={`section:${section.id}`}
                   className="personal-binder-overflow-menu--toc"
@@ -645,9 +652,16 @@ export default function PersonalBinderEditorPage({
                     },
                   ]}
                 />
+                </div>
               </header>
               {!sectionCollapsed ? (
                 <div className="personal-binder-section-card__body personal-binder-toc__items">
+                  {orderedItems.length === 0 ? (
+                    <EmptyState
+                      className="personal-binder-toc__empty"
+                      message={BINDER_EMPTY_SECTION_MESSAGE}
+                    />
+                  ) : null}
                   {orderedItems.map((item, itemIndex) => {
                     const fileDisplay = splitBinderFileDisplayName(item.material)
                     const pageLabel = formatBinderItemPageLabel(item)

@@ -1,6 +1,7 @@
 import './newsletterCollections.css'
 import '../../insurer-news.css'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { listVisibleNewsletterBoards, getInsurersForGa } from '../../services/insurerNews.service'
 import { createPortal } from 'react-dom'
 import NewsDetailViewerModal from '../../../../components/news-detail-viewer/NewsDetailViewerModal'
 import {
@@ -10,7 +11,14 @@ import {
 import { FormButton, FormInput, FormSelect } from '../../../../components/form'
 import { formatTimestampSearchHaystack } from '../../../../utils/displayDateTime'
 import { useAuth } from '../../../auth/AuthProvider'
-import type { NewsletterDetail, NewsletterItem, NewsletterSourceKind } from '../../types'
+import type { InsurerSummary, NewsletterBoard, NewsletterDetail, NewsletterItem, NewsletterSourceKind } from '../../types'
+import {
+  buildNewsletterBoardOptions,
+  buildNewsletterInsurerOptions,
+  buildNewsletterKindOptions,
+  formatPickerFilterLabel,
+} from '../../utils/newsletterPickerFilters'
+import { INSURER_NEWSLETTER_FEED_CODE } from '../../utils/newsletterSourceMenuLabels'
 import type { NewsletterCollections } from '../../services/newsletterCollections.service'
 import {
   NEWSLETTER_SOURCE_KIND_LABEL,
@@ -91,6 +99,8 @@ export function NewsletterPickerPanel({
   const gaCode = user?.gaCode ?? ''
   const sources = useNewsletterPickerSources(token, itemsOverride == null)
   const items = itemsOverride ?? sources.items
+  const [boards, setBoards] = useState<NewsletterBoard[]>([])
+  const [insurers, setInsurers] = useState<InsurerSummary[]>([])
   const [kind, setKind] = useState<'' | NewsletterSourceKind>('')
   const [query, setQuery] = useState('')
   const [insurer, setInsurer] = useState('')
@@ -105,44 +115,55 @@ export function NewsletterPickerPanel({
   const previewRequestIdRef = useRef(0)
 
   const kindOf = (item: NewsletterItem): NewsletterSourceKind => item.sourceKind ?? 'INSURER'
-  const kindCounts = useMemo(() => {
-    const counts: Record<NewsletterSourceKind, number> = { INSURER: 0, GA: 0, PUBLIC: 0 }
-    for (const item of items) counts[kindOf(item)] += 1
-    return counts
-  }, [items])
-  const kindOptions = [
-    { value: '', label: `전체 소식지 (${items.length})` },
-    { value: 'INSURER', label: `원수사 (${kindCounts.INSURER})` },
-    { value: 'GA', label: `GA (${kindCounts.GA})` },
-    { value: 'PUBLIC', label: `공용 (${kindCounts.PUBLIC})` },
-  ]
-  const insurerOptions = useMemo(() => {
-    const names = [...new Set(items.filter((item) => kindOf(item) === 'INSURER').map((item) => item.insurerName).filter(Boolean))].sort((a, b) =>
-      a.localeCompare(b, 'ko'),
-    )
-    return [{ value: '', label: '전체 원수사' }, ...names.map((name) => ({ value: name, label: name }))]
-  }, [items])
-
-  // t306: 게시판 선택 — 서버가 준 board id 기준 (이름·하드코딩 분류 없음). 원수사 글은 '원수사 소식' 하나로 묶는다.
-  const boardKeyOf = (item: NewsletterItem): string => (item.boardId ? `board:${item.boardId}` : 'insurer')
-  const boardOptions = useMemo(() => {
-    const map = new Map<string, { label: string; count: number }>()
-    for (const item of items) {
-      if (kind && kindOf(item) !== kind) continue
-      const key = boardKeyOf(item)
-      const label = item.boardId ? item.boardName || item.boardLabel || '게시판' : '원수사 소식'
-      const cur = map.get(key)
-      if (cur) cur.count += 1
-      else map.set(key, { label, count: 1 })
+  useEffect(() => {
+    if (!token?.trim()) return undefined
+    let cancelled = false
+    void listVisibleNewsletterBoards(token)
+      .then((rows) => {
+        if (!cancelled) setBoards(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setBoards([])
+      })
+    void getInsurersForGa(gaCode, token)
+      .then((rows) => {
+        if (!cancelled) setInsurers(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setInsurers([])
+      })
+    return () => {
+      cancelled = true
     }
-    const entries = [...map.entries()].sort((a, b) =>
-      a[0] === 'insurer' ? -1 : b[0] === 'insurer' ? 1 : a[1].label.localeCompare(b[1].label, 'ko'),
-    )
-    return [
-      { value: '', label: '전체 게시판' },
-      ...entries.map(([value, v]) => ({ value, label: `${v.label} (${v.count})` })),
-    ]
-  }, [items, kind])
+  }, [gaCode, token])
+
+  const kindOptions = useMemo(
+    () =>
+      buildNewsletterKindOptions(items).map((option) => ({
+        value: option.code,
+        label: formatPickerFilterLabel(option),
+      })),
+    [items],
+  )
+  const insurerOptions = useMemo(
+    () =>
+      buildNewsletterInsurerOptions(insurers).map((option) => ({
+        value: option.code,
+        label: option.code ? formatPickerFilterLabel(option) : option.label,
+      })),
+    [insurers],
+  )
+
+  const boardKeyOf = (item: NewsletterItem): string =>
+    item.boardId ? `board:${item.boardId}` : INSURER_NEWSLETTER_FEED_CODE
+  const boardOptions = useMemo(
+    () =>
+      buildNewsletterBoardOptions(boards, items, kind).map((option) => ({
+        value: option.code,
+        label: option.code ? formatPickerFilterLabel(option) : option.label,
+      })),
+    [boards, items, kind],
+  )
   useEffect(() => {
     if (board && !boardOptions.some((o) => o.value === board)) setBoard('')
   }, [board, boardOptions])
@@ -172,7 +193,7 @@ export function NewsletterPickerPanel({
       if (kind && kindOf(item) !== kind) return false
       if (board && boardKeyOf(item) !== board) return false
       // 원수사 선택은 원수사 종류에서만 적용한다 (GA/공용에는 원수사 조건 미적용).
-      if (kind === 'INSURER' && insurer && item.insurerName !== insurer) return false
+      if (kind === 'INSURER' && insurer && item.insurerCode !== insurer) return false
       if (hideDisabledByDefault && !showAlreadyAdded && disabledIds?.has(item.id)) return false
       if (!q) return true
       return [item.insurerName, item.boardLabel, item.title, item.summary, formatTimestampSearchHaystack(item.publishedAt)]

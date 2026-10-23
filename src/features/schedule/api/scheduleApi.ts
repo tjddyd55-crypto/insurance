@@ -35,6 +35,8 @@ export type ScheduleEvent = {
   /** t307: ONE FC 에서 수정·삭제 가능한 Google 일정(쓰기 권한·기능 플래그는 google.write 로 따로 본다) */
   writable?: boolean
   readOnlyReason?: string
+  /** ONE FC calendar_items 일정. 필터 키는 google 과 같고, 수정은 /api/schedules 다. */
+  origin?: 'onefc'
 }
 
 /**
@@ -302,6 +304,18 @@ export async function updateGoogleEvent(token: string, input: GoogleEventInput &
 
 export async function deleteGoogleEvent(token: string, calendarId: string, eventId: string) {
   return unwrap<{ deleted: boolean }>(await apiRequest<unknown>(`${WRITE_BASE}/events`, { token, method: 'DELETE', body: JSON.stringify({ calendarId, eventId }) }))
+}
+
+export async function createOnefcSchedule(token: string, input: GoogleEventInput & { requestId?: string }) {
+  return unwrap<{ event: ScheduleEvent; duplicate?: boolean }>(await apiRequest<unknown>('/api/schedules', { token, method: 'POST', body: JSON.stringify(input) }))
+}
+
+export async function updateOnefcSchedule(token: string, id: string, input: GoogleEventInput) {
+  return unwrap<{ event: ScheduleEvent }>(await apiRequest<unknown>(`/api/schedules/${encodeURIComponent(id)}`, { token, method: 'PATCH', body: JSON.stringify(input) }))
+}
+
+export async function deleteOnefcSchedule(token: string, id: string) {
+  return unwrap<{ deleted: boolean }>(await apiRequest<unknown>(`/api/schedules/${encodeURIComponent(id)}`, { token, method: 'DELETE' }))
 }
 
 export type GoogleTaskInput = { taskListId: string; title: string; notes: string; dueDate: string | null }

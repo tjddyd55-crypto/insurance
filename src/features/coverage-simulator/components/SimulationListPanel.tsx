@@ -8,6 +8,7 @@ export type SimulationListPanelProps = {
   /** 독립 simulator list: ⋯ 메뉴. 고객 탭은 기본 false */
   showRowMenu?: boolean
   onRowMenu?: (row: SavedScenarioSummary) => void
+  templateMetadataLabel?: (row: SavedScenarioSummary) => string
 }
 
 export function SimulationListPanel({
@@ -16,6 +17,7 @@ export function SimulationListPanel({
   onSelect,
   showRowMenu = false,
   onRowMenu,
+  templateMetadataLabel,
 }: SimulationListPanelProps) {
   if (rows.length === 0) {
     return <p className="coverage-simulator-page-desc customer-coverage-simulations__empty">{emptyMessage}</p>
@@ -32,6 +34,9 @@ export function SimulationListPanel({
               {metaLines.map((line) => (
                 <div key={line} className="cs-simulation-list__meta">{line}</div>
               ))}
+              {templateMetadataLabel ? (
+                <div className="cs-simulation-list__meta">{templateMetadataLabel(row)}</div>
+              ) : null}
             </button>
             {showRowMenu ? (
               <button

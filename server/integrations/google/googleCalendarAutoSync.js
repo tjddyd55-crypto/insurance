@@ -17,6 +17,8 @@ import { loadReminderSourceRows } from '../../reminders/reminderQuery.js'
 import { assembleReminderEvents } from '../../reminders/reminderEvents.js'
 import { getUserNotificationSettings } from '../../services/userNotificationSettingsService.js'
 import { googleGetJson, googleSendJson } from './googleApiHttp.js'
+import { googleEventTimes } from './googleWriteService.js'
+import { listOnefcScheduleRows, scheduleRowToAutoSyncItem } from '../../schedule/onefcSchedule.js'
 import { GOOGLE_ACCOUNT_PROVIDER_KEY, hasCalendarWriteScope, isGoogleWriteEnabledFor, readGoogleOAuthConfig } from './googleOAuthConfig.js'
 import { getGoogleAccessToken, googleError } from './googleTokenService.js'
 import { clearGoogleUserCache } from './googleUserCache.js'
@@ -183,9 +185,37 @@ export function autoSyncEventId(userId, accountId, calendarId, sourceKey) {
   return `onefcas${h}` // base32hex(0-9a-v) 부분집합
 }
 
-/** Google 에 보낼 본문. 제목은 autoSyncTitle. 설명·확장 속성에는 고객 정보를 더하지 않는다. */
+function autoSyncPrivateProps(item, ctx) {
+  return {
+    app: TAG_APP,
+    owner: ctx.ownerTag,
+    key: crypto.createHash('sha256').update(item.key).digest('hex').slice(0, 32),
+    kind: item.kind,
+  }
+}
+
+/** Google 에 보낼 본문. 할 일·알림 제목은 autoSyncTitle. ONE FC 일정은 입력 제목·시각을 그대로 보낸다. */
 export function buildAutoSyncEventPayload(item, ctx) {
   const completed = item.kind === 'todo' && item.completed
+  if (item.kind === 'schedule') {
+    const times = googleEventTimes({
+      date: item.date,
+      endDate: item.endDate || item.date,
+      allDay: item.allDay === true,
+      startTime: item.startTime,
+      endTime: item.endTime,
+    })
+    const note = String(item.description ?? '').trim()
+    return {
+      summary: titlePart(item.name) || '일정',
+      description: note || 'ONE FC 앱에서 자동으로 만든 일정입니다. 자세한 내용은 ONE FC에서 확인하세요.',
+      ...times,
+      transparency: 'transparent',
+      visibility: 'private',
+      reminders: { useDefault: true },
+      extendedProperties: { private: autoSyncPrivateProps(item, ctx) },
+    }
+  }
   const title = autoSyncTitle(item)
   return {
     summary: title,
@@ -195,13 +225,19 @@ export function buildAutoSyncEventPayload(item, ctx) {
     transparency: 'transparent',
     visibility: 'private',
     reminders: { useDefault: completed ? false : true, ...(completed ? { overrides: [] } : {}) },
-    extendedProperties: { private: { app: TAG_APP, owner: ctx.ownerTag, key: crypto.createHash('sha256').update(item.key).digest('hex').slice(0, 32), kind: item.kind } },
+    extendedProperties: { private: autoSyncPrivateProps(item, ctx) },
   }
 }
 
 function contentHash(item) {
   // 제목 포함: 고객 이름·라벨이 바뀌면 기존 사본을 같은 id 로 갱신한다(중복 생성 없음).
-  return `${item.date}|${item.kind}|${item.completed ? 1 : 0}|${crypto.createHash('sha256').update(autoSyncTitle(item)).digest('hex').slice(0, 16)}`
+  // 할 일·알림 해시는 기존 문자열을 유지한다. 일정만 시각·설명을 더한다.
+  const label = item.kind === 'schedule' ? (titlePart(item.name) || '일정') : autoSyncTitle(item)
+  const base = `${item.date}|${item.kind}|${item.completed ? 1 : 0}|${crypto.createHash('sha256').update(label).digest('hex').slice(0, 16)}`
+  if (item.kind !== 'schedule') return base
+  const clock = item.allDay === true ? 'allday' : `${item.endDate}|${item.startTime}|${item.endTime}`
+  const extra = crypto.createHash('sha256').update(`${clock}|${item.description ?? ''}`).digest('hex').slice(0, 16)
+  return `${base}|${extra}`
 }
 
 /**
@@ -290,6 +326,12 @@ export async function loadDesiredItems(pool, scope) {
         })
       }
     }
+  }
+  // ONE FC 일정. 종류 토글(할 일·알림)과 별개로, 자동 연동 전체가 켜진 사용자만 reconcile 이 이 함수를 호출한다.
+  const scheduleRows = await listOnefcScheduleRows(pool, { userId, gaId, fromYmd, toYmd })
+  for (const row of scheduleRows) {
+    const item = scheduleRowToAutoSyncItem(row)
+    if (item) out.set(item.key, item)
   }
   return out
 }
@@ -611,6 +653,19 @@ export async function reconcileUser(pool, userId, options = {}) {
         const exist = new Set(ex.rows.map((r) => r.id))
         for (const id of todoIds) if (!exist.has(id)) gone.add(`todo:${id}`)
       }
+      // 소프트 삭제·행 없음인 ONE FC 일정 사본도 날짜와 무관하게 제거한다.
+      const scheduleIds = maps.filter((m) => m.source_type === 'schedule' && !desired.has(m.source_key) && TODO_DELETE_MAP_STATUSES.includes(m.status))
+        .map((m) => String(m.source_id).toLowerCase())
+        .filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id))
+      if (scheduleIds.length) {
+        const ex = await client.query(
+          `SELECT id::text AS id FROM calendar_items
+           WHERE id = ANY($1::uuid[]) AND item_type = 'schedule' AND deleted_at IS NULL`,
+          [scheduleIds],
+        )
+        const exist = new Set(ex.rows.map((r) => String(r.id).toLowerCase()))
+        for (const id of scheduleIds) if (!exist.has(id)) gone.add(`schedule:${id}`)
+      }
       for (const m of maps) {
         if (!gone.has(m.source_key) || !TODO_DELETE_MAP_STATUSES.includes(m.status)) continue
         try {
@@ -687,9 +742,28 @@ function scheduleAutoSync(pool, userId, logLabel) {
   }, 300)
 }
 
+/**
+ * ONE FC 일정 삭제: 연결된 Google 사본은 날짜와 무관하게 삭제 대기로.
+ * 실제 삭제는 reconcile 에서 매핑 + 소유 태그 확인 후에만 수행.
+ */
+export async function markScheduleDeleted(pool, userId, scheduleId) {
+  const r = await pool.query(
+    `UPDATE google_calendar_sync_map SET status = 'pending_delete', updated_at = NOW(),
+       history = history || jsonb_build_array(jsonb_build_object('at', NOW(), 'status', 'pending_delete', 'reason', 'schedule_deleted'))
+     WHERE user_id = $1 AND source_type = 'schedule' AND source_key = $2 AND status = ANY($3::text[])`,
+    [String(userId), `schedule:${scheduleId}`, TODO_DELETE_MAP_STATUSES],
+  )
+  return r.rowCount ?? 0
+}
+
 /** 할 일 변경 후 호출(실패해도 ONE FC 저장에는 영향 없음). */
 export function notifyTodoChanged(pool, userId) {
   scheduleAutoSync(pool, userId, '[gcal-autosync] todo sync failed')
+}
+
+/** ONE FC 일정 변경 후 호출(실패해도 로컬 저장에는 영향 없음). */
+export function notifyScheduleChanged(pool, userId) {
+  scheduleAutoSync(pool, userId, '[gcal-autosync] schedule sync failed')
 }
 
 /** 고객 이름·알림일 라벨이 바뀐 뒤 호출. 연결된 본인 캘린더만 다시 맞춘다. */

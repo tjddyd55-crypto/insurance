@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { useConfirmDialog } from '../../../components/dialog'
 import { CustomerContextBar } from './CustomerContextBar'
 import { useCoverageSimulatorCustomer } from '../context/CoverageSimulatorCustomerContext'
 import { useCoverageSimulatorScope } from '../CoverageSimulatorScope'
 import { cloneUserTemplate, createEmptyUserTemplate } from '../domain/templateOperations'
 import {
-  deleteScenarioTemplate,
+  copyScenarioTemplate,
   getScenarioTemplateById,
   listScenarioTemplates,
-  saveScenarioTemplate,
+  persistScenarioTemplate,
+  removeScenarioTemplate,
 } from '../storage/templateRepository'
 
 type Props = {
@@ -18,6 +20,7 @@ type Props = {
 
 export function ScenarioLibrarySelectView({ layoutMode }: Props) {
   const navigate = useNavigate()
+  const { confirm, prompt, confirmDialog } = useConfirmDialog()
   const { basePath, userKey } = useCoverageSimulatorScope()
   const { draft: customerDraft } = useCoverageSimulatorCustomer()
   const isPc = layoutMode === 'preview-pc' || layoutMode === 'crm'
@@ -48,41 +51,44 @@ export function ScenarioLibrarySelectView({ layoutMode }: Props) {
     navigate(`${basePath}/templates/${templateId}/edit`)
   }
 
-  const onDeleteTemplate = (templateId: string) => {
+  const onDeleteTemplate = async (templateId: string) => {
     const source = getScenarioTemplateById(userKey, templateId)
     if (!source) return
-    const ok = window.confirm(
-      '시나리오를 삭제할까요?\n\n이 시나리오를 삭제합니다. 이미 저장된 시뮬레이션은 영향을 받지 않습니다.',
-    )
+    const ok = await confirm({
+      title: '시나리오를 삭제할까요?',
+      message: '이 시나리오를 삭제합니다. 이미 저장된 시뮬레이션은 영향을 받지 않습니다.',
+      confirmLabel: '삭제',
+      tone: 'danger',
+    })
     if (!ok) return
-    deleteScenarioTemplate(userKey, templateId)
+    await removeScenarioTemplate(userKey, templateId)
     setMenuTemplateId(null)
     bumpList()
   }
 
-  const onDuplicate = (templateId: string) => {
+  const onDuplicate = async (templateId: string) => {
     const source = getScenarioTemplateById(userKey, templateId)
     if (!source) return
-    const copy = saveScenarioTemplate(userKey, cloneUserTemplate(source))
+    const copy = await copyScenarioTemplate(userKey, source, cloneUserTemplate(source))
     setMenuTemplateId(null)
     bumpList()
     navigate(`${basePath}/templates/${copy.id}/edit`)
   }
 
-  const onRename = (templateId: string) => {
+  const onRename = async (templateId: string) => {
     const source = getScenarioTemplateById(userKey, templateId)
     if (!source) return
-    const nextName = window.prompt('시나리오 이름', source.name)
+    const nextName = await prompt({ title: '시나리오 이름', defaultValue: source.name })
     if (!nextName?.trim()) return
-    saveScenarioTemplate(userKey, { ...source, name: nextName.trim() })
+    await persistScenarioTemplate(userKey, { ...source, name: nextName.trim() })
     setMenuTemplateId(null)
     bumpList()
   }
 
-  const onCreateScenario = () => {
+  const onCreateScenario = async () => {
     const name = newScenarioName.trim()
     if (!name) return
-    const saved = saveScenarioTemplate(userKey, createEmptyUserTemplate(name))
+    const saved = await persistScenarioTemplate(userKey, createEmptyUserTemplate(name))
     setAddModalOpen(false)
     setNewScenarioName('')
     bumpList()
@@ -226,6 +232,7 @@ export function ScenarioLibrarySelectView({ layoutMode }: Props) {
           </div>
         </div>
       ) : null}
+      {confirmDialog}
     </>
   )
 }

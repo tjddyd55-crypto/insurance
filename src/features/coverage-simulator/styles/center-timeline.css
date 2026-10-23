@@ -1040,7 +1040,7 @@
   height: auto;
   opacity: 1;
   color: inherit;
-  caret-color: auto;
+  caret-color: currentColor;
   background: var(--cs-axis-title-mask-bg, #fff);
 }
 

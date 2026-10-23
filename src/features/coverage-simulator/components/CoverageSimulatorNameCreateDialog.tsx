@@ -13,6 +13,8 @@ type Props = {
   submitting?: boolean
   onClose: () => void
   onConfirm: (value: string) => void | Promise<void>
+  /** 이름이 있을 때 템플릿에 묶지 않고 만드는 기존 다이얼로그 선택 */
+  onConfirmWithoutTemplate?: (value: string) => void | Promise<void>
 }
 
 /** 시나리오·시뮬레이션 추가 등 단일 이름 입력 — ONE FC `customer-relations-modal` SSOT */
@@ -26,6 +28,7 @@ export function CoverageSimulatorNameCreateDialog({
   submitting: submittingProp = false,
   onClose,
   onConfirm,
+  onConfirmWithoutTemplate,
 }: Props) {
   const [value, setValue] = useState(initialValue)
   const [submittingLocal, setSubmittingLocal] = useState(false)
@@ -38,12 +41,14 @@ export function CoverageSimulatorNameCreateDialog({
     }
   }, [open, initialValue])
 
-  const submit = () => {
+  const submit = (withoutTemplate = false) => {
     const trimmed = value.trim()
     if (!trimmed || submitting) return
+    const confirm = withoutTemplate ? onConfirmWithoutTemplate : onConfirm
+    if (!confirm) return
     setSubmittingLocal(true)
     try {
-      const result = onConfirm(trimmed)
+      const result = confirm(trimmed)
       if (result && typeof result.then === 'function') {
         void result.finally(() => setSubmittingLocal(false))
         return
@@ -92,6 +97,18 @@ export function CoverageSimulatorNameCreateDialog({
             }}
           />
         </div>
+        {onConfirmWithoutTemplate ? (
+          <div className="customer-relations-modal__search">
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              disabled={submitting || !value.trim()}
+              onClick={() => submit(true)}
+            >
+              템플릿 없이
+            </FormButton>
+          </div>
+        ) : null}
       </div>
       <footer className="customer-relations-modal__footer">
         <FormButton htmlType="button" variant="secondary" disabled={submitting} onClick={onClose}>
@@ -101,7 +118,7 @@ export function CoverageSimulatorNameCreateDialog({
           htmlType="button"
           variant="primary"
           disabled={submitting || !value.trim()}
-          onClick={submit}
+          onClick={() => submit(false)}
         >
           {submitting ? '만드는 중…' : confirmLabel}
         </FormButton>

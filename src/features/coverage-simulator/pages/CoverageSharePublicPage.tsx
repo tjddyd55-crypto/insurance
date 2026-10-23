@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
+import { useConfirmDialog } from '../../../components/dialog'
 import FormButton from '../../../components/form/FormButton'
 import { ApiError } from '../../../lib/apiClient'
 import { CoverageScenarioTimeline } from '../components/center-timeline/CoverageScenarioTimeline'
@@ -44,6 +45,7 @@ function ShareStatusScreen({ title, message }: { title: string; message: string 
 
 function CoverageSharePublicPageBody() {
   const { token = '' } = useParams()
+  const { alert, confirmDialog } = useConfirmDialog()
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [pdfBusy, setPdfBusy] = useState(false)
   const printSourceRef = useRef<HTMLDivElement>(null)
@@ -105,11 +107,14 @@ function CoverageSharePublicPageBody() {
 
   if (state.status === 'loading') {
     return (
+      <>
       <CoverageSimulatorLayout shellClassName="cs-share-public-shell">
         <main className="cs-share-public cs-share-public--status">
           <p className="cs-share-public__status-message">상담 자료를 불러오는 중…</p>
         </main>
       </CoverageSimulatorLayout>
+      {confirmDialog}
+    </>
     )
   }
 
@@ -120,7 +125,12 @@ function CoverageSharePublicPageBody() {
         : state.code === 'EXPIRED'
           ? '만료됨'
           : '자료 없음'
-    return <ShareStatusScreen title={title} message={state.message} />
+    return (
+      <>
+        <ShareStatusScreen title={title} message={state.message} />
+        {confirmDialog}
+      </>
+    )
   }
 
   const payload = state.payload
@@ -135,7 +145,7 @@ function CoverageSharePublicPageBody() {
   const downloadGeneratedPdf = async () => {
     const printRoot = printSourceRef.current?.querySelector('.coverage-simulator-print-root')
     if (!(printRoot instanceof HTMLElement)) {
-      window.alert('PDF를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      void alert('PDF를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
       return
     }
     setPdfBusy(true)
@@ -144,7 +154,7 @@ function CoverageSharePublicPageBody() {
       downloadCoveragePdfBlob(blob, buildCoveragePdfFileName(shareScenario))
     } catch (error) {
       console.error('[coverage-share] on-demand PDF failed', error)
-      window.alert('PDF를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      void alert('PDF를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
       setPdfBusy(false)
     }
@@ -158,6 +168,7 @@ function CoverageSharePublicPageBody() {
   }
 
   return (
+    <>
     <CoverageSimulatorLayout shellClassName="cs-share-public-shell">
       <header className="cs-share-public__header">
         <h1 className="cs-share-public__title">보장 시뮬레이션</h1>
@@ -192,6 +203,8 @@ function CoverageSharePublicPageBody() {
         <CoverageSimulatorPrintDocument scenario={shareScenario} />
       </div>
     </CoverageSimulatorLayout>
+    {confirmDialog}
+    </>
   )
 }
 

@@ -96,9 +96,11 @@ body{
   background: var(--bg-main);
   color: var(--text-main);
   font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
+  /*
+   * color 전환은 자손 input 의 caret-color:auto 를 합성 레이어에 가둔다.
+   * Electron/Chromium 은 그 캐럿을 창 최소화·복원 전 다시 그리지 않는다.
+   */
+  transition: background-color 0.2s ease;
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
@@ -1461,11 +1463,9 @@ body.electron-only .memo-fullscreen-exit-electron:hover{
 @keyframes modal-fade-in{
   from {
     opacity: 0;
-    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -9808,6 +9808,11 @@ div.cta-button.customers-page__action-btn[role='button']{
   font-size: 15px;
   line-height: 1.45;
   color: var(--text-primary);
+  /*
+   * caret-color:auto 는 조상 color 전환·fixed 다이얼로그 레이어에서 투명으로 남는다.
+   * 폼 SSOT 에서 글자 토큰으로 고정해 바인더 만들기 등 모달 입력 캐럿이 바로 보이게 한다.
+   */
+  caret-color: var(--text-primary);
   background-color: var(--input-bg, #fff);
   border: 1px solid var(--input-border, var(--border-default));
   border-radius: 10px;
@@ -9830,6 +9835,14 @@ div.cta-button.customers-page__action-btn[role='button']{
   min-height: 96px;
   padding: 12px;
   resize: vertical;
+}
+
+.customer-ui-modal-panel input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='button']):not(
+    [type='submit']
+  ):not([type='range']):not([type='color']):not([type='hidden']),
+.customer-ui-modal-panel textarea{
+  caret-color: var(--text-primary);
+  color: var(--text-primary);
 }
 
 .form-select{

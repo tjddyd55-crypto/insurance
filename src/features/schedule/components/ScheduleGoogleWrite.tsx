@@ -19,8 +19,10 @@ import { isDesktopAppRuntime } from '../../service-integrations/hooks/useService
 import {
   createGoogleEvent,
   createGoogleTask,
+  createOnefcSchedule,
   deleteGoogleEvent,
   deleteGoogleTask,
+  deleteOnefcSchedule,
   EMPTY_GOOGLE_WRITE_STATE,
   fetchGoogleWriteTargets,
   GOOGLE_READ_ONLY_REASON,
@@ -28,16 +30,19 @@ import {
   startGoogleWriteConsent,
   updateGoogleEvent,
   updateGoogleTask,
+  updateOnefcSchedule,
   type GoogleWriteTargets,
   type ScheduleEvent,
   type ScheduleTask,
 } from '../api/scheduleApi'
 import type { ScheduleViewProps } from '../hooks/useScheduleState'
 
-type Kind = 'google_event' | 'google_task' | 'onefc_todo'
+type Kind = 'onefc_schedule' | 'onefc_todo'
 
 type EventForm = {
   mode: 'create' | 'edit'
+  /** onefc: ONE FC calendar_items. google: Google 에서 태어난 일정(기존 write 경로). */
+  target: 'onefc' | 'google'
   eventId: string
   calendarId: string
   title: string
@@ -116,7 +121,7 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
   const openChooser = () => {
     reset()
     setChooserOpen(true)
-    void loadTargets().catch((loadError) => setError(messageOf(loadError)))
+    if (enabled) void loadTargets().catch((loadError) => setError(messageOf(loadError)))
   }
 
   const askConsent = async () => {
@@ -147,23 +152,17 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
       setTodoCreate((current) => ({ due: baseDate, session: (current?.session ?? 0) + 1 }))
       return
     }
-    if (kind === 'google_event') {
-      const calendarId = targets?.calendars.find((calendar) => calendar.primary)?.id ?? targets?.calendars[0]?.id ?? ''
-      if (!write.calendarWritable) setConsentNeeded(true)
-      setEventForm({ mode: 'create', eventId: '', calendarId, title: '', description: '', date: baseDate, endDate: baseDate, ...createScheduleTimeFields() })
-      return
-    }
-    if (!write.tasksWritable) setConsentNeeded(true)
-    setTaskForm({ mode: 'create', taskId: '', taskListId: targets?.taskLists[0]?.id ?? '', title: '', notes: '', dueDate: baseDate })
+    setEventForm({ mode: 'create', target: 'onefc', eventId: '', calendarId: '', title: '', description: '', date: baseDate, endDate: baseDate, ...createScheduleTimeFields() })
   }
 
   const openEditEvent = (event: ScheduleEvent) => {
     reset()
-    void loadTargets().catch(() => undefined)
+    if (event.origin !== 'onefc') void loadTargets().catch(() => undefined)
     const date = event.allDay ? event.startAt.slice(0, 10) : kstYmd(event.startAt)
     const endDate = event.allDay ? addDays(event.endAt.slice(0, 10), -1) : kstYmd(event.endAt)
     setEventForm({
       mode: 'edit',
+      target: event.origin === 'onefc' ? 'onefc' : 'google',
       eventId: event.sourceId,
       calendarId: event.calendarId ?? '',
       title: event.title,
@@ -201,14 +200,20 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
   const saveEvent = async () => {
     if (!eventForm || busy) return
     if (!eventForm.title.trim()) return setError('제목을 입력해 주세요.')
-    if (!eventForm.calendarId) return setError('저장할 캘린더를 선택해 주세요.')
+    if (eventForm.target === 'google' && !eventForm.calendarId) return setError('저장할 캘린더를 선택해 주세요.')
     setBusy(true)
     setError('')
     const input = buildScheduleEventInput(eventForm)
     try {
-      if (eventForm.mode === 'create') await createGoogleEvent(props.token, { ...input, requestId: requestIdRef.current })
-      else await updateGoogleEvent(props.token, { ...input, eventId: eventForm.eventId })
-      finish(eventForm.mode === 'create' ? 'Google 일정을 저장했습니다.' : 'Google 일정을 수정했습니다.')
+      if (eventForm.target === 'onefc') {
+        if (eventForm.mode === 'create') await createOnefcSchedule(props.token, { ...input, requestId: requestIdRef.current })
+        else await updateOnefcSchedule(props.token, eventForm.eventId, input)
+        finish(eventForm.mode === 'create' ? '일정을 저장했습니다.' : '일정을 수정했습니다.')
+      } else {
+        if (eventForm.mode === 'create') await createGoogleEvent(props.token, { ...input, requestId: requestIdRef.current })
+        else await updateGoogleEvent(props.token, { ...input, eventId: eventForm.eventId })
+        finish(eventForm.mode === 'create' ? 'Google 일정을 저장했습니다.' : 'Google 일정을 수정했습니다.')
+      }
     } catch (saveError) {
       fail(saveError)
     }
@@ -216,13 +221,21 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
 
   const removeEvent = async (event: ScheduleEvent, closeDetail: () => void) => {
     if (busy) return
-    if (!(await confirm({ title: 'Google 일정 삭제', message: '이 Google 일정을 삭제할까요? Google Calendar 에서도 삭제됩니다.', confirmLabel: '삭제', cancelLabel: '취소' }))) return
+    const local = event.origin === 'onefc'
+    const confirmed = await confirm({
+      title: local ? '일정 삭제' : 'Google 일정 삭제',
+      message: local ? '이 ONE FC 일정을 삭제할까요?' : '이 Google 일정을 삭제할까요? Google Calendar 에서도 삭제됩니다.',
+      confirmLabel: '삭제',
+      cancelLabel: '취소',
+    })
+    if (!confirmed) return
     setBusy(true)
     setError('')
     try {
-      await deleteGoogleEvent(props.token, event.calendarId ?? '', event.sourceId)
+      if (local) await deleteOnefcSchedule(props.token, event.sourceId)
+      else await deleteGoogleEvent(props.token, event.calendarId ?? '', event.sourceId)
       closeDetail()
-      finish('Google 일정을 삭제했습니다.')
+      finish(local ? '일정을 삭제했습니다.' : 'Google 일정을 삭제했습니다.')
     } catch (deleteError) {
       fail(deleteError)
       setNotice(messageOf(deleteError))
@@ -281,9 +294,10 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
     </div>
   ) : null
 
-  const toolbarButton: ReactNode = enabled ? (
+  // ONE FC 할 일은 Google 연결과 무관하게 추가할 수 있으므로 버튼은 항상 보인다.
+  const toolbarButton: ReactNode = (
     <Button type="button" variant="primary" size="sm" onClick={openChooser}>새 항목 추가</Button>
-  ) : null
+  )
 
   const noticeNode: ReactNode = notice ? <span className="schedule-page__refresh-message" role="status">{notice}</span> : null
 
@@ -311,11 +325,10 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
       />
       {chooserOpen ? (
         <FormDialog open title="새 항목 추가" closeOnBackdrop closeOnEsc onClose={() => setChooserOpen(false)}>
-          <p className="schedule-page__dialog-sub">{baseDate} · 저장할 위치를 고르세요.{targets?.accountEmail ? ` (Google: ${targets.accountEmail})` : ''}</p>
+          <p className="schedule-page__dialog-sub">{baseDate} · ONE FC에 저장합니다.</p>
           <div className="schedule-page__dialog-actions schedule-page__new-kinds">
-            <FormButton htmlType="button" variant="secondary" onClick={() => choose('google_event')}>Google 일정</FormButton>
-            <FormButton htmlType="button" variant="secondary" onClick={() => choose('google_task')}>Google 할 일</FormButton>
-            <FormButton htmlType="button" variant="secondary" onClick={() => choose('onefc_todo')}>ONE FC 할 일</FormButton>
+            <FormButton htmlType="button" variant="secondary" onClick={() => choose('onefc_schedule')}>일정 추가</FormButton>
+            <FormButton htmlType="button" variant="secondary" onClick={() => choose('onefc_todo')}>할 일 추가</FormButton>
           </div>
           {error ? <p className="schedule-page__error" role="alert">{error}</p> : null}
         </FormDialog>
@@ -323,22 +336,26 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
       {eventForm ? (
         <FormDialog
           open
-          title={eventForm.mode === 'create' ? 'Google 일정 추가' : 'Google 일정 수정'}
+          title={eventForm.target === 'onefc'
+            ? (eventForm.mode === 'create' ? '일정 추가' : '일정 수정')
+            : (eventForm.mode === 'create' ? 'Google 일정 추가' : 'Google 일정 수정')}
           disableClose={busy}
           onClose={() => setEventForm(null)}
           footer={(
             <div className="schedule-page__dialog-actions">
               <FormButton htmlType="button" variant="secondary" disabled={busy} onClick={() => setEventForm(null)}>취소</FormButton>
-              <FormButton htmlType="button" variant="primary" loading={busy} loadingText="저장 중…" disabled={consentNeeded} onClick={() => void saveEvent()}>저장</FormButton>
+              <FormButton htmlType="button" variant="primary" loading={busy} loadingText="저장 중…" disabled={eventForm.target === 'google' && consentNeeded} onClick={() => void saveEvent()}>저장</FormButton>
             </div>
           )}
         >
-          {consentBlock}
+          {eventForm.target === 'google' ? consentBlock : null}
           <label className="schedule-page__field"><span>제목</span><FormInput value={eventForm.title} maxLength={300} onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })} /></label>
-          <label className="schedule-page__field">
-            <span>캘린더</span>
-            <FormSelect value={eventForm.calendarId} disabled={eventForm.mode === 'edit'} options={calendarOptions.length ? calendarOptions : [{ value: '', label: '쓰기 가능한 캘린더 없음' }]} onChange={(e) => setEventForm({ ...eventForm, calendarId: e.target.value })} />
-          </label>
+          {eventForm.target === 'google' ? (
+            <label className="schedule-page__field">
+              <span>캘린더</span>
+              <FormSelect value={eventForm.calendarId} disabled={eventForm.mode === 'edit'} options={calendarOptions.length ? calendarOptions : [{ value: '', label: '쓰기 가능한 캘린더 없음' }]} onChange={(e) => setEventForm({ ...eventForm, calendarId: e.target.value })} />
+            </label>
+          ) : null}
           <div className="schedule-page__field">
             <Button
               type="button"
@@ -406,6 +423,14 @@ export function useScheduleGoogleWrite(props: Pick<ScheduleViewProps, 'token' | 
 
   /** Google 일정 상세 하단 버튼(쓰기 가능할 때만) 또는 읽기 전용 사유 */
   const eventActions = (event: ScheduleEvent, closeDetail: () => void): ReactNode => {
+    if (event.origin === 'onefc') {
+      return (
+        <>
+          <FormButton htmlType="button" variant="danger" disabled={busy} onClick={() => void removeEvent(event, closeDetail)}>삭제</FormButton>
+          <FormButton htmlType="button" variant="secondary" disabled={busy} onClick={() => { closeDetail(); openEditEvent(event) }}>수정</FormButton>
+        </>
+      )
+    }
     if (!enabled || event.source !== 'google') return null
     if (!event.writable) {
       return <span className="schedule-page__dialog-sub">{GOOGLE_READ_ONLY_REASON[event.readOnlyReason ?? ''] ?? '이 일정은 읽기 전용입니다.'}</span>

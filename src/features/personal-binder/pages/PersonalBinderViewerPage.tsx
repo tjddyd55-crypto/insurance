@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { getDocument, type PDFDocumentProxy } from 'pdfjs-dist'
 
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
+import { EmptyState } from '../../../components/feedback/EmptyState'
 import FormButton from '../../../components/form/FormButton'
 import {
   clampNewsDetailViewerZoom,
@@ -17,6 +18,7 @@ import { getPdfJsCmapAndStandardFontUrls } from '../../../lib/pdfjs/pdfDocumentI
 import { setupPdfWorker } from '../../../lib/pdfjs/setupWorker'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
+import { BINDER_EMPTY_SECTION_MESSAGE, binderTocSectionAction } from '../domain/binderToc'
 import type { BinderPdfViewerFitMode } from '../domain/binderPdfViewerScale'
 import {
   createStorageFileDownloadUrl,
@@ -90,6 +92,7 @@ export default function PersonalBinderViewerPage() {
   const [error, setError] = useState('')
   const [pageLoadError, setPageLoadError] = useState<PageLoadError | null>(null)
   const [tocOpen, setTocOpen] = useState(false)
+  const [tocEmptyNotice, setTocEmptyNotice] = useState<string | null>(null)
   const [controlsVisible, setControlsVisible] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [fitMode, setFitMode] = useState<BinderPdfViewerFitMode>(() => (isMobile ? 'width' : 'page'))
@@ -390,6 +393,13 @@ export default function PersonalBinderViewerPage() {
     setIndex((value) => Math.min(pages.length - 1, Math.max(0, value + direction)))
   }
   const jumpToSection = (sectionId: string) => {
+    const section = binder?.sections.find((row) => row.id === sectionId)
+    const itemCount = section?.items.length ?? 0
+    if (binderTocSectionAction(itemCount) === 'empty') {
+      setTocEmptyNotice(BINDER_EMPTY_SECTION_MESSAGE)
+      return
+    }
+    setTocEmptyNotice(null)
     const next = pages.findIndex((page) => page.sectionId === sectionId)
     if (next >= 0) setIndex(next)
     setTocOpen(false)
@@ -617,6 +627,7 @@ export default function PersonalBinderViewerPage() {
         closeOnBackdrop={false}
       >
         <h2 className="personal-binder-dialog-title">목차</h2>
+        {tocEmptyNotice ? <EmptyState message={tocEmptyNotice} /> : null}
         <div className="personal-binder-viewer__toc">
           {binder.sections.map((section) => (
             <FormButton
