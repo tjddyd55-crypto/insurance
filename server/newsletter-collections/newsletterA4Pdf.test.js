@@ -42,3 +42,52 @@ test('이미지 비율 유지, PDF 첨부 페이지 A4 배치, 미지원 첨부�
   }
   assert.equal(r.warnings.length, 2)
 })
+
+test('한글 텍스트: 인코딩된 모든 글리프가 /W 폭 표에 있고 측정 폭과 일치, 경량 폰트로 크기 제한', async () => {
+  const { PDFName } = await import('pdf-lib')
+  const lines = [
+    '안녕하세요 고객님',
+    '보험금 청구 안내',
+    '2026년 10월 24일 1,234,567원 (₩50,000) 3.5%',
+    '손해사정사 소식지 ONE FC Newsletter abc',
+    '(괄호), [대괄호]. “따옴표” ‘작은’ … · ※ ○ ● ■ □ ▶ ① ⑩ + - = : /',
+    '한글 뒤 공백 가 나 다',
+  ]
+  const r = await buildNewsletterA4Pdf({ newsletter: { title: '제목 2026', bodyText: lines.join('\n') }, attachments: [] })
+  assert.ok(r.buffer.length < 400 * 1024, `PDF 크기 ${r.buffer.length}`)
+  const doc = await PDFDocument.load(r.buffer)
+  const fonts = doc.getPages()[0].node.Resources().lookup(PDFName.of('Font'))
+  const type0 = doc.context.lookup(fonts.entries()[0][1])
+  const cid = doc.context.lookup(type0.lookup(PDFName.of('DescendantFonts')).get(0))
+  const W = cid.lookup(PDFName.of('W')).asArray()
+  const widths = new Map()
+  for (let i = 0; i < W.length; ) {
+    const start = W[i].asNumber()
+    const next = doc.context.lookup(W[i + 1])
+    if (next.asArray) {
+      next.asArray().forEach((v, j) => widths.set(start + j, v.asNumber()))
+      i += 2
+    } else {
+      for (let g = start; g <= next.asNumber(); g++) widths.set(g, W[i + 2].asNumber())
+      i += 3
+    }
+  }
+  // 같은 옵션으로 다시 임베드해 encodeText / widthOfTextAtSize 를 얻는다.
+  const fontkit = (await import('@pdf-lib/fontkit')).default
+  const { readFile } = await import('node:fs/promises')
+  const probe = await PDFDocument.create()
+  probe.registerFontkit(fontkit)
+  const bytes = await readFile(new URL('../fonts/newsletter/NotoSansKR-Regular-compact.ttf', import.meta.url))
+  const font = await probe.embedFont(bytes, { subset: false, features: { calt: false, locl: false } })
+  for (const line of lines) {
+    const hex = font.encodeText(line).toString().slice(1, -1)
+    let sum = 0
+    for (let i = 0; i < hex.length; i += 4) {
+      const g = parseInt(hex.slice(i, i + 4), 16)
+      assert.ok(g !== 0, `글리프 없음(notdef): ${line}`)
+      assert.ok(widths.has(g), `/W 누락 gid ${g}: ${line}`)
+      sum += widths.get(g)
+    }
+    assert.ok(Math.abs(sum - font.widthOfTextAtSize(line, 1000)) < 0.5, `폭 불일치: ${line}`)
+  }
+})
