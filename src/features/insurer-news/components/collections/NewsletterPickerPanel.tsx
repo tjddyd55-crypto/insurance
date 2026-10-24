@@ -15,7 +15,6 @@ import type { InsurerSummary, NewsletterBoard, NewsletterDetail, NewsletterItem,
 import {
   buildNewsletterBoardOptions,
   buildNewsletterInsurerOptions,
-  buildNewsletterKindOptions,
   formatPickerFilterLabel,
 } from '../../utils/newsletterPickerFilters'
 import { INSURER_NEWSLETTER_FEED_CODE } from '../../utils/newsletterSourceMenuLabels'
@@ -101,7 +100,6 @@ export function NewsletterPickerPanel({
   const items = itemsOverride ?? sources.items
   const [boards, setBoards] = useState<NewsletterBoard[]>([])
   const [insurers, setInsurers] = useState<InsurerSummary[]>([])
-  const [kind, setKind] = useState<'' | NewsletterSourceKind>('')
   const [query, setQuery] = useState('')
   const [insurer, setInsurer] = useState('')
   const [board, setBoard] = useState('')
@@ -137,14 +135,6 @@ export function NewsletterPickerPanel({
     }
   }, [gaCode, token])
 
-  const kindOptions = useMemo(
-    () =>
-      buildNewsletterKindOptions(items).map((option) => ({
-        value: option.code,
-        label: formatPickerFilterLabel(option),
-      })),
-    [items],
-  )
   const insurerOptions = useMemo(
     () =>
       buildNewsletterInsurerOptions(insurers).map((option) => ({
@@ -158,11 +148,11 @@ export function NewsletterPickerPanel({
     item.boardId ? `board:${item.boardId}` : INSURER_NEWSLETTER_FEED_CODE
   const boardOptions = useMemo(
     () =>
-      buildNewsletterBoardOptions(boards, items, kind).map((option) => ({
+      buildNewsletterBoardOptions(boards, items).map((option) => ({
         value: option.code,
         label: option.code ? formatPickerFilterLabel(option) : option.label,
       })),
-    [boards, items, kind],
+    [boards, items],
   )
   useEffect(() => {
     if (board && !boardOptions.some((o) => o.value === board)) setBoard('')
@@ -190,10 +180,9 @@ export function NewsletterPickerPanel({
     const q = query.trim().toLowerCase()
     return items.filter((item) => {
       if (allowed && !allowed.has(item.id)) return false
-      if (kind && kindOf(item) !== kind) return false
       if (board && boardKeyOf(item) !== board) return false
-      // 원수사 선택은 원수사 종류에서만 적용한다 (GA/공용에는 원수사 조건 미적용).
-      if (kind === 'INSURER' && insurer && item.insurerCode !== insurer) return false
+      // 원수사 선택은 원수사소식지 보드에서만 적용한다 (GA/공용 보드에는 원수사 조건 미적용).
+      if (board === INSURER_NEWSLETTER_FEED_CODE && insurer && item.insurerCode !== insurer) return false
       if (hideDisabledByDefault && !showAlreadyAdded && disabledIds?.has(item.id)) return false
       if (!q) return true
       return [item.insurerName, item.boardLabel, item.title, item.summary, formatTimestampSearchHaystack(item.publishedAt)]
@@ -201,7 +190,7 @@ export function NewsletterPickerPanel({
         .join('\n')
         .includes(q)
     })
-  }, [collections, disabledIds, hideDisabledByDefault, insurer, items, kind, board, query, showAlreadyAdded, source])
+  }, [collections, disabledIds, hideDisabledByDefault, insurer, items, board, query, showAlreadyAdded, source])
 
   const selected = new Set(selectedIds)
   const selectable = rows.filter((row) => !disabledIds?.has(row.id))
@@ -286,18 +275,12 @@ export function NewsletterPickerPanel({
           />
         ) : null}
         <FormSelect
-          value={kind}
-          onChange={(e) => setKind(e.target.value as '' | NewsletterSourceKind)}
-          options={kindOptions}
-          aria-label="소식지 종류"
-        />
-        <FormSelect
           value={board}
           onChange={(e) => setBoard(e.target.value)}
           options={boardOptions}
-          aria-label="게시판"
+          aria-label="소식지"
         />
-        {kind === 'INSURER' ? (
+        {board === INSURER_NEWSLETTER_FEED_CODE ? (
           <FormSelect
             value={insurer}
             onChange={(e) => setInsurer(e.target.value)}

@@ -2,6 +2,7 @@ import { buildNewsletterBoardViewPath } from './newsletterBoardMenuLinks'
 import { isGaOnlyNewsletterBoard, isGlobalNewsletterBoard } from './newsletterBoardScope'
 import {
   INSURER_NEWSLETTER_FEED_CODE,
+  NEWSLETTER_ALL_FILTER_LABEL,
   NEWSLETTER_SOURCE_KIND_MENU,
 } from './newsletterSourceMenuLabels'
 import type { InsurerSummary, NewsletterBoard, NewsletterItem, NewsletterSourceKind } from '../types'
@@ -26,7 +27,7 @@ export function buildNewsletterKindOptions(items: NewsletterItem[]): NewsletterP
   const counts: Record<NewsletterSourceKind, number> = { INSURER: 0, GA: 0, PUBLIC: 0 }
   for (const item of items) counts[kindOf(item)] += 1
   return [
-    { code: '', menuPath: null, label: '전체 소식지', count: items.length },
+    { code: '', menuPath: null, label: NEWSLETTER_ALL_FILTER_LABEL, count: items.length },
     {
       code: NEWSLETTER_SOURCE_KIND_MENU.INSURER.code,
       menuPath: NEWSLETTER_SOURCE_KIND_MENU.INSURER.menuPath,
@@ -62,10 +63,10 @@ function boardMatchesKind(board: NewsletterBoard, kind: '' | NewsletterSourceKin
 export function buildNewsletterBoardOptions(
   boards: NewsletterBoard[],
   items: NewsletterItem[],
-  kind: '' | NewsletterSourceKind,
+  kind: '' | NewsletterSourceKind = '',
 ): NewsletterPickerFilterOption[] {
   const options: NewsletterPickerFilterOption[] = [
-    { code: '', menuPath: null, label: '전체 게시판', count: items.filter((item) => !kind || kindOf(item) === kind).length },
+    { code: '', menuPath: null, label: NEWSLETTER_ALL_FILTER_LABEL, count: items.filter((item) => !kind || kindOf(item) === kind).length },
   ]
   if (!kind || kind === 'INSURER') {
     const insurerCount = items.filter((item) => kindOf(item) === 'INSURER' && !item.boardId).length
