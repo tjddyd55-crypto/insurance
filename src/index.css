@@ -9816,9 +9816,6 @@ div.cta-button.customers-page__action-btn[role='button']{
   background-color: var(--input-bg, #fff);
   border: 1px solid var(--input-border, var(--border-default));
   border-radius: 10px;
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
 }
 
 .form-input:not([type='radio']):not([type='checkbox']):not([type='file']):not([type='range']):not(
