@@ -29,6 +29,7 @@ import {
   BinderConsultationPageError,
 } from '../components/BinderConsultationPageContent'
 import { buildBinderViewerPages } from '../domain/pageSelection'
+import { formatBinderViewerZoomPercent, stepBinderViewerZoom } from '../domain/binderViewerZoom'
 import {
   isBinderImageMaterial,
   resolveBinderMaterialRenderKind,
@@ -42,10 +43,6 @@ import {
   fetchSharedBinderFileBlob,
   getSharedPersonalBinder,
 } from '../personalBinderShare.api'
-import {
-  downloadPersonalBinderPdf,
-  printPersonalBinderPdf,
-} from '../personalBinderPdf'
 import type {
   PersonalBinder,
   PersonalBinderMaterial,
@@ -94,8 +91,8 @@ export default function PersonalBinderViewerPage() {
   const [tocOpen, setTocOpen] = useState(false)
   const [tocEmptyNotice, setTocEmptyNotice] = useState<string | null>(null)
   const [controlsVisible, setControlsVisible] = useState(true)
-  const [exporting, setExporting] = useState(false)
-  const [fitMode, setFitMode] = useState<BinderPdfViewerFitMode>(() => (isMobile ? 'width' : 'page'))
+  // 슬라이드 쇼는 보기 전용: 맞춤 방식은 기기 기준 고정(모바일 폭 / PC 쪽).
+  const fitMode: BinderPdfViewerFitMode = isMobile ? 'width' : 'page'
   const [zoom, setZoom] = useState(1)
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
   const viewportRef = useRef<HTMLDivElement>(null)
@@ -328,10 +325,9 @@ export default function PersonalBinderViewerPage() {
 
   useEffect(() => {
     if (!current?.key) return
-    setFitMode(isMobile ? 'width' : 'page')
     setZoom(1)
     viewportRef.current?.scrollTo({ left: 0, top: 0 })
-  }, [current?.key, isMobile])
+  }, [current?.key])
 
   useEffect(() => {
     for (const neighborIndex of [index - 1, index + 1, index + 2]) {
@@ -367,11 +363,11 @@ export default function PersonalBinderViewerPage() {
   }, [pages.length])
 
   if (!token) return <Navigate to="/login" replace />
-  if (loading) return <main className="personal-binder-viewer-status">상담 책자를 준비하는 중…</main>
+  if (loading) return <main className="personal-binder-viewer-status">슬라이드 쇼를 준비하는 중…</main>
   if (!binder || pages.length === 0) {
     return (
       <main className="personal-binder-viewer-status">
-        <p>{error || '상담할 페이지가 없습니다.'}</p>
+        <p>{error || '슬라이드 쇼로 볼 페이지가 없습니다.'}</p>
         <FormButton
           variant="secondary"
           onClick={() => {
@@ -421,20 +417,6 @@ export default function PersonalBinderViewerPage() {
     const url = await createStorageFileDownloadUrl(token, current.material.fileId)
     window.location.assign(url)
   }
-  const printCurrent = async () => {
-    if (!current) return
-    try {
-      const entry = await loadMaterial(current.material)
-      const opened = window.open(entry.url, '_blank')
-      if (opened) opened.opener = null
-      window.setTimeout(() => opened?.print(), 1000)
-    } catch (reason) {
-      setPageLoadError({
-        pageKey: current.key,
-        message: pageLoadErrorMessage(current.material, reason),
-      })
-    }
-  }
 
   const retryCurrentPage = () => {
     if (!current) return
@@ -468,23 +450,6 @@ export default function PersonalBinderViewerPage() {
     navigate(returnTo, {
       state: viewerReturn?.scrollY != null ? { restoreScrollY: viewerReturn.scrollY } : undefined,
     })
-  }
-
-  const exportBinder = async (mode: 'download' | 'print') => {
-    if (!binder || exporting) return
-    setExporting(true)
-    setError('')
-    try {
-      if (mode === 'download') {
-        await downloadPersonalBinderPdf(token, binder.id, binder.title)
-      } else {
-        await printPersonalBinderPdf(token, binder.id)
-      }
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '바인더 PDF를 만들지 못했습니다.')
-    } finally {
-      setExporting(false)
-    }
   }
 
   return (
@@ -579,45 +544,10 @@ export default function PersonalBinderViewerPage() {
           <span>{current?.sectionTitle}</span>
         </div>
         <FormButton variant="action" aria-label="다음 페이지" disabled={index === pages.length - 1} onClick={() => move(1)}>›</FormButton>
-        <FormButton
-          variant="action"
-          onClick={() => {
-            setViewerZoom(zoom - 0.25)
-          }}
-        >
-          축소
-        </FormButton>
-        <FormButton variant="action" onClick={() => setViewerZoom(zoom + 0.25)}>확대</FormButton>
-        <FormButton
-          variant="action"
-          onClick={() => {
-            setFitMode('width')
-            setZoom(1)
-            viewportRef.current?.scrollTo({ left: 0, top: 0 })
-          }}
-        >
-          폭 맞춤
-        </FormButton>
-        {!isMobile ? (
-          <FormButton
-            variant="action"
-            onClick={() => {
-              setFitMode('page')
-              setZoom(1)
-              viewportRef.current?.scrollTo({ left: 0, top: 0 })
-            }}
-          >
-            쪽 맞춤
-          </FormButton>
-        ) : null}
+        <FormButton variant="action" aria-label="축소" onClick={() => setViewerZoom(stepBinderViewerZoom(zoom, -1))}>축소</FormButton>
+        <span className="personal-binder-viewer__zoom" aria-live="polite">{formatBinderViewerZoomPercent(zoom)}</span>
+        <FormButton variant="action" aria-label="확대" onClick={() => setViewerZoom(stepBinderViewerZoom(zoom, 1))}>확대</FormButton>
         <FormButton variant="secondary" onClick={() => void downloadCurrent()}>원본 다운로드</FormButton>
-        <FormButton variant="secondary" onClick={() => void printCurrent()}>자료 출력</FormButton>
-        {!isSharedView ? (
-          <>
-            <FormButton variant="secondary" loading={exporting} onClick={() => void exportBinder('download')}>전체 PDF</FormButton>
-            <FormButton variant="secondary" loading={exporting} onClick={() => void exportBinder('print')}>전체 출력</FormButton>
-          </>
-        ) : null}
       </footer>
 
       <BaseDialog
