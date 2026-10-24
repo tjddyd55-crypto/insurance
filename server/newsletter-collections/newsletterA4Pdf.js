@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url'
  *  - 넣을 수 없는 콘텐츠는 PDF 안에 안내 문구를 남기고 warnings 로도 돌려준다 (silent success 금지).
  */
 
-const FONT_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), '../fonts/newsletter/NotoSansKR-Regular-glyf.ttf')
+const FONT_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), '../fonts/newsletter/NotoSansKR-Regular-compact.ttf')
 let fontBytesCache = null
 async function loadKoreanFontBytes() {
   if (!fontBytesCache) fontBytesCache = await readFile(FONT_PATH)
@@ -228,7 +228,9 @@ export async function buildNewsletterA4Pdf({ newsletter, linkPreview = null, att
   const warnings = []
   const doc = await PDFDocument.create()
   doc.registerFontkit(fontkit)
-  const font = await doc.embedFont(await loadKoreanFontBytes(), { subset: true })
+  // 경량 폰트(사전 subset, glyf, GSUB 없음)를 통째로 임베드한다. fontkit 런타임 subset 은 glyf 를 손상시키고,
+  // calt/locl 대체 글리프는 /W 폭 표에서 빠져 간격이 깨지므로 둘 다 끈다.
+  const font = await doc.embedFont(await loadKoreanFontBytes(), { subset: false, features: { calt: false, locl: false } })
   const fixedDate = newsletter.publishedAt ? new Date(newsletter.publishedAt) : new Date(0)
   const heading = String(newsletter.title || newsletter.summary || '소식지').trim()
   doc.setTitle(heading.slice(0, 200))
