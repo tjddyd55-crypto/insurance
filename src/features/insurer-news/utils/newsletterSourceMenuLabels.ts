@@ -17,3 +17,6 @@ export const NEWSLETTER_SOURCE_KIND_MENU: Record<
 }
 
 export const INSURER_NEWSLETTER_FEED_CODE = 'insurer'
+
+/** 소식지 필터의 '전체' 옵션 표시 이름 (소식지 목록 상단 `전체 소식지` 칩과 동일 문구). */
+export const NEWSLETTER_ALL_FILTER_LABEL = '전체 소식지'
