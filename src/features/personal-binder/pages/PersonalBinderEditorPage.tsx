@@ -504,7 +504,7 @@ export default function PersonalBinderEditorPage({
             </FormButton>
           ) : null}
           <FormButton variant="secondary" size="sm" onClick={() => startConsultation()}>
-            상담
+            슬라이드 쇼
           </FormButton>
           <FormButton
             variant="secondary"
