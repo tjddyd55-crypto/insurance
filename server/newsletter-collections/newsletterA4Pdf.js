@@ -148,39 +148,6 @@ class A4Writer {
     })
     this.y -= 12
   }
-
-  /** @param {import('pdf-lib').PDFImage} img @param {string} caption */
-  image(img, caption) {
-    const captionH = caption ? 16 : 0
-    const fullH = A4_HEIGHT_PT - MARGIN * 2 - captionH
-    let w = CONTENT_W
-    let h = (img.height / img.width) * w
-    if (h > fullH) {
-      h = fullH
-      w = (img.width / img.height) * h
-    }
-    // 남은 공간이 넉넉하면(본문 높이 40% 이상) 폭 60%까지 비율 유지 축소해 같은 페이지에 둔다.
-    const room = this.remaining() - captionH
-    if (this.page && room < h && room >= fullH * 0.4) {
-      const shrink = room / h
-      if (w * shrink >= CONTENT_W * 0.6) {
-        w *= shrink
-        h *= shrink
-      }
-    }
-    // 캡션과 이미지가 분리되지 않도록 함께 들어갈 공간을 확보한다.
-    if (!this.page || this.remaining() < h + captionH) this.newPage()
-    const x = MARGIN + (CONTENT_W - w) / 2
-    this.page.drawImage(img, { x, y: this.y - h, width: w, height: h })
-    this.y -= h
-    if (caption) {
-      const size = 8.5
-      const line = wrapTextLines(sanitizeForFont(caption, this.font), this.font, size, CONTENT_W)[0] ?? ''
-      this.page.drawText(line, { x: MARGIN, y: this.y - 12, size, font: this.font, color: COLOR_MUTED })
-      this.y -= captionH
-    }
-    this.y -= 10
-  }
 }
 
 async function normalizeImageForPdf(bytes) {
@@ -241,6 +208,60 @@ export async function buildNewsletterA4Pdf({ newsletter, linkPreview = null, att
     doc.setModificationDate(fixedDate)
   }
 
+  // 정책: 텍스트와 이미지는 같은 페이지에 두지 않는다.
+  //  1) 텍스트 전용 페이지(머리글·제목·본문·링크·첨부 안내 문구) — 넘치면 다음 페이지, 마지막 페이지는 채우지 않는다.
+  //  2) 첨부는 원래 순서(sort_order)대로: 이미지는 1장당 이미지 전용 페이지, PDF 는 원본 페이지를 그대로 이어 붙인다.
+  const plan = []
+  const notices = []
+  for (const entry of attachments) {
+    const att = entry.row
+    const name = String(att.file_name ?? '').trim() || '첨부'
+    if (!entry.buffer) {
+      warnings.push(`${name}: 첨부를 불러오지 못해 안내 문구로 대체했습니다.`)
+      notices.push(`[첨부를 불러오지 못했습니다: ${name}]`)
+      continue
+    }
+    if (isPdfAttachment(att)) {
+      try {
+        plan.push({ kind: 'pdf', src: await PDFDocument.load(entry.buffer, { ignoreEncryption: false }) })
+      } catch {
+        warnings.push(`${name}: 열 수 없는 PDF(암호/손상)라 안내 문구로 대체했습니다.`)
+        notices.push(`[PDF 첨부를 포함할 수 없습니다: ${name}]`)
+      }
+      continue
+    }
+    if (isImageAttachment(att)) {
+      try {
+        const norm = await normalizeImageForPdf(entry.buffer)
+        plan.push({ kind: 'image', img: norm.kind === 'png' ? await doc.embedPng(norm.bytes) : await doc.embedJpg(norm.bytes) })
+      } catch {
+        warnings.push(`${name}: 이미지 형식을 변환하지 못해 안내 문구로 대체했습니다.`)
+        notices.push(`[이미지를 포함할 수 없습니다: ${name}]`)
+      }
+      continue
+    }
+    warnings.push(`${name}: 이 형식은 PDF에 포함할 수 없어 파일명으로 대체했습니다.`)
+    notices.push(`[PDF에 포함할 수 없는 첨부: ${name}]`)
+  }
+
+  buildNewsletterTextPages(doc, font, { newsletter, heading, linkPreview, notices })
+  for (const item of plan) {
+    if (item.kind === 'image') buildNewsletterImagePages(doc, [item.img])
+    else await appendAttachmentPdfPages(doc, item.src)
+  }
+
+  const bytes = Buffer.from(await doc.save({ useObjectStreams: true }))
+  return { buffer: bytes, pageCount: doc.getPageCount(), warnings }
+}
+
+function assertPageBudget(doc) {
+  if (doc.getPageCount() >= MAX_TOTAL_PAGES) {
+    throw Object.assign(new Error('소식지가 너무 길어 PDF로 변환할 수 없습니다.'), { httpStatus: 422 })
+  }
+}
+
+/** 텍스트 전용 A4 페이지들. 이미지는 그리지 않는다. */
+export function buildNewsletterTextPages(doc, font, { newsletter, heading, linkPreview = null, notices = [] }) {
   const w = new A4Writer(doc, font)
   w.newPage()
   const meta = [newsletter.insurerName, formatKstDate(newsletter.publishedAt)].filter(Boolean).join(' · ')
@@ -265,62 +286,35 @@ export async function buildNewsletterA4Pdf({ newsletter, linkPreview = null, att
     })
     w.gap(8)
   }
+  for (const n of notices) w.text(n, { size: 9.5, leading: 14, color: COLOR_NOTICE })
+}
 
-  for (const entry of attachments) {
-    const att = entry.row
-    const name = String(att.file_name ?? '').trim() || '첨부'
-    if (!entry.buffer) {
-      warnings.push(`${name}: 첨부를 불러오지 못해 안내 문구로 대체했습니다.`)
-      w.text(`[첨부를 불러오지 못했습니다: ${name}]`, { size: 9.5, leading: 14, color: COLOR_NOTICE })
-      continue
-    }
-    if (isPdfAttachment(att)) {
-      let src
-      try {
-        src = await PDFDocument.load(entry.buffer, { ignoreEncryption: false })
-      } catch {
-        warnings.push(`${name}: 열 수 없는 PDF(암호/손상)라 안내 문구로 대체했습니다.`)
-        w.text(`[PDF 첨부를 포함할 수 없습니다: ${name}]`, { size: 9.5, leading: 14, color: COLOR_NOTICE })
-        continue
-      }
-      for (const srcPage of src.getPages()) {
-        w.newPage()
-        if (!srcPage.node.Contents()) {
-          // 내용 스트림이 없는 빈 페이지는 빈 A4 페이지로 유지한다 (순서 보존).
-          w.y = MARGIN
-          continue
-        }
-        const ep = await doc.embedPage(srcPage)
-        const scale = Math.min(CONTENT_W / ep.width, (A4_HEIGHT_PT - MARGIN * 2) / ep.height)
-        const pw = ep.width * scale
-        const ph = ep.height * scale
-        w.page.drawPage(ep, {
-          x: (A4_WIDTH_PT - pw) / 2,
-          y: (A4_HEIGHT_PT - ph) / 2,
-          width: pw,
-          height: ph,
-        })
-        w.y = MARGIN
-      }
-      continue
-    }
-    if (isImageAttachment(att)) {
-      try {
-        const norm = await normalizeImageForPdf(entry.buffer)
-        const img = norm.kind === 'png' ? await doc.embedPng(norm.bytes) : await doc.embedJpg(norm.bytes)
-        w.image(img, '')
-      } catch {
-        warnings.push(`${name}: 이미지 형식을 변환하지 못해 안내 문구로 대체했습니다.`)
-        w.text(`[이미지를 포함할 수 없습니다: ${name}]`, { size: 9.5, leading: 14, color: COLOR_NOTICE })
-      }
-      continue
-    }
-    warnings.push(`${name}: 이 형식은 PDF에 포함할 수 없어 파일명으로 대체했습니다.`)
-    w.text(`[PDF에 포함할 수 없는 첨부: ${name}]`, { size: 9.5, leading: 14, color: COLOR_NOTICE })
+/** 이미지 전용 A4 페이지: 이미지 1장당 1페이지, 비율 유지로 여백 안에 맞춰 가운데 배치. */
+export function buildNewsletterImagePages(doc, images) {
+  const maxH = A4_HEIGHT_PT - MARGIN * 2
+  for (const img of images) {
+    assertPageBudget(doc)
+    const page = doc.addPage([A4_WIDTH_PT, A4_HEIGHT_PT])
+    const scale = Math.min(CONTENT_W / img.width, maxH / img.height)
+    const w = img.width * scale
+    const h = img.height * scale
+    page.drawImage(img, { x: (A4_WIDTH_PT - w) / 2, y: A4_HEIGHT_PT - MARGIN - h, width: w, height: h })
   }
+}
 
-  const bytes = Buffer.from(await doc.save({ useObjectStreams: true }))
-  return { buffer: bytes, pageCount: doc.getPageCount(), warnings }
+/** 첨부 PDF 의 페이지를 순서대로 A4 에 맞춰 이어 붙인다 (기존 병합 방식 유지). */
+export async function appendAttachmentPdfPages(doc, src) {
+  for (const srcPage of src.getPages()) {
+    assertPageBudget(doc)
+    const page = doc.addPage([A4_WIDTH_PT, A4_HEIGHT_PT])
+    // 내용 스트림이 없는 빈 페이지는 빈 A4 페이지로 유지한다 (순서 보존).
+    if (!srcPage.node.Contents()) continue
+    const ep = await doc.embedPage(srcPage)
+    const scale = Math.min(CONTENT_W / ep.width, (A4_HEIGHT_PT - MARGIN * 2) / ep.height)
+    const pw = ep.width * scale
+    const ph = ep.height * scale
+    page.drawPage(ep, { x: (A4_WIDTH_PT - pw) / 2, y: (A4_HEIGHT_PT - ph) / 2, width: pw, height: ph })
+  }
 }
 
 /**
