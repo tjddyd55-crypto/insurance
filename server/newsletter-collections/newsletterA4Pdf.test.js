@@ -91,3 +91,100 @@ test('한글 텍스트: 인코딩된 모든 글리프가 /W 폭 표에 있고 �
     assert.ok(Math.abs(sum - font.widthOfTextAtSize(line, 1000)) < 0.5, `폭 불일치: ${line}`)
   }
 })
+
+// ── 텍스트/이미지 분리 정책 ──
+async function classifyPages(buffer) {
+  const { PDFName, PDFRawStream, PDFArray, decodePDFRawStream } = await import('pdf-lib')
+  const doc = await PDFDocument.load(buffer)
+  return doc.getPages().map((p) => {
+    const c = p.node.Contents()
+    const streams = !c ? [] : c instanceof PDFArray ? c.asArray().map((r) => doc.context.lookup(r)) : [c]
+    const ops = streams
+      .map((s) => (s instanceof PDFRawStream ? Buffer.from(decodePDFRawStream(s).decode()).toString('latin1') : ''))
+      .join('\n')
+    const xo = p.node.Resources()?.lookup(PDFName.of('XObject'))
+    const kinds = new Set()
+    for (const m of ops.matchAll(/\/(\S+)\s+Do\b/g)) {
+      const obj = xo && doc.context.lookup(xo.get(PDFName.of(m[1])))
+      kinds.add(String(obj?.dict?.get(PDFName.of('Subtype')) ?? ''))
+    }
+    return {
+      text: /\bTj\b|\bTJ\b/.test(ops),
+      image: kinds.has('/Image'),
+      form: kinds.has('/Form'),
+      blank: ops.trim() === '',
+      tj: (ops.match(/\bTj\b/g) ?? []).length,
+    }
+  })
+}
+
+const pdfAttachment = async (n) => {
+  const src = await PDFDocument.create()
+  for (let i = 0; i < n; i++) src.addPage([595, 842]).drawRectangle({ x: 50, y: 50, width: 100 + i * 10, height: 100 })
+  return Buffer.from(await src.save())
+}
+
+test('정책: 텍스트만 있는 소식지는 텍스트 전용 페이지만', async () => {
+  const r = await buildNewsletterA4Pdf({ newsletter: { title: '안내 2026 ONE FC', bodyText: '한글 1,234원 English 3.5%' }, attachments: [] })
+  const pages = await classifyPages(r.buffer)
+  assert.equal(pages.length, 1)
+  assert.ok(pages[0].text && !pages[0].image)
+})
+
+test('정책: 이미지는 이미지 전용 페이지(1장당 1페이지), 텍스트 없음, 비율 유지', async () => {
+  const r = await buildNewsletterA4Pdf({
+    newsletter: { title: '카드뉴스' },
+    attachments: [
+      { row: { file_name: '1.png', mime_type: 'image/png' }, buffer: await png(400, 400) },
+      { row: { file_name: '2.png', mime_type: 'image/png' }, buffer: await png(1080, 1920) },
+    ],
+  })
+  const pages = await classifyPages(r.buffer)
+  assert.equal(pages.length, 3)
+  assert.ok(pages[0].text && !pages[0].image)
+  for (const p of pages.slice(1)) assert.ok(p.image && !p.text)
+})
+
+test('정책: 텍스트+이미지+PDF 혼합 — 같은 페이지에 섞이지 않고 원래 순서 유지', async () => {
+  const r = await buildNewsletterA4Pdf({
+    newsletter: { title: '혼합', bodyText: '본문 한글 123 abc' },
+    linkPreview: { url: 'https://example.com', title: '링크' },
+    attachments: [
+      { row: { file_name: 'a.png', mime_type: 'image/png' }, buffer: await png(800, 400) },
+      { row: { file_name: 'b.pdf', mime_type: 'application/pdf' }, buffer: await pdfAttachment(2) },
+      { row: { file_name: 'c.jpg', mime_type: 'image/jpeg' }, buffer: await png(300, 600) },
+      { row: { file_name: 'd.png', mime_type: 'image/png' }, buffer: null },
+    ],
+  })
+  const pages = await classifyPages(r.buffer)
+  for (const p of pages) assert.ok(!(p.text && p.image), '텍스트와 이미지가 같은 페이지에 있음')
+  assert.deepEqual(
+    pages.map((p) => (p.image ? 'img' : p.form ? 'pdf' : p.text ? 'text' : 'blank')),
+    ['text', 'img', 'pdf', 'pdf', 'img'],
+  )
+  assert.equal(r.warnings.length, 1)
+})
+
+test('정책: 긴 텍스트는 여러 페이지, 마지막 페이지는 일부만 채워짐(늘리지 않음)', async () => {
+  const body = Array.from({ length: 100 }, (_, i) => `${i + 1}번째 줄 한국어 본문 English 2026`).join('\n')
+  const r = await buildNewsletterA4Pdf({ newsletter: { title: '긴 글', bodyText: body }, attachments: [] })
+  const pages = await classifyPages(r.buffer)
+  assert.ok(pages.length >= 2)
+  for (const p of pages) assert.ok(p.text && !p.image)
+  assert.ok(pages.at(-1).tj < pages[0].tj, '마지막 페이지가 부분적으로만 채워져야 함')
+})
+
+test('정책: 첨부 PDF 여러 개는 원래 순서대로 이어 붙임', async () => {
+  const r = await buildNewsletterA4Pdf({
+    newsletter: { title: '첨부' },
+    attachments: [
+      { row: { file_name: 'x.pdf', mime_type: 'application/pdf' }, buffer: await pdfAttachment(1) },
+      { row: { file_name: 'y.pdf', mime_type: 'application/pdf' }, buffer: await pdfAttachment(3) },
+    ],
+  })
+  const pages = await classifyPages(r.buffer)
+  assert.equal(pages.length, 5)
+  assert.ok(pages[0].text)
+  for (const p of pages.slice(1)) assert.ok(p.form && !p.text && !p.image)
+  assert.equal(await validateNewsletterA4Pdf(r.buffer), 5)
+})
