@@ -1,4 +1,5 @@
 import { r2DeleteObject } from '../lib/consentStorage.js'
+import { buildNewsletterBinderPdfFileName } from '../newsletter-collections/newsletterBinderFileName.js'
 import { readStorageFileBufferFromPath } from '../lib/storageFileObjectKey.js'
 import { resolveNewsletterDetailLinkPreview } from '../lib/newsletterLinkPreview.js'
 import {
@@ -350,7 +351,7 @@ async function importOneNewsletter(pool, scope, gaCode, section, newsletterId) {
   })
   await validateNewsletterA4Pdf(built.buffer)
 
-  const fileName = `${title.replace(/[\\/:*?"<>|]+/g, ' ').trim() || '소식지'}.pdf`
+  const fileName = buildNewsletterBinderPdfFileName(title)
   const fileRow = await persistPersonalStoragePdf(pool, scope, gaCode, built.buffer, fileName)
   let materialId = null
   let createdMaterial = false
