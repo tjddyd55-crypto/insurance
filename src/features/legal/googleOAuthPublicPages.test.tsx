@@ -48,6 +48,11 @@ describe('Google OAuth 공개 고지 (개인정보처리방침·약관·소개)'
     expect(html).toContain('회사가 Google API로부터 받은 정보를 이용하고 다른 앱으로 전송하는 행위는 제한적 사용(Limited Use) 요건을 포함한')
   })
 
+  it('개인정보처리방침: 접속 기기 정보 항목 고지', () => {
+    const html = render(<PrivacyPolicyPage />)
+    expect(html).toContain('접속 기기 정보(기기 종류·모델, 운영체제, 앱 버전, 접속 채널)')
+  })
+
   it('이용약관: 외부 서비스 연동은 선택·사용자 요청 시에만 쓰기·해제 가능, 개인정보처리방침 참조', () => {
     const html = render(<TermsOfServicePage />, '/terms')
     expect(html).toContain('시행일 2026년 10월 23일 · 개정일 2026년 10월 16일')
