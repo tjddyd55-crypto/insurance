@@ -177,7 +177,7 @@ export default function TodosWorkspaceMobileView({
                   <div className="todo-item-content text-left w-full text-info font-semibold">
                     {todoDisplayContent(row)}
                   </div>
-                  <div className="text-xs text-muted mt-1 space-y-1">
+                  <div className="text-sm text-muted mt-1 space-y-1">
                     <div>
                       연결:{' '}
                       {row.relatedEntityType === 'customer' && row.relatedEntityId ? (
