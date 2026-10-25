@@ -119,7 +119,8 @@ export default function PrivacyPolicyPage() {
           <p>회사는 서비스 이용 과정에서 아래와 같은 개인정보를 처리할 수 있습니다.</p>
           <ul className="legal-doc__list">
             <li>
-              <strong>회원·계정</strong>: 아이디, 비밀번호(암호화 저장), 서비스 이용 기록, 접속 로그, IP 주소 등
+              <strong>회원·계정</strong>: 아이디, 비밀번호(암호화 저장), 서비스 이용 기록, 접속 로그, IP 주소,
+              접속 기기 정보(기기 종류·모델, 운영체제, 앱 버전, 접속 채널) 등
             </li>
             <li>
               <strong>고객·신청 정보</strong>: 성명, 생년월일 또는 주민등록번호 등 식별정보, 연락처(전화번호),
