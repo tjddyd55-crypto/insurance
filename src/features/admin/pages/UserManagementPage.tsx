@@ -43,7 +43,6 @@ import {
 } from '../api/crmUserBulkSmsApi'
 import {
   ADMIN_USER_SUBSCRIPTION_FILTER_OPTIONS,
-  formatAdminUserLastLogin,
   formatAdminUserSubscriptionListLabel,
   resolveAdminUserSubscriptionBadgeClass,
   type AdminUserSubscriptionFilter,
@@ -493,10 +492,14 @@ function UserManagementTable() {
             {formatAdminUserRecentAccess(r, true)}
           </span>
         </td>
-        <td>{formatAdminUserChannel(r.last_client_type)}</td>
-        <td>
-          {formatAdminUserDevice(r.last_device_model)}
-          {r.last_app_version ? <span className="admin-user-access__hint"> · v{r.last_app_version}</span> : null}
+        <td className="admin-user-table__channel">{formatAdminUserChannel(r.last_client_type)}</td>
+        <td className="admin-user-table__device">
+          <span
+            className="admin-user-table__device-text"
+            title={formatAdminUserDevice(r.last_device_model, r.last_client_type)}
+          >
+            {formatAdminUserDevice(r.last_device_model, r.last_client_type)}
+          </span>
         </td>
         <td className="admin-table-cell--actions">
           {isSuper ? (
@@ -596,7 +599,7 @@ function UserManagementTable() {
         <div className="admin-user-card__row">
           <span className="admin-user-card__label">최근 채널·기기</span>
           <span className="admin-user-card__value">
-            {formatAdminUserChannel(r.last_client_type)} · {formatAdminUserDevice(r.last_device_model)}
+            {formatAdminUserChannel(r.last_client_type)} · {formatAdminUserDevice(r.last_device_model, r.last_client_type)}
           </span>
         </div>
         {isSuper ? (
@@ -836,9 +839,9 @@ function UserManagementTable() {
                   <th scope="col">역할</th>
                   <th scope="col">계정 상태</th>
                   <th scope="col">구독 상태</th>
-                  <th scope="col">최근 접속</th>
-                  <th scope="col">최근 채널</th>
-                  <th scope="col">최근 기기</th>
+                  <th scope="col" className="admin-user-table__last-login">최근 접속</th>
+                  <th scope="col" className="admin-user-table__channel">최근 채널</th>
+                  <th scope="col" className="admin-user-table__device">최근 기기</th>
                   <th scope="col" className="admin-table-cell--actions">
                     관리
                   </th>
@@ -945,7 +948,7 @@ function UserManagementTable() {
           open={Boolean(editing)}
           onClose={closeEdit}
           title="유저 수정"
-          panelClassName="admin-modal-panel"
+          panelClassName="admin-modal-panel admin-user-edit-modal"
           overlayClassName="admin-modal-backdrop"
           closeOnBackdrop={!isSaving}
           closeOnEsc={!isSaving}
@@ -993,18 +996,12 @@ function UserManagementTable() {
               </div>
             </div>
             <div className="admin-modal-field">
-              <span className="admin-user-card__label">최근 로그인</span>
-              <div style={{ marginTop: 6, color: 'var(--text-primary)' }}>
-                {formatAdminUserLastLogin(editing.last_login_at)}
-              </div>
-            </div>
-            <AdminUserAccessSection token={token} userId={editing.id} />
-            <div className="admin-modal-field">
               <span className="admin-user-card__label">계정 상태 표시</span>
               <div style={{ marginTop: 6 }}>
                 <AccountStatusBadge status={editStatus} />
               </div>
             </div>
+            <AdminUserAccessSection token={token} userId={editing.id} />
           </div>
           <div className="admin-modal-actions">
             <FormButton
@@ -1323,9 +1320,9 @@ function UserManagementTable() {
                   <th scope="col">역할</th>
                   <th scope="col">계정 상태</th>
                   <th scope="col">구독 상태</th>
-                  <th scope="col">최근 접속</th>
-                  <th scope="col">최근 채널</th>
-                  <th scope="col">최근 기기</th>
+                  <th scope="col" className="admin-user-table__last-login">최근 접속</th>
+                  <th scope="col" className="admin-user-table__channel">최근 채널</th>
+                  <th scope="col" className="admin-user-table__device">최근 기기</th>
                   <th scope="col" className="admin-table-cell--actions">
                     관리
                   </th>
@@ -1465,7 +1462,7 @@ function UserManagementTable() {
           open={Boolean(editing)}
           onClose={closeEdit}
           title="유저 수정"
-          panelClassName="admin-modal-panel"
+          panelClassName="admin-modal-panel admin-user-edit-modal"
           overlayClassName="admin-modal-backdrop"
           closeOnBackdrop={!isSaving}
           closeOnEsc={!isSaving}
@@ -1513,18 +1510,12 @@ function UserManagementTable() {
               </div>
             </div>
             <div className="admin-modal-field">
-              <span className="admin-user-card__label">최근 로그인</span>
-              <div style={{ marginTop: 6, color: 'var(--text-primary)' }}>
-                {formatAdminUserLastLogin(editing.last_login_at)}
-              </div>
-            </div>
-            <AdminUserAccessSection token={token} userId={editing.id} />
-            <div className="admin-modal-field">
               <span className="admin-user-card__label">계정 상태 표시</span>
               <div style={{ marginTop: 6 }}>
                 <AccountStatusBadge status={editStatus} />
               </div>
             </div>
+            <AdminUserAccessSection token={token} userId={editing.id} />
           </div>
           <div className="admin-modal-actions">
             <FormButton
