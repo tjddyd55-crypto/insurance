@@ -78,7 +78,7 @@ export function listAdminUsedChannelLabels(clientTypes: readonly (string | null 
 }
 
 export type AdminAccessHistoryRow = {
-  createdAt: string
+  at: string | null
   clientType: string | null
   deviceModel: string | null
   appVersion: string | null
