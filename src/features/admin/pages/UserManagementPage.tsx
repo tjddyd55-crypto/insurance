@@ -5,6 +5,12 @@ import { EmptyState, StatusMessage } from '../../../components/feedback'
 import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
 import { formatKrMobileDisplay } from '../../sms/smsDisplayUtils'
 import { useAuth } from '../../auth/AuthProvider'
+import { AdminUserAccessSection } from '../components/AdminUserAccessSection'
+import {
+  formatAdminUserChannel,
+  formatAdminUserDevice,
+  formatAdminUserRecentAccess,
+} from '../adminUserAccessPresentation'
 import {
   deleteAdminUser,
   fetchAdminUsersOverviewSummary,
@@ -37,7 +43,6 @@ import {
 } from '../api/crmUserBulkSmsApi'
 import {
   ADMIN_USER_SUBSCRIPTION_FILTER_OPTIONS,
-  formatAdminUserLastLogin,
   formatAdminUserSubscriptionListLabel,
   resolveAdminUserSubscriptionBadgeClass,
   type AdminUserSubscriptionFilter,
@@ -482,9 +487,18 @@ function UserManagementTable() {
           <SubscriptionStatusBadge row={r} />
         </td>
         <td className="admin-user-table__last-login">
-          <span className="admin-user-table__last-login-full">{formatAdminUserLastLogin(r.last_login_at)}</span>
+          <span className="admin-user-table__last-login-full">{formatAdminUserRecentAccess(r)}</span>
           <span className="admin-user-table__last-login-compact">
-            {formatAdminUserLastLogin(r.last_login_at, true)}
+            {formatAdminUserRecentAccess(r, true)}
+          </span>
+        </td>
+        <td className="admin-user-table__channel">{formatAdminUserChannel(r.last_client_type)}</td>
+        <td className="admin-user-table__device">
+          <span
+            className="admin-user-table__device-text"
+            title={formatAdminUserDevice(r.last_device_model, r.last_client_type)}
+          >
+            {formatAdminUserDevice(r.last_device_model, r.last_client_type)}
           </span>
         </td>
         <td className="admin-table-cell--actions">
@@ -579,8 +593,14 @@ function UserManagementTable() {
           </span>
         </div>
         <div className="admin-user-card__row">
-          <span className="admin-user-card__label">최근 접속일</span>
-          <span className="admin-user-card__value">{formatAdminUserLastLogin(r.last_login_at, true)}</span>
+          <span className="admin-user-card__label">최근 접속</span>
+          <span className="admin-user-card__value">{formatAdminUserRecentAccess(r, true)}</span>
+        </div>
+        <div className="admin-user-card__row">
+          <span className="admin-user-card__label">최근 채널·기기</span>
+          <span className="admin-user-card__value">
+            {formatAdminUserChannel(r.last_client_type)} · {formatAdminUserDevice(r.last_device_model, r.last_client_type)}
+          </span>
         </div>
         {isSuper ? (
         <div className="admin-user-card__actions">
@@ -819,7 +839,9 @@ function UserManagementTable() {
                   <th scope="col">역할</th>
                   <th scope="col">계정 상태</th>
                   <th scope="col">구독 상태</th>
-                  <th scope="col">최근 접속일</th>
+                  <th scope="col" className="admin-user-table__last-login">최근 접속</th>
+                  <th scope="col" className="admin-user-table__channel">최근 채널</th>
+                  <th scope="col" className="admin-user-table__device">최근 기기</th>
                   <th scope="col" className="admin-table-cell--actions">
                     관리
                   </th>
@@ -828,7 +850,7 @@ function UserManagementTable() {
               <tbody>
                 {rows.length === 0 && !isLoading ? (
                   <tr>
-                    <td colSpan={12} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
+                    <td colSpan={14} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
                       표시할 사용자가 없습니다.
                     </td>
                   </tr>
@@ -838,7 +860,7 @@ function UserManagementTable() {
                     return (
                       <Fragment key={group.gaId}>
                         <tr className="admin-user-pc__group-row">
-                          <th scope="colgroup" colSpan={12}>
+                          <th scope="colgroup" colSpan={14}>
                             <button
                               type="button"
                               className="admin-user-pc__group-toggle"
@@ -926,7 +948,7 @@ function UserManagementTable() {
           open={Boolean(editing)}
           onClose={closeEdit}
           title="유저 수정"
-          panelClassName="admin-modal-panel"
+          panelClassName="admin-modal-panel admin-user-edit-modal"
           overlayClassName="admin-modal-backdrop"
           closeOnBackdrop={!isSaving}
           closeOnEsc={!isSaving}
@@ -974,17 +996,12 @@ function UserManagementTable() {
               </div>
             </div>
             <div className="admin-modal-field">
-              <span className="admin-user-card__label">최근 접속일</span>
-              <div style={{ marginTop: 6, color: 'var(--text-primary)' }}>
-                {formatAdminUserLastLogin(editing.last_login_at)}
-              </div>
-            </div>
-            <div className="admin-modal-field">
               <span className="admin-user-card__label">계정 상태 표시</span>
               <div style={{ marginTop: 6 }}>
                 <AccountStatusBadge status={editStatus} />
               </div>
             </div>
+            <AdminUserAccessSection token={token} userId={editing.id} />
           </div>
           <div className="admin-modal-actions">
             <FormButton
@@ -1303,7 +1320,9 @@ function UserManagementTable() {
                   <th scope="col">역할</th>
                   <th scope="col">계정 상태</th>
                   <th scope="col">구독 상태</th>
-                  <th scope="col">최근 접속일</th>
+                  <th scope="col" className="admin-user-table__last-login">최근 접속</th>
+                  <th scope="col" className="admin-user-table__channel">최근 채널</th>
+                  <th scope="col" className="admin-user-table__device">최근 기기</th>
                   <th scope="col" className="admin-table-cell--actions">
                     관리
                   </th>
@@ -1312,7 +1331,7 @@ function UserManagementTable() {
               <tbody>
                 {rows.length === 0 && !isLoading ? (
                   <tr>
-                    <td colSpan={12} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
+                    <td colSpan={14} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
                       표시할 사용자가 없습니다.
                     </td>
                   </tr>
@@ -1366,7 +1385,8 @@ function UserManagementTable() {
                                 <NewMemberBadge show={isAdminUserJoinedThisMonth(r.created_at)} />
                               </strong>
                               <span>가입일 {formatAdminUserJoinDate(r.created_at)}</span>
-                              <span>최근 접속 {formatAdminUserLastLogin(r.last_login_at, true)}</span>
+                              <span>최근 접속 {formatAdminUserRecentAccess(r, true)}</span>
+                              <span>{formatAdminUserChannel(r.last_client_type)}</span>
                             </div>
                             <div className="admin-user-management__ga-group-row-actions">
                               <FormButton
@@ -1442,7 +1462,7 @@ function UserManagementTable() {
           open={Boolean(editing)}
           onClose={closeEdit}
           title="유저 수정"
-          panelClassName="admin-modal-panel"
+          panelClassName="admin-modal-panel admin-user-edit-modal"
           overlayClassName="admin-modal-backdrop"
           closeOnBackdrop={!isSaving}
           closeOnEsc={!isSaving}
@@ -1490,17 +1510,12 @@ function UserManagementTable() {
               </div>
             </div>
             <div className="admin-modal-field">
-              <span className="admin-user-card__label">최근 접속일</span>
-              <div style={{ marginTop: 6, color: 'var(--text-primary)' }}>
-                {formatAdminUserLastLogin(editing.last_login_at)}
-              </div>
-            </div>
-            <div className="admin-modal-field">
               <span className="admin-user-card__label">계정 상태 표시</span>
               <div style={{ marginTop: 6 }}>
                 <AccountStatusBadge status={editStatus} />
               </div>
             </div>
+            <AdminUserAccessSection token={token} userId={editing.id} />
           </div>
           <div className="admin-modal-actions">
             <FormButton

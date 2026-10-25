@@ -117,5 +117,11 @@ export function mapAdminUserListRow(row, toIso) {
     subscription_status_label: subscriptionPresentation.displayLabel,
     subscription_until: subscriptionUntil ? subscriptionUntil.slice(0, 10) : null,
     subscription_list_label: subscriptionPresentation.listLabel,
+    /* t527 접속 telemetry (기록 시작 이후 값, 없으면 null=미확인) */
+    last_seen_at: toIsoStringOrNull(row.last_seen_at),
+    first_client_type: row.first_client_type != null ? String(row.first_client_type) : null,
+    last_client_type: row.last_client_type != null ? String(row.last_client_type) : null,
+    last_device_model: row.last_device_model != null ? String(row.last_device_model) : null,
+    last_app_version: row.last_app_version != null ? String(row.last_app_version) : null,
   }
 }

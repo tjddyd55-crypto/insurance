@@ -17,6 +17,7 @@ type WorkspaceActiveTab =
   | 'pdf-documents'
   | 'ga-excel'
   | 'memos'
+  | 'todos'
   | 'claims'
   | 'personal-message'
   | 'signatures'
@@ -41,6 +42,7 @@ export type CustomerWorkspaceLayoutPCProps = {
   onClickCarForm: () => void
   onClickGaExcel: () => void
   onClickMemos: () => void
+  onClickTodos: () => void
   onClickClaims: () => void
   onClickPersonalMessage: () => void
   onClickSignatures: () => void
@@ -90,6 +92,9 @@ function rightTitle(pathname: string): string {
   if (pathname.includes('/memos')) {
     return '메모'
   }
+  if (/\/customers\/\d+\/todos(?:\/|$)/.test(pathname)) {
+    return '할 일'
+  }
   if (pathname.includes('/claim-requests')) {
     return '청구 관리'
   }
@@ -121,6 +126,7 @@ export default function CustomerWorkspaceLayoutPC({
   onClickCarForm,
   onClickGaExcel,
   onClickMemos,
+  onClickTodos,
   onClickClaims,
   onClickPersonalMessage,
   onClickSignatures,
@@ -160,6 +166,7 @@ export default function CustomerWorkspaceLayoutPC({
       }),
       tab('files', '고객 파일', onClickFiles),
       tab('consultations', '상담 이력', onClickConsultations),
+      tab('todos', '할 일', onClickTodos),
       tab('pdf-documents', '신청서', onClickCarForm, { hidden: !showCarInsuranceInWorkspace }),
       tab('signatures', '전자서명', onClickSignatures, {
         hidden: !showContractSignaturesInWorkspace,
@@ -184,6 +191,7 @@ export default function CustomerWorkspaceLayoutPC({
     onClickGaExcel,
     onClickMemos,
     onClickPersonalMessage,
+    onClickTodos,
     onClickPremiumPayments,
     onClickSignatures,
     onClickViewOnMap,

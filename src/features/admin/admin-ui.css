@@ -1613,3 +1613,170 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── 유저 목록: 최근 접속 / 최근 채널 / 최근 기기 (폭·정렬 고정) ── */
+.admin-user-table th.admin-user-table__last-login,
+.admin-user-table td.admin-user-table__last-login,
+.admin-user-table th.admin-user-table__channel,
+.admin-user-table td.admin-user-table__channel,
+.admin-user-table th.admin-user-table__device,
+.admin-user-table td.admin-user-table__device {
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.admin-user-table td.admin-user-table__last-login {
+  min-width: 128px;
+  font-variant-numeric: tabular-nums;
+}
+.admin-user-table th.admin-user-table__channel,
+.admin-user-table td.admin-user-table__channel {
+  min-width: 88px;
+}
+.admin-user-table th.admin-user-table__device,
+.admin-user-table td.admin-user-table__device {
+  width: 150px;
+  max-width: 150px;
+}
+.admin-user-pc .admin-user-table td.admin-user-table__channel,
+.admin-user-pc .admin-user-table td.admin-user-table__device {
+  white-space: nowrap;
+}
+.admin-user-table__device-text {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 유저 수정 모달: 최소 확장 + 본문만 스크롤 ── */
+.customer-ui-modal-panel.admin-modal-panel.admin-user-edit-modal,
+.admin-modal-panel.admin-user-edit-modal {
+  width: min(640px, calc(100vw - 32px)) !important;
+  max-width: min(640px, calc(100vw - 32px)) !important;
+  max-height: calc(100vh - 48px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  box-sizing: border-box;
+}
+.admin-user-edit-modal > .form-dialog__header {
+  flex: 0 0 auto;
+}
+.admin-user-edit-modal > .form-dialog__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.admin-user-edit-modal .admin-modal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding-top: 8px;
+  background: var(--bg-elevated);
+}
+
+/* ── 접속 정보 / 최근 접속 기록 ── */
+.admin-user-access {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.admin-user-access__section {
+  border-top: 1px solid var(--border-default);
+  padding-top: 12px;
+  min-width: 0;
+}
+.admin-user-access__title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.admin-user-access__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  margin: 0;
+}
+.admin-user-access__item {
+  min-width: 0;
+}
+.admin-user-access__item--wide {
+  grid-column: 1 / -1;
+}
+.admin-user-access__item dt {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.admin-user-access__item dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: var(--text-primary);
+  min-width: 0;
+}
+.admin-user-access__sub,
+.admin-user-access__hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.admin-user-access__hint {
+  margin: 6px 0 0;
+}
+.admin-user-access__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.admin-user-access__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  font-size: 12px;
+  white-space: nowrap;
+  background: var(--bg-subtle, transparent);
+}
+.admin-user-access__ellipsis {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.admin-user-access__table-wrap {
+  overflow-x: auto;
+}
+.admin-user-access__table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.admin-user-access__table th,
+.admin-user-access__table td {
+  text-align: left;
+  vertical-align: middle;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-default);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.admin-user-access__table th {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.admin-user-access__col-time { width: 120px; }
+.admin-user-access__col-channel { width: 96px; }
+.admin-user-access__col-version { width: 104px; }
+
+@media (max-width: 560px) {
+  .admin-user-access__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
