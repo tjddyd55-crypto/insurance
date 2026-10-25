@@ -188,6 +188,7 @@ export default function CustomerTodosPage() {
       )}
       <TodoEditorDialog
         open={editorOpen}
+        usePortal
         onClose={() => setEditorOpen(false)}
         token={token ?? ''}
         gaId={gaId}

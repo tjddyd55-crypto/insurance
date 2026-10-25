@@ -155,6 +155,7 @@ export default function CustomerMemosPage() {
       )}
       <TodoEditorDialog
         open={memoTodoDialogOpen}
+        usePortal
         onClose={() => {
           setMemoTodoDialogOpen(false)
           setMemoTodoPrefill(null)

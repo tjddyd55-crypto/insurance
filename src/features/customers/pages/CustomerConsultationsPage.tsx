@@ -292,6 +292,7 @@ export default function CustomerConsultationsPage() {
       />
       <TodoEditorDialog
         open={todoDialogOpen}
+        usePortal
         onClose={() => {
           setTodoDialogOpen(false)
           setTodoPrefill(null)
