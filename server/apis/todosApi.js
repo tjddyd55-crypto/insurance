@@ -337,6 +337,18 @@ export function registerTodosApi(apiRouter, ctx) {
         )
       }
 
+      const customerIdRaw = typeof req.query.customerId === 'string' ? req.query.customerId.trim() : ''
+      if (customerIdRaw) {
+        if (!/^[0-9]+$/.test(customerIdRaw)) {
+          res.status(400).json({ message: '고객 ID 형식이 올바르지 않습니다.' })
+          return
+        }
+        // 기존 연결(related_entity_type='customer' + related_entity_id)만 사용. 소유·GA·고객 가시성은 위 조건 그대로.
+        conditions.push(`t.related_entity_type = 'customer' AND trim(t.related_entity_id) = $${p}`)
+        params.push(String(Number(customerIdRaw)))
+        p += 1
+      }
+
       if (sourceType && SOURCE_TYPES.has(sourceType)) {
         conditions.push(`t.source_type = $${p}`)
         params.push(sourceType)
