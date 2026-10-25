@@ -690,7 +690,8 @@ export interface AdminUserRow {
 }
 
 export type AdminUserAccessSession = {
-  createdAt: string
+  /** 서버 adminUserAccessContext.js: `at: iso(created_at)` */
+  at: string | null
   clientType: string | null
   platform: string | null
   deviceModel: string | null

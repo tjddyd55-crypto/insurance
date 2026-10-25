@@ -16,8 +16,8 @@ const s = (
   clientType: string | null,
   deviceModel: string | null,
   appVersion: string | null,
-  createdAt = '2026-10-20T00:00:00Z',
-): AdminUserAccessSession => ({ createdAt, clientType, platform: null, deviceModel, appVersion })
+  at: string | null = '2026-10-20T00:00:00Z',
+): AdminUserAccessSession => ({ at, clientType, platform: null, deviceModel, appVersion })
 
 const base = (over: Partial<AdminUserAccessContext>): AdminUserAccessContext => ({
   userId: 'u1',
@@ -69,6 +69,17 @@ describe('관리자 사용자 접속 표시 (presentation)', () => {
 })
 
 describe('AdminUserAccessDetails fixtures', () => {
+  it('서버 실제 응답 shape(recentSessions[].at)으로 일시 표시', () => {
+    const serverShape = JSON.parse(
+      '{"at":"2026-10-25T05:30:00.000Z","clientType":"native_ios","platform":"ios","deviceModel":"iPhone17,1","appVersion":"2.3.1"}',
+    ) as AdminUserAccessSession
+    const html = render(base({ recentSessions: [serverShape, s('web_desktop', 'Windows · Chrome', null, null)] }))
+    const cells = [...html.matchAll(/<tr><td>([^<]*)<\/td>/g)].map((m) => m[1])
+    expect(cells).toHaveLength(2)
+    expect(cells[0]).not.toBe('미확인')
+    expect(cells[0]).toMatch(/\d/)
+    expect(cells[1]).toBe('미확인')
+  })
   it('A: PC 웹만', () => {
     const html = render(base({}))
     expect(html).toContain('접속 정보')

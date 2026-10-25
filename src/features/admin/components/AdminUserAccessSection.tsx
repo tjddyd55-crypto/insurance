@@ -140,8 +140,8 @@ export function AdminUserAccessDetails({ data }: { data: AdminUserAccessContext 
                 {known.map((s, idx) => {
                   const device = formatAdminUserDevice(s.deviceModel, s.clientType)
                   return (
-                    <tr key={`${s.createdAt}-${idx}`}>
-                      <td>{formatAdminAccessTime(s.createdAt, true)}</td>
+                    <tr key={`${s.at}-${idx}`}>
+                      <td>{formatAdminAccessTime(s.at, true)}</td>
                       <td>{formatAdminUserChannel(s.clientType)}</td>
                       <td>
                         <span className="admin-user-access__ellipsis" title={device}>
