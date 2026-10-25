@@ -932,6 +932,16 @@ async function ensureCrmPlatformMetaSchema(executor) {
     ADD COLUMN IF NOT EXISTS last_login_user_agent TEXT
   `)
 
+  /* t527: 실제 접속 채널·기기 telemetry (additive nullable, backfill 없음 — 다음 접속부터 누적) */
+  await executor.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS first_client_type TEXT,
+    ADD COLUMN IF NOT EXISTS last_client_type TEXT,
+    ADD COLUMN IF NOT EXISTS last_device_model TEXT,
+    ADD COLUMN IF NOT EXISTS last_app_version TEXT,
+    ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ
+  `)
+
   await executor.query(`
     CREATE TABLE IF NOT EXISTS user_auth_sessions (
       id BIGSERIAL PRIMARY KEY,
@@ -944,6 +954,13 @@ async function ensureCrmPlatformMetaSchema(executor) {
       user_agent TEXT,
       fingerprint TEXT
     )
+  `)
+  await executor.query(`
+    ALTER TABLE user_auth_sessions
+    ADD COLUMN IF NOT EXISTS client_type TEXT,
+    ADD COLUMN IF NOT EXISTS platform TEXT,
+    ADD COLUMN IF NOT EXISTS device_model TEXT,
+    ADD COLUMN IF NOT EXISTS app_version TEXT
   `)
   await executor.query(`
     DROP INDEX IF EXISTS idx_user_auth_sessions_user_active
