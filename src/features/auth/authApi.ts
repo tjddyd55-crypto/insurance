@@ -673,6 +673,13 @@ export interface AdminUserRow {
   referrer_display_name: string | null
   referrer_ga_company_name: string | null
   last_login_at: string | null
+  /** 실제 사용 접속 시각(15분 단위 갱신). 기록 시작 전 사용자는 null */
+  last_seen_at?: string | null
+  /** 기록 시작 이후 최초 접속 채널 (ClientType) */
+  first_client_type?: string | null
+  last_client_type?: string | null
+  last_device_model?: string | null
+  last_app_version?: string | null
   subscription_status: string | null
   /** 서버 계산: free | paid | ended */
   subscription_effective_category?: 'free' | 'paid' | 'ended'
@@ -680,6 +687,35 @@ export interface AdminUserRow {
   subscription_status_label: string
   subscription_until: string | null
   subscription_list_label: string
+}
+
+export type AdminUserAccessSession = {
+  createdAt: string
+  clientType: string | null
+  platform: string | null
+  deviceModel: string | null
+  appVersion: string | null
+}
+
+/** GET /api/admin/users/:id/access-context — IP 미포함 */
+export type AdminUserAccessContext = {
+  userId: string
+  createdAt: string | null
+  lastLoginAt: string | null
+  lastSeenAt: string | null
+  firstClientType: string | null
+  lastClientType: string | null
+  lastDeviceModel: string | null
+  lastAppVersion: string | null
+  usedClientTypes: string[]
+  recentSessions: AdminUserAccessSession[]
+}
+
+export async function fetchAdminUserAccessContext(token: string, userId: string) {
+  return apiRequest<AdminUserAccessContext>(
+    `/api/admin/users/${encodeURIComponent(userId)}/access-context`,
+    { method: 'GET', token },
+  )
 }
 
 export type AdminUserListFilters = {
