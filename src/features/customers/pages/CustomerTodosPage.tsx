@@ -132,7 +132,6 @@ export default function CustomerTodosPage() {
                     <th className="todos-page--pc__th-done p-2 w-12 text-center font-semibold">완료</th>
                     <th className="p-2 font-semibold">내용</th>
                     <th className="p-2 font-semibold">날짜</th>
-                    <th className="p-2 font-semibold">시간</th>
                     <th className="p-2 font-semibold">상태</th>
                   </tr>
                 </thead>
@@ -166,7 +165,6 @@ export default function CustomerTodosPage() {
                         </button>
                       </td>
                       <td className="p-2 align-middle whitespace-nowrap">{formatTodoDueDateDisplay(row.dueDate)}</td>
-                      <td className="p-2 align-middle whitespace-nowrap">{row.dueTime?.trim() ? row.dueTime.slice(0, 5) : ''}</td>
                       <td className="p-2 align-middle">{todoStatusLabel(row.status)}</td>
                     </tr>
                   ))}
