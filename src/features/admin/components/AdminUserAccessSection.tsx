@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   fetchAdminUserAccessContext,
   type AdminUserAccessContext,
 } from '../../auth/authApi'
-import { formatAdminUserLastLogin } from '../adminUserPresentation'
 import {
+  formatAdminAccessTime,
+  formatAdminUnknownHistorySummary,
   formatAdminUserAppVersion,
   formatAdminUserChannel,
   formatAdminUserDevice,
-  formatAdminUserRecentAccess,
+  listAdminUsedChannelLabels,
+  splitAdminAccessHistory,
 } from '../adminUserAccessPresentation'
 
 type Props = {
@@ -48,74 +50,117 @@ export function AdminUserAccessSection({ token, userId, fetcher = fetchAdminUser
   const error = settled ? result.error : ''
 
   return (
-    <section className="admin-modal-field admin-user-access" aria-label="접속 채널·기기">
-      <span className="admin-user-card__label">접속 채널·기기</span>
-      {loading ? <p className="admin-user-access__hint">불러오는 중…</p> : null}
-      {error ? <p className="admin-user-access__hint">{error}</p> : null}
+    <div className="admin-user-access">
+      {loading || error ? (
+        <section className="admin-user-access__section" aria-label="접속 정보">
+          <h3 className="admin-user-access__title">접속 정보</h3>
+          <p className="admin-user-access__hint">{error || '불러오는 중…'}</p>
+        </section>
+      ) : null}
       {data ? <AdminUserAccessDetails data={data} /> : null}
-    </section>
+    </div>
   )
 }
 
-/** 순수 표시 컴포넌트 (테스트 용이) */
+/** 순수 표시 컴포넌트 (테스트 용이). 접속 정보 + 최근 접속 기록 두 섹션. */
 export function AdminUserAccessDetails({ data }: { data: AdminUserAccessContext }) {
+  const usedLabels = listAdminUsedChannelLabels(data.usedClientTypes ?? [])
+  const { known, unknownCount } = splitAdminAccessHistory(data.recentSessions ?? [])
+  const summary = formatAdminUnknownHistorySummary(unknownCount, known.length > 0)
+  const items: { label: string; sub?: string; value: ReactNode; wide?: boolean }[] = [
+    { label: '최근 로그인', sub: '로그인 기준', value: formatAdminAccessTime(data.lastLoginAt) },
+    { label: '최근 접속', sub: '실제 사용 기준', value: formatAdminAccessTime(data.lastSeenAt) },
+    { label: '최근 채널', value: formatAdminUserChannel(data.lastClientType) },
+    {
+      label: '최근 기기',
+      value: (
+        <span className="admin-user-access__ellipsis" title={formatAdminUserDevice(data.lastDeviceModel, data.lastClientType)}>
+          {formatAdminUserDevice(data.lastDeviceModel, data.lastClientType)}
+        </span>
+      ),
+    },
+    { label: '앱 버전', value: formatAdminUserAppVersion(data.lastClientType, data.lastAppVersion) },
+    { label: '최초 사용 채널', value: formatAdminUserChannel(data.firstClientType) },
+    {
+      label: '사용해 본 채널',
+      wide: true,
+      value:
+        usedLabels.length > 0 ? (
+          <span className="admin-user-access__chips">
+            {usedLabels.map((l) => (
+              <span key={l} className="admin-user-access__chip">
+                {l}
+              </span>
+            ))}
+          </span>
+        ) : (
+          formatAdminUserChannel(null)
+        ),
+    },
+  ]
   return (
-    <div style={{ marginTop: 6, color: 'var(--text-primary)' }}>
-      <dl
-        className="admin-user-access__grid"
-        style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', columnGap: 12, rowGap: 4, margin: 0 }}
-      >
-        <dt>최근 접속</dt>
-        <dd>
-          {formatAdminUserRecentAccess({ last_seen_at: data.lastSeenAt, last_login_at: data.lastLoginAt })}
-        </dd>
-        <dt>최근 채널</dt>
-        <dd>{formatAdminUserChannel(data.lastClientType)}</dd>
-        <dt>최근 기기</dt>
-        <dd>{formatAdminUserDevice(data.lastDeviceModel)}</dd>
-        <dt>앱 버전</dt>
-        <dd>{formatAdminUserAppVersion(data.lastClientType, data.lastAppVersion)}</dd>
-        <dt>최초 사용 채널</dt>
-        <dd>
-          {formatAdminUserChannel(data.firstClientType)}
-          <span className="admin-user-access__hint"> (기록 시작 이후 기준)</span>
-        </dd>
-        <dt>사용해 본 채널</dt>
-        <dd>
-          {data.usedClientTypes.length > 0
-            ? data.usedClientTypes.map(formatAdminUserChannel).join(', ')
-            : '미확인'}
-        </dd>
-      </dl>
-      <p className="admin-user-access__hint" style={{ marginTop: 8 }}>
-        최근 로그인 기록 (최대 20건)
-      </p>
-      {data.recentSessions.length === 0 ? (
-        <p className="admin-user-access__hint">기록 없음</p>
-      ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table className="admin-user-access__table" style={{ width: '100%', fontSize: 13 }}>
-            <thead>
-              <tr>
-                <th scope="col">일시</th>
-                <th scope="col">채널</th>
-                <th scope="col">기기</th>
-                <th scope="col">앱 버전</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.recentSessions.map((s, idx) => (
-                <tr key={`${s.createdAt}-${idx}`}>
-                  <td>{formatAdminUserLastLogin(s.createdAt, true)}</td>
-                  <td>{formatAdminUserChannel(s.clientType)}</td>
-                  <td>{formatAdminUserDevice(s.deviceModel)}</td>
-                  <td>{formatAdminUserAppVersion(s.clientType, s.appVersion)}</td>
+    <>
+      <section className="admin-user-access__section" aria-label="접속 정보">
+        <h3 className="admin-user-access__title">접속 정보</h3>
+        <dl className="admin-user-access__grid">
+          {items.map((it) => (
+            <div
+              key={it.label}
+              className={`admin-user-access__item${it.wide ? ' admin-user-access__item--wide' : ''}`}
+            >
+              <dt>
+                {it.label}
+                {it.sub ? <span className="admin-user-access__sub"> ({it.sub})</span> : null}
+              </dt>
+              <dd>{it.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+      <section className="admin-user-access__section" aria-label="최근 접속 기록">
+        <h3 className="admin-user-access__title">최근 접속 기록</h3>
+        {known.length > 0 ? (
+          <div className="admin-user-access__table-wrap">
+            <table className="admin-user-access__table">
+              <colgroup>
+                <col className="admin-user-access__col-time" />
+                <col className="admin-user-access__col-channel" />
+                <col />
+                <col className="admin-user-access__col-version" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">일시</th>
+                  <th scope="col">채널</th>
+                  <th scope="col">기기</th>
+                  <th scope="col">앱 버전</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+              </thead>
+              <tbody>
+                {known.map((s, idx) => {
+                  const device = formatAdminUserDevice(s.deviceModel, s.clientType)
+                  return (
+                    <tr key={`${s.createdAt}-${idx}`}>
+                      <td>{formatAdminAccessTime(s.createdAt, true)}</td>
+                      <td>{formatAdminUserChannel(s.clientType)}</td>
+                      <td>
+                        <span className="admin-user-access__ellipsis" title={device}>
+                          {device}
+                        </span>
+                      </td>
+                      <td>{formatAdminUserAppVersion(s.clientType, s.appVersion)}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+        {summary ? <p className="admin-user-access__hint">{summary}</p> : null}
+        {known.length === 0 && unknownCount === 0 ? (
+          <p className="admin-user-access__hint">{formatAdminUserChannel(null)}</p>
+        ) : null}
+      </section>
+    </>
   )
 }
