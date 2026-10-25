@@ -10,6 +10,8 @@ export type ListTodosParams = {
   overdue?: string
   hasRelated?: string
   sourceType?: string
+  /** 기존 고객 연결(relatedEntityType='customer' + relatedEntityId) 기준 필터 */
+  customerId?: string
 }
 
 function buildTodosQuery(ps: ListTodosParams): string {
@@ -22,6 +24,7 @@ function buildTodosQuery(ps: ListTodosParams): string {
   if (ps.overdue) q.set('overdue', ps.overdue)
   if (ps.hasRelated) q.set('hasRelated', ps.hasRelated)
   if (ps.sourceType) q.set('sourceType', ps.sourceType)
+  if (ps.customerId) q.set('customerId', ps.customerId)
   const s = q.toString()
   return s ? `?${s}` : ''
 }
