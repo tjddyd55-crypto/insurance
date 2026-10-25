@@ -35,6 +35,7 @@ export type CustomerWorkspaceTab =
   | 'pdf-documents'
   | 'ga-excel'
   | 'memos'
+  | 'todos'
   | 'claims'
   | 'personal-message'
   | 'signatures'
@@ -69,6 +70,9 @@ function resolveWorkspacePathTab(pathname: string): CustomerWorkspaceTab | null 
   }
   if (pathname.includes('/memos')) {
     return 'memos'
+  }
+  if (/\/customers\/\d+\/todos(?:\/|$)/.test(pathname)) {
+    return 'todos'
   }
   if (pathname.includes('/ga-excel') || pathname.includes('/ga')) {
     return 'ga-excel'
@@ -315,6 +319,13 @@ export default function CustomerWorkspaceLayout() {
     moveTo(`/customers/${selectedCustomerId}/memos`)
   }
 
+  const handleClickTodos = () => {
+    if (!selectedCustomerId) {
+      return
+    }
+    moveTo(`/customers/${selectedCustomerId}/todos`)
+  }
+
   const handleClickClaims = () => {
     if (!selectedCustomerId) {
       return
@@ -367,6 +378,7 @@ export default function CustomerWorkspaceLayout() {
     onClickCarForm: handleClickCarForm,
     onClickGaExcel: handleClickGaExcel,
     onClickMemos: handleClickMemos,
+    onClickTodos: handleClickTodos,
     onClickClaims: handleClickClaims,
     onClickPersonalMessage: handleClickPersonalMessage,
     onClickSignatures: handleClickSignatures,

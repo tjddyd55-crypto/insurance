@@ -4,6 +4,7 @@ export const WORKSPACE_SIDE_DETAIL_TABS = [
   'map',
   'files',
   'consultations',
+  'todos',
   'ga-excel',
   'memos',
   'auto-form',
@@ -69,6 +70,9 @@ export function resolveCustomerWorkspaceTab(pathname: string): CustomerWorkspace
   }
   if (pathname.includes('/memos')) {
     return 'memos'
+  }
+  if (/\/customers\/\d+\/todos(?:\/|$)/.test(pathname)) {
+    return 'todos'
   }
   if (pathname.includes('/ga-excel') || pathname.includes('/ga')) {
     return 'ga-excel'

@@ -60,6 +60,9 @@ function resolveMobileSheetTitle(pathname: string, search: string): string {
   if (pathname.includes('/memos')) {
     return '메모'
   }
+  if (/\/customers\/\d+\/todos(?:\/|$)/.test(pathname)) {
+    return '할 일'
+  }
   if (pathname.includes('/files')) {
     return '고객 파일'
   }
