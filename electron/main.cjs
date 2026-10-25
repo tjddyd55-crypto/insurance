@@ -1,9 +1,10 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, session, shell } = require('electron')
 const axios = require('axios')
 const path = require('path')
 const semver = require('semver')
 const { autoUpdater } = require('electron-updater')
 const { formatReleaseNotes } = require('../shared/formatReleaseNotes.js')
+const { installClientContextHeaders } = require('./clientContextHeaders.cjs')
 
 const APP_USER_MODEL_ID = 'com.insurance.app'
 
@@ -393,6 +394,10 @@ app.whenReady().then(() => {
   registerVersionIpc()
   registerWindowControlsIpc()
   registerAutoUpdaterIpc()
+  installClientContextHeaders(session.defaultSession, {
+    appVersion: app.getVersion(),
+    appUrls: app.isPackaged ? [PACKAGED_APP_URL] : [DEV_APP_URL],
+  })
   createWindow()
 
   if (app.isPackaged) {
