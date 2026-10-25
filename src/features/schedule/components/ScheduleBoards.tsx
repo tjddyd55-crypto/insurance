@@ -305,9 +305,10 @@ export function ScheduleDayList({ events, onOpenEvent, detailed, showDate = true
   )
 }
 
-function taskDueLabel(task: ScheduleTask): string {
+/** 할 일(Todo)은 날짜만 표시한다(시간 개념 없음). 일정(Event) 시간 표시와 무관. */
+function taskDueLabel(task: Pick<ScheduleTask, 'dueDate'>): string {
   if (!task.dueDate) return '날짜 없음'
-  return task.dueTime ? `${formatDateWithKoreanWeekday(task.dueDate)} ${task.dueTime}` : formatDateWithKoreanWeekday(task.dueDate)
+  return formatDateWithKoreanWeekday(task.dueDate)
 }
 
 /** 할 일 묶음(일간·목록·월간 날짜 패널). 조회만 하고 순서·상태를 바꾸지 않는다. */
