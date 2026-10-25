@@ -60,6 +60,9 @@ function resolveMobileSheetTitle(pathname: string, search: string): string {
   if (pathname.includes('/memos')) {
     return '메모'
   }
+  if (/\/customers\/\d+\/todos(?:\/|$)/.test(pathname)) {
+    return '할 일'
+  }
   if (pathname.includes('/files')) {
     return '고객 파일'
   }
@@ -130,7 +133,7 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
 
   const isMobileDetailRoute = useMemo(
     () =>
-      /^\/customers\/\d+\/(?:map|files|consultations|premium-payments|coverage-simulations|ga-excel|memos|auto-form|application-documents|signatures|claim-requests)(?:\/|$)/.test(
+      /^\/customers\/\d+\/(?:map|files|consultations|premium-payments|coverage-simulations|ga-excel|memos|todos|auto-form|application-documents|signatures|claim-requests)(?:\/|$)/.test(
         location.pathname,
       ),
     [location.pathname],

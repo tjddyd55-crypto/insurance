@@ -46,6 +46,7 @@ import CustomerCoverageSimulationsPage, {
 import CustomerFilesPage from './features/customers/pages/CustomerFilesPage'
 import CustomerGaExcelPage from './features/customers/pages/CustomerGaExcelPage'
 import CustomerMemosPage from './features/customers/pages/CustomerMemosPage'
+import CustomerTodosPage from './features/customers/pages/CustomerTodosPage'
 import CustomerMapPage from './features/customers/pages/CustomerMapPage'
 import CustomerRegionPage from './features/customers/pages/CustomerRegionPage'
 import CustomerDetailMapPage from './features/customers/pages/CustomerDetailMapPage'
@@ -518,6 +519,7 @@ export const appRouter = createBrowserRouter([
                   },
                   { path: ':customerId/ga-excel', element: <CustomerGaExcelPage /> },
                   { path: ':customerId/memos', element: <CustomerMemosPage /> },
+                  { path: ':customerId/todos', element: <CustomerTodosPage /> },
                   { path: ':customerId/auto-form', element: <CustomerAutoFormPage /> },
                   { path: ':customerId/application-documents', element: <PdfDocumentListPage /> },
                   {

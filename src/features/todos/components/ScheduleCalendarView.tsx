@@ -128,7 +128,7 @@ export function ScheduleCalendarView({
                 onEdit(todo)
               }}
             >
-              <strong>{todo.dueTime || '종일'} · {todoSourceLabel(todo.sourceType)}</strong>
+              <strong>{todoSourceLabel(todo.sourceType)}</strong>
               <span>{todo.customerName || '연결 고객 없음'}</span>
               <span>{todoDisplayContent(todo)}</span>
             </FormButton>
