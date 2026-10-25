@@ -2,20 +2,10 @@
  * 로그인 세션·기기 추적(1차: 기록 + 동시 세션 상한 시 오래된 세션 만료).
  */
 
+import { resolveClientContext } from './clientContext.js'
+import { recordUserAccessContext } from './userAccessContext.js'
+
 const DEFAULT_SESSION_HORIZON_DAYS = 7
-
-function clientIp(req) {
-  const fwd = req.headers['x-forwarded-for']
-  const fromFwd = typeof fwd === 'string' && fwd.trim() ? fwd.split(',')[0].trim() : ''
-  if (fromFwd) return fromFwd.slice(0, 128)
-  const rip = req.socket?.remoteAddress
-  return typeof rip === 'string' ? rip.slice(0, 128) : ''
-}
-
-function userAgent(req) {
-  const ua = req.headers['user-agent']
-  return typeof ua === 'string' ? ua.slice(0, 512) : ''
-}
 
 /**
  * @param {import('pg').Pool} pool
@@ -24,8 +14,9 @@ function userAgent(req) {
  * @param {number | null} concurrentCap null = 무제한
  */
 export async function recordSuccessfulUserLoginSession(pool, userId, req, concurrentCap) {
-  const ip = clientIp(req)
-  const ua = userAgent(req)
+  const ctx = resolveClientContext(req)
+  const ip = ctx.ip
+  const ua = ctx.userAgent ?? ''
   const fpRaw = req.headers['x-device-fingerprint'] ?? req.headers['x-device-fp']
   const fingerprint = typeof fpRaw === 'string' && fpRaw.trim() ? fpRaw.trim().slice(0, 256) : null
 
@@ -42,11 +33,27 @@ export async function recordSuccessfulUserLoginSession(pool, userId, req, concur
 
   await pool.query(
     `
-    INSERT INTO user_auth_sessions (user_id, created_at, last_seen_at, expires_at, ip_inet, user_agent, fingerprint)
-    VALUES ($1, NOW(), NOW(), NOW() + ($2::text || ' days')::interval, $3, $4, $5)
+    INSERT INTO user_auth_sessions (
+      user_id, created_at, last_seen_at, expires_at, ip_inet, user_agent, fingerprint,
+      client_type, platform, device_model, app_version
+    )
+    VALUES ($1, NOW(), NOW(), NOW() + ($2::text || ' days')::interval, $3, $4, $5, $6, $7, $8, $9)
     `,
-    [userId, String(DEFAULT_SESSION_HORIZON_DAYS), ip || null, ua || null, fingerprint],
+    [
+      userId,
+      String(DEFAULT_SESSION_HORIZON_DAYS),
+      ip || null,
+      ua || null,
+      fingerprint,
+      ctx.clientType,
+      ctx.platform,
+      ctx.deviceModel,
+      ctx.appVersion,
+    ],
   )
+
+  /* 접속 채널·기기·last_seen (로그인 성공은 throttle 무시, 실패해도 로그인은 진행) */
+  await recordUserAccessContext(pool, userId, ctx, { force: true })
 
   if (concurrentCap != null && Number.isInteger(concurrentCap) && concurrentCap >= 1) {
     const { rows } = await pool.query(

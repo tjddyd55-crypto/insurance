@@ -204,6 +204,9 @@ import {
 } from './lib/rbacScope.js'
 import { logSecurityEvent, writeSecurityAudit } from './lib/securityAudit.js'
 import { recordSuccessfulUserLoginSession, resolveMinConcurrentSessionCapForUser } from './lib/authSessions.js'
+import { resolveClientContext } from './lib/clientContext.js'
+import { recordUserAccessContext } from './lib/userAccessContext.js'
+import { loadAdminUserAccessContext } from './lib/adminUserAccessContext.js'
 import { registerConsentApi } from './registerConsentApi.js'
 import { registerInsurerNewsApi } from './registerInsurerNewsApi.js'
 import { registerPublicBoardWriterApi } from './registerPublicBoardWriterApi.js'
@@ -1246,6 +1249,8 @@ async function requireAuth(req, res, next) {
     }
 
     req.gaId = parseGaId(req.user?.gaId)
+    /* t527: 인증·활성 확인 후 접속 컨텍스트 기록 — 15분 throttle(메모리+SQL), best-effort, 응답 대기 안 함 */
+    void recordUserAccessContext(pool, req.user.id, resolveClientContext(req))
     await enforceActiveSubscription(req, res, async () => {
       await enforceInsuranceBillingEntitlement(req, res, next, pool)
     })
@@ -3211,6 +3216,8 @@ apiRouter.post('/auth/session/refresh', requireAuthOrApprovedGaTransition, async
       res.status(401).json({ message: '세션을 갱신할 수 없습니다. 다시 로그인해 주세요.' })
       return
     }
+    /* t527: 새 session row 없이 throttle 된 last_seen/컨텍스트만 (GA 전환 토큰 경로 포함) */
+    void recordUserAccessContext(pool, uid, resolveClientContext(req))
     await respondWithUserSession(req, res, user, { recordLogin: false })
   } catch (error) {
     handleDbError(error, req, res)
@@ -4605,6 +4612,11 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdminOrScopedGaAdmin, asy
         u.status,
         u.created_at,
         u.last_login_at,
+        u.last_seen_at,
+        u.first_client_type,
+        u.last_client_type,
+        u.last_device_model,
+        u.last_app_version,
         rr.referrer_user_id,
         ref_u.username AS referrer_username,
         ref_u.display_name AS referrer_display_name,
@@ -4638,6 +4650,23 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdminOrScopedGaAdmin, asy
       ),
     )
     res.json(rows)
+  } catch (error) {
+    handleDbError(error, req, res)
+  }
+})
+
+/** t527: 사용자 접속 채널·기기 상세 (가드: 기존 admin users 와 동일, GA_ADMIN 은 자기 GA 만). IP 미포함. */
+apiRouter.get('/admin/users/:id/access-context', requireAuth, requireSuperAdminOrScopedGaAdmin, async (req, res) => {
+  try {
+    const result = await loadAdminUserAccessContext(pool, {
+      userId: req.params.id,
+      forcedGaId: req.adminUsersForcedGaId ?? null,
+    })
+    if (!result) {
+      res.status(404).json({ message: '사용자를 찾을 수 없습니다.' })
+      return
+    }
+    res.json(result)
   } catch (error) {
     handleDbError(error, req, res)
   }
