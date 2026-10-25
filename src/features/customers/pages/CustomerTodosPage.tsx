@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { EmptyState } from '../../../components/feedback'
+import { FormButton } from '../../../components/form'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import { completeTodo, listTodos, reopenTodo } from '../../todos/api/todosApi'
-import { TodoEditorDialog } from '../../todos/components/TodoEditorDialog'
+import { TodoEditorDialog, type TodoCreatePrefill } from '../../todos/components/TodoEditorDialog'
 import type { TodoDto } from '../../todos/domain/todoTypes'
 import { todoDisplayContent, todoStatusLabel } from '../../todos/utils/todoCopy'
 import { formatTodoDueDateDisplay } from '../../todos/utils/formatTodoDueDateDisplay'
-import { orderCustomerTodos } from '../utils/customerTodosOrder'
+import { getCustomerById } from '../api/customersApi'
+import { buildCustomerTodoCreatePrefill, orderCustomerTodos } from '../utils/customerTodosOrder'
 
 /**
  * 고객 상세 > 할 일.
@@ -29,6 +31,23 @@ export default function CustomerTodosPage() {
   const [editingTodo, setEditingTodo] = useState<TodoDto | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editorSession, setEditorSession] = useState(0)
+  const [createPrefill, setCreatePrefill] = useState<TodoCreatePrefill | null>(null)
+  const [customerName, setCustomerName] = useState('')
+
+  useEffect(() => {
+    if (!token?.trim() || !validCustomer) return
+    let alive = true
+    getCustomerById(token, customerId)
+      .then((row) => {
+        if (alive) setCustomerName(row?.name?.trim() ?? '')
+      })
+      .catch(() => {
+        // 이름은 표시용일 뿐이다. 연결은 customerId 로 고정되므로 실패해도 작성은 가능.
+      })
+    return () => {
+      alive = false
+    }
+  }, [customerId, token, validCustomer])
 
   const load = useCallback(async () => {
     if (!token?.trim() || !validCustomer) {
@@ -66,7 +85,17 @@ export default function CustomerTodosPage() {
     }
   }
 
+  /** 저장 후에는 onCommitted → load() 로 이 탭 목록만 다시 불러온다(라우트 이동 없음). */
+  const openCreate = () => {
+    if (!validCustomer) return
+    setEditingTodo(null)
+    setCreatePrefill(buildCustomerTodoCreatePrefill(customerId, customerName))
+    setEditorSession((k) => k + 1)
+    setEditorOpen(true)
+  }
+
   const openEdit = (row: TodoDto) => {
+    setCreatePrefill(null)
     setEditingTodo(row)
     setEditorSession((k) => k + 1)
     setEditorOpen(true)
@@ -74,7 +103,14 @@ export default function CustomerTodosPage() {
 
   const section = (
     <section className={`customer-workspace-home customer-todos-page${isMobile ? ' customer-todos-page--mobile' : ' customer-todos-page--pc'}`}>
-      <h3 className="customer-workspace-home__title">할 일</h3>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="customer-workspace-home__title">할 일</h3>
+        {validCustomer ? (
+          <FormButton htmlType="button" variant="primary" className="filter-button" onClick={openCreate}>
+            + 할 일 추가
+          </FormButton>
+        ) : null}
+      </div>
       {!validCustomer ? (
         <p className="customer-workspace-home__desc">고객을 먼저 선택해 주세요.</p>
       ) : loading ? (
@@ -157,6 +193,7 @@ export default function CustomerTodosPage() {
         gaId={gaId}
         sessionKey={editorSession}
         editingTodo={editingTodo}
+        prefill={createPrefill}
         onCommitted={() => {
           void load()
         }}
