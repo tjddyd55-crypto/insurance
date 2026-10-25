@@ -133,7 +133,7 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
 
   const isMobileDetailRoute = useMemo(
     () =>
-      /^\/customers\/\d+\/(?:map|files|consultations|premium-payments|coverage-simulations|ga-excel|memos|auto-form|application-documents|signatures|claim-requests)(?:\/|$)/.test(
+      /^\/customers\/\d+\/(?:map|files|consultations|premium-payments|coverage-simulations|ga-excel|memos|todos|auto-form|application-documents|signatures|claim-requests)(?:\/|$)/.test(
         location.pathname,
       ),
     [location.pathname],
