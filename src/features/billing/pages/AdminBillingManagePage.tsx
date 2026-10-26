@@ -681,6 +681,7 @@ export default function AdminBillingManagePage() {
       </AdminTabPanel>
 
       <BillingPlanFormDialog
+        defaultReferralDiscountPerUser={referralPolicy?.referrerDiscountPerActiveReferral ?? null}
         open={planFormOpen}
         mode={planFormMode}
         initialPlan={editingPlan}
