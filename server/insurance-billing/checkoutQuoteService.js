@@ -6,7 +6,8 @@ import { loadLatestBillingPromotionBenefitEnd } from './billingPromotionRedempti
 
 import { INSURANCE_BASIC_PLAN_CODE } from './config.js'
 import { resolveNextPeriodEnd } from './billingPeriodDate.js'
-import { resolvePlanPaymentAmounts } from './subscriptionLifecycle.js'
+import { resolvePlanPaymentAmounts, resolveReferralAdjustedPlanAmounts } from './subscriptionLifecycle.js'
+import { splitVatInclusiveTotal } from '../lib/billingAmounts.js'
 import { validateInsurancePromotionCode } from './promotionService.js'
 import {
   computeFreeMonthsPromotionEndAt,
@@ -19,13 +20,7 @@ import { systemQuery } from '../utils/dbSafeQuery.js'
  * @param {number} totalAmount
  */
 export function splitInclusiveTotalAmount(totalAmount) {
-  const total = Math.max(0, Math.round(Number(totalAmount) || 0))
-  if (total === 0) {
-    return { totalAmount: 0, supplyAmount: 0, vatAmount: 0 }
-  }
-  const supplyAmount = Math.round(total / 1.1)
-  const vatAmount = total - supplyAmount
-  return { totalAmount: total, supplyAmount, vatAmount }
+  return splitVatInclusiveTotal(totalAmount)
 }
 
 /**
@@ -78,7 +73,8 @@ export async function buildCheckoutQuote(executor, params) {
   const planR = await systemQuery(
     executor,
     `
-    SELECT code, name, monthly_price, monthly_vat, monthly_total,
+    SELECT code, name, amount, apply_vat, vat_rate, allows_referral_discount,
+           monthly_price, monthly_vat, monthly_total,
            yearly_price, yearly_vat, yearly_total, currency, is_active
     FROM billing_plans
     WHERE code = $1
@@ -177,6 +173,25 @@ export async function buildCheckoutQuote(executor, params) {
     summaryMessage = `오늘 ${todayChargeAmount.toLocaleString('ko-KR')}원이 결제되고 다음 결제일부터 매월(또는 매년) 자동결제됩니다.`
   }
 
+  // 추천 할인(쿠폰 미사용 결제에만): 서버 SSOT 와 동일 계산으로 표시
+  let referralDiscountAmount = 0
+  let activeReferralCount = 0
+  let referralAmounts = null
+  if (!coupon && userId) {
+    referralAmounts = await resolveReferralAdjustedPlanAmounts(executor, { userId, plan, billingCycle })
+    activeReferralCount = referralAmounts.activeReferralCount
+    referralDiscountAmount = referralAmounts.appliedReferralDiscount
+    if (referralDiscountAmount > 0) {
+      todayChargeAmount = referralAmounts.paymentTotal
+      nextChargeAmount = referralAmounts.paymentTotal
+      benefitKind = 'referral'
+      summaryMessage =
+        todayChargeAmount === 0
+          ? `추천 할인 ${referralDiscountAmount.toLocaleString('ko-KR')}원 적용으로 오늘 결제금액은 0원입니다.`
+          : `추천 할인 ${referralDiscountAmount.toLocaleString('ko-KR')}원이 적용되어 오늘 ${todayChargeAmount.toLocaleString('ko-KR')}원이 결제됩니다.`
+    }
+  }
+
   return {
     valid: true,
     planCode,
@@ -185,10 +200,12 @@ export async function buildCheckoutQuote(executor, params) {
     baseAmount: amounts.baseAmount,
     baseSupplyAmount: amounts.baseSupplyAmount,
     baseVatAmount: amounts.baseVatAmount,
-    discountAmount: isFreeMonths ? amounts.baseAmount : amounts.discountAmount,
+    discountAmount: isFreeMonths ? amounts.baseAmount : amounts.discountAmount + referralDiscountAmount,
+    referralDiscountAmount,
+    activeReferralCount,
     todayChargeAmount,
-    todaySupplyAmount: isFreeMonths ? 0 : amounts.supplyAmount,
-    todayVatAmount: isFreeMonths ? 0 : amounts.vatAmount,
+    todaySupplyAmount: isFreeMonths ? 0 : referralDiscountAmount > 0 ? referralAmounts.supplyAmount : amounts.supplyAmount,
+    todayVatAmount: isFreeMonths ? 0 : referralDiscountAmount > 0 ? referralAmounts.vatAmount : amounts.vatAmount,
     nextChargeAmount,
     nextBillingAt,
     coupon,

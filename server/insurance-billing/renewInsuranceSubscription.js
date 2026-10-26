@@ -329,6 +329,26 @@ export async function renewInsuranceSubscription(client, params) {
     throw error
   }
 
+  // 추천 할인으로 0원이면 PG 호출 없이 기간 연장·결제 row(0원) 확정
+  if (Number(pending.totalAmount) <= 0) {
+    const paid = await finalizeInsurancePaymentAsPaid(client, {
+      paymentId: pending.paymentId,
+      source: 'renewal',
+      periodAnchor: sub.nextBillingAt,
+    })
+    return {
+      outcome: 'paid',
+      reason: 'renewed_zero_amount',
+      paymentId: pending.paymentId,
+      totalAmount: 0,
+      billingCycle: chargeBillingCycle,
+      previousBillingCycle: sub.billingCycle,
+      pendingBillingCycle: sub.pendingBillingCycle,
+      subscriptionStatus: paid.subscriptionStatus,
+      renewalPeriodKey: periodKey,
+    }
+  }
+
   try {
     const paid = await executeTossBillingCharge(client, {
       paymentId: pending.paymentId,

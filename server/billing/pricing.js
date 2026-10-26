@@ -1,10 +1,7 @@
-import {
-  REFEREE_FIRST_MONTH_DISCOUNT_AMOUNT,
-} from '../referrals/policy.js'
+import { computeBillingPayment, splitVatInclusiveTotal } from '../lib/billingAmounts.js'
 import {
   BILLING_PLANS,
   calculateDiscountedTotalAmount,
-  calculateReferralDiscountForPlan,
 } from '../lib/pricingPolicy.js'
 import { readPolicyActive } from '../subscription/appSettings.js'
 import { computeReferralRelationshipStatus } from '../referrals/referralStatus.js'
@@ -131,22 +128,14 @@ export async function calculateInvoicePricing(executor, userId, options = {}) {
   }
 
   const baseSupplyAmount = plan.supplyAmount
-  const basePriced = calculateDiscountedTotalAmount(baseSupplyAmount, 0)
+  const configuredTotal = plan.totalAmount
 
-  const activeReferralCount = await countActiveReferralsForReferrer(
-    executor,
-    userId,
-    options.policyActive,
-  )
-  const referralPricing = calculateReferralDiscountForPlan(plan, activeReferralCount)
-  const referralDiscountAmount = referralPricing.referralDiscountSupplyAmount
-  const appliedReferralCount = referralPricing.appliedReferralCount
-
-  let refereeFirstMonthDiscountAmount = 0
-  const hasPaidBefore = await userHasPaidInvoice(executor, userId)
-  if (!hasPaidBefore && (await userWasReferred(executor, userId))) {
-    refereeFirstMonthDiscountAmount = REFEREE_FIRST_MONTH_DISCOUNT_AMOUNT
-  }
+  // 2026-10 정책: billing_referrals.status='active_paid' 1명당 1,000원, 최종금액 cap, 피추천인 할인 없음.
+  const activeReferralCount = await countActivePaidBillingReferrals(executor, userId)
+  const referralCalc = computeBillingPayment({ configuredTotal, activeReferralCount })
+  const referralDiscountAmount = referralCalc.appliedReferralDiscount
+  const appliedReferralCount = activeReferralCount
+  const refereeFirstMonthDiscountAmount = 0
 
   const paidInvoiceCount = await countPaidInvoices(executor, userId)
   const promotionMonthIndex = paidInvoiceCount + 1
@@ -164,28 +153,49 @@ export async function calculateInvoicePricing(executor, userId, options = {}) {
       })
     : { promotionDiscountSupplyAmount: 0, applicable: false }
   const promotionDiscountAmount = promotionCalc.promotionDiscountSupplyAmount
-
-  const supplyDiscountAmount = referralDiscountAmount + refereeFirstMonthDiscountAmount + promotionDiscountAmount
-  const finalPriced = calculateDiscountedTotalAmount(baseSupplyAmount, supplyDiscountAmount)
+  // 프로모션 할인(공급가 기준)은 VAT 포함 금액으로 환산해 추천 할인 뒤에 차감
+  const promotionDiscountTotal =
+    promotionDiscountAmount > 0
+      ? configuredTotal - calculateDiscountedTotalAmount(baseSupplyAmount, promotionDiscountAmount).totalAmount
+      : 0
+  const finalTotal = Math.max(referralCalc.paymentTotal - promotionDiscountTotal, 0)
+  const finalPriced = splitVatInclusiveTotal(finalTotal, {
+    applyVat: plan.vatRate > 0,
+    vatRate: plan.vatRate > 0 ? plan.vatRate : undefined,
+  })
 
   return {
     planCode: plan.dbCode,
     planKey: plan.key,
     planSource: resolved.source,
     baseSupplyAmount,
-    baseAmount: basePriced.totalAmount,
+    baseAmount: configuredTotal,
     vatAmount: finalPriced.vatAmount,
     referralDiscountAmount,
     refereeFirstMonthDiscountAmount,
     promotionCodeId: promotionEligible ? appliedPromotion.id : null,
     promotionDiscountAmount,
-    discountAmount: basePriced.totalAmount - finalPriced.totalAmount,
+    discountAmount: configuredTotal - finalPriced.totalAmount,
     finalSupplyAmount: finalPriced.supplyAmount,
     finalAmount: finalPriced.totalAmount,
     activeReferralCount,
     appliedReferralCount,
     promotionMonthIndex,
   }
+}
+
+/**
+ * Engine A/B 공통 추천 카운트: billing_referrals.status = 'active_paid'
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {string} userId
+ */
+export async function countActivePaidBillingReferrals(executor, userId) {
+  const r = await systemQuery(
+    executor,
+    `SELECT COUNT(*)::int AS c FROM billing_referrals WHERE referrer_user_id = $1 AND status = 'active_paid'`,
+    [userId],
+  )
+  return Number(r.rows[0]?.c ?? 0)
 }
 
 /** @returns {typeof BILLING_PLANS.STANDARD_MONTHLY} */

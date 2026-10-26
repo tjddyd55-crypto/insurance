@@ -45,9 +45,11 @@ describe('insurance billing config', () => {
     assert.equal(isInsuranceBillingEntitledStatus('none'), false)
   })
 
-  it('referrer discount caps at 8000', () => {
+  it('referrer discount: 1,000원/명, 고정 8,000 상한 없음, 최종금액 cap', () => {
     assert.equal(calculateReferrerDiscountAmount(3), 3000)
-    assert.equal(calculateReferrerDiscountAmount(10), 8000)
+    assert.equal(calculateReferrerDiscountAmount(10), 10000)
+    assert.equal(calculateReferrerDiscountAmount(10, 10500), 10000)
+    assert.equal(calculateReferrerDiscountAmount(12, 10500), 10500)
   })
 
   it('mock payment blocked in production node env', () => {

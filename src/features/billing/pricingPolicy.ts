@@ -118,6 +118,28 @@ export function calculateDiscountedTotalAmount(baseSupplyAmount: number, supplyD
   return calculateVatIncludedPrice(finalSupply)
 }
 
+/**
+ * VAT 포함 최종금액 → 공급가/VAT 역산 (서버 server/lib/billingAmounts.js splitVatInclusiveTotal 미러).
+ * supply = round(total / (1 + rate)), vat = total - supply. VAT 미적용이면 vat = 0.
+ */
+export function splitVatInclusiveTotal(totalAmount: number, applyVat = true, vatRate = VAT_RATE): VatIncludedPrice {
+  const total = Math.max(Math.round(Number(totalAmount) || 0), 0)
+  if (total === 0) return { supplyAmount: 0, vatAmount: 0, totalAmount: 0, vatRate: applyVat ? vatRate : 0 }
+  if (!applyVat || vatRate <= 0) return { supplyAmount: total, vatAmount: 0, totalAmount: total, vatRate: 0 }
+  const supplyAmount = Math.round(total / (1 + vatRate))
+  return { supplyAmount, vatAmount: total - supplyAmount, totalAmount: total, vatRate }
+}
+
+/**
+ * 추천 할인 적용 결제금액 (서버 computeBillingPayment 미러, 표시용 — 실제 청구액은 서버 계산).
+ */
+export function computeReferralPayment(configuredTotal: number, activeReferralCount: number) {
+  const total = Math.max(Math.round(Number(configuredTotal) || 0), 0)
+  const count = Math.max(Math.round(Number(activeReferralCount) || 0), 0)
+  const appliedReferralDiscount = Math.min(count * REFERRAL_DISCOUNT_PER_ACTIVE_PAID, total)
+  return { configuredTotal: total, appliedReferralDiscount, paymentTotal: total - appliedReferralDiscount }
+}
+
 export function formatKrwTotal(totalAmount: number): string {
   return `${Math.max(Math.round(Number(totalAmount) || 0), 0).toLocaleString('ko-KR')}원`
 }
@@ -126,63 +148,35 @@ export function formatPricingBreakdown(priced: Pick<VatIncludedPrice, 'supplyAmo
   return `공급가 ${formatKrwTotal(priced.supplyAmount)} · 부가세 ${formatKrwTotal(priced.vatAmount)} · 결제금액 ${formatKrwTotal(priced.totalAmount)}`
 }
 
+/** 추천 할인 정책(2026-10): active_paid 1명당 1,000원, 최종금액(VAT 포함) cap. 서버 billingAmounts.js 와 동일. */
+export const REFERRAL_DISCOUNT_PER_ACTIVE_PAID = 1000
+
 export function calculateFreeReferralCount(plan: {
   allowsReferralDiscount?: boolean
-  referralDiscountStartCount?: number
-  referralDiscountUnitSupplyAmount?: number
-  supplyAmount?: number
+  totalAmount?: number
 }): number | null {
   if (plan.allowsReferralDiscount === false) {
     return null
   }
-  const startCount = Math.max(
-    1,
-    Math.round(Number(plan.referralDiscountStartCount ?? DEFAULT_REFERRAL_DISCOUNT_START_COUNT) || 1),
-  )
-  const unitAmount = Math.max(
-    1,
-    Math.round(
-      Number(plan.referralDiscountUnitSupplyAmount ?? DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT) ||
-        DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT,
-    ),
-  )
-  const supply = Math.max(Math.round(Number(plan.supplyAmount) || 0), 0)
-  if (unitAmount <= 0 || supply <= 0) {
+  const total = Math.max(Math.round(Number(plan.totalAmount) || 0), 0)
+  if (total <= 0) {
     return null
   }
-  return startCount + Math.ceil(supply / unitAmount) - 1
+  return Math.ceil(total / REFERRAL_DISCOUNT_PER_ACTIVE_PAID)
 }
 
 export function formatReferralDiscountPolicySummary(plan: {
   allowsReferralDiscount?: boolean
-  referralDiscountStartCount?: number
-  referralDiscountUnitSupplyAmount?: number
-  supplyAmount?: number
+  totalAmount?: number
   freeReferralCount?: number | null
 }): string {
   if (plan.allowsReferralDiscount === false) {
     return '추천인 할인: 미적용'
   }
-  const startCount = Math.max(
-    1,
-    Math.round(Number(plan.referralDiscountStartCount ?? DEFAULT_REFERRAL_DISCOUNT_START_COUNT) || 1),
-  )
-  const unitAmount = Math.max(
-    1,
-    Math.round(
-      Number(plan.referralDiscountUnitSupplyAmount ?? DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT) ||
-        DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT,
-    ),
-  )
   const freeCount = plan.freeReferralCount ?? calculateFreeReferralCount(plan)
-  const startLabel = startCount <= 1 ? '1명째부터' : `${startCount}명째부터`
-  const parts = [
-    '추천인 할인: 적용',
-    `할인 시작: ${startLabel}`,
-    `1명당 할인: 공급가 ${unitAmount.toLocaleString('ko-KR')}원`,
-  ]
+  const parts = ['추천인 할인: 적용', '유료 추천 1명당 월 1,000원 (최종 결제금액 한도)']
   if (freeCount != null) {
-    parts.push(`무료 기준: ${freeCount}명 추천 시 무료`)
+    parts.push(`${freeCount}명 추천 시 0원`)
   }
   return parts.join(' · ')
 }

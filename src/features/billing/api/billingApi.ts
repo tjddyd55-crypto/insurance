@@ -302,7 +302,10 @@ export async function createAdminBillingPlan(
   body: {
     code: string
     name: string
-    supplyAmount: number
+    /** VAT 포함 최종 결제금액 (SSOT) */
+    totalAmount?: number
+    /** legacy: 공급가 입력 */
+    supplyAmount?: number
     applyVat?: boolean
     vatRate?: number
     allowsReferralDiscount?: boolean
@@ -324,6 +327,7 @@ export async function updateAdminBillingPlan(
   code: string,
   body: {
     name?: string
+    totalAmount?: number
     supplyAmount?: number
     applyVat?: boolean
     vatRate?: number
