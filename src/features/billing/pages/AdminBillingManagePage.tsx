@@ -174,7 +174,7 @@ export default function AdminBillingManagePage() {
       const payload = {
         code: values.code,
         name: values.name,
-        supplyAmount: Number(values.supplyAmount),
+        totalAmount: Number(values.totalAmount),
         applyVat: values.applyVat,
         allowsReferralDiscount: values.allowsReferralDiscount,
         referralDiscountStartCount: values.allowsReferralDiscount
@@ -192,7 +192,7 @@ export default function AdminBillingManagePage() {
       } else if (editingPlan) {
         await updateAdminBillingPlan(token, editingPlan.dbCode, {
           name: payload.name,
-          supplyAmount: payload.supplyAmount,
+          totalAmount: payload.totalAmount,
           applyVat: payload.applyVat,
           allowsReferralDiscount: payload.allowsReferralDiscount,
           referralDiscountStartCount: payload.referralDiscountStartCount,
@@ -572,7 +572,8 @@ export default function AdminBillingManagePage() {
               <li>추천받은 가입자는 결제 단계에서 별도 무료/할인 코드를 입력할 수 있습니다.</li>
               <li>추천받은 사용자가 실제 유료 결제를 완료한 경우에만 추천 할인 카운트에 포함됩니다.</li>
               <li>무료 이용 중, 결제 대기, 미납, 해지 사용자는 추천 할인 대상에 포함되지 않습니다.</li>
-              <li>할인은 현재 요금제 공급가를 초과할 수 없으며, 초과분은 환급 또는 이월되지 않습니다.</li>
+              <li>유료 추천 1명당 매월 1,000원 할인되며, 매 결제 시점의 유료 추천 수로 다시 계산됩니다.</li>
+              <li>할인은 그 달 최종 결제금액(VAT 포함)을 초과할 수 없으며, 초과분은 환급 또는 이월되지 않습니다.</li>
             </ul>
             {plans.filter((plan) => plan.allowsReferralDiscount !== false).length ? (
               <div className="billing-referral-policy-section__plans">
@@ -581,27 +582,14 @@ export default function AdminBillingManagePage() {
                   {plans
                     .filter((plan) => plan.allowsReferralDiscount !== false)
                     .map((plan) => {
-                      const unit = plan.referralDiscountUnitSupplyAmount ?? referralPolicy?.referrerDiscountPerActiveReferral ?? 1000
-                      const startCount = plan.referralDiscountStartCount ?? 1
                       const freeCount =
                         plan.freeReferralCount ??
-                        (plan.supplyAmount > 0 && unit > 0
-                          ? startCount + Math.ceil(plan.supplyAmount / unit) - 1
-                          : null)
+                        (plan.totalAmount > 0 ? Math.ceil(plan.totalAmount / 1000) : null)
                       return (
                         <li key={plan.dbCode}>
-                          <strong>{plan.label}</strong> ({formatWon(plan.supplyAmount)} 공급가)
-                          {startCount > 1
-                            ? ` · ${startCount}명 추천부터 할인 시작`
-                            : ' · 1명째부터 할인 적용'}
-                          {freeCount != null ? ` · ${freeCount}명 추천 시 무료` : null}
-                          {startCount > 1 ? (
-                            <span className="billing-referral-policy-section__plan-note">
-                              {' '}
-                              이 요금제는 {startCount}명 추천부터 할인이 시작됩니다. 유료 추천 1명당{' '}
-                              {formatWon(unit)}씩 할인되며, 요금제 공급가 한도까지만 적용됩니다.
-                            </span>
-                          ) : null}
+                          <strong>{plan.label}</strong> ({formatWon(plan.totalAmount)} VAT 포함)
+                          {' · 유료 추천 1명당 월 1,000원 할인'}
+                          {freeCount != null ? ` · ${freeCount}명 추천 시 0원` : null}
                         </li>
                       )
                     })}
