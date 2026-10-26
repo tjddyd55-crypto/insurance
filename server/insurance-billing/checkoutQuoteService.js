@@ -91,6 +91,15 @@ export async function buildCheckoutQuote(executor, params) {
   if (!plan) {
     throw new Error('plan_not_found')
   }
+  // 비활성 요금제: 신규 견적/신규 선택 제외. 이미 이 요금제를 쓰는 기존 구독(유지/갱신)만 허용 — Toss/lifecycle 과 같은 규칙.
+  if (plan.is_active === false) {
+    const curSubR = userId
+      ? await systemQuery(executor, `SELECT plan_code FROM billing_subscriptions WHERE user_id = $1 LIMIT 1`, [userId])
+      : { rows: [] }
+    if (String(curSubR.rows[0]?.plan_code ?? '').trim() !== planCode) {
+      throw new Error('plan_not_found')
+    }
+  }
 
   let coupon = null
   let promoValidate = null
