@@ -501,6 +501,6 @@ export function buildBillingPlanSelectOptions(
     .filter((plan) => plan.isActive || selected.has(plan.dbCode))
     .map((plan) => ({
       value: plan.dbCode,
-      label: `${plan.label} (${plan.displayPriceWithVatNote})${plan.isActive ? '' : ' · 비활성'}`,
+      label: `${plan.label} ${plan.totalAmount.toLocaleString('ko-KR')}원 / 월 (${plan.applyVat === false ? 'VAT 미적용' : 'VAT 포함'})${plan.isActive ? '' : ' · 비활성'}`,
     }))
 }
