@@ -78,7 +78,7 @@ export async function buildCheckoutQuote(executor, params) {
   const planR = await systemQuery(
     executor,
     `
-    SELECT code, name, amount, apply_vat, vat_rate, allows_referral_discount,
+    SELECT code, name, amount, apply_vat, vat_rate, allows_referral_discount, referral_discount_unit_supply_amount,
            monthly_price, monthly_vat, monthly_total,
            yearly_price, yearly_vat, yearly_total, currency, is_active
     FROM billing_plans

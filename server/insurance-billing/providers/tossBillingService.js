@@ -45,7 +45,7 @@ async function loadInsurancePlanForPayment(client, planCode) {
   const r = await systemQuery(
     client,
     `
-    SELECT code, amount, apply_vat, vat_rate, allows_referral_discount,
+    SELECT code, amount, apply_vat, vat_rate, allows_referral_discount, referral_discount_unit_supply_amount,
            monthly_total, yearly_total, monthly_price, yearly_price, is_active, name
     FROM billing_plans
     WHERE code = $1
