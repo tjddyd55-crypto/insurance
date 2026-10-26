@@ -4,33 +4,27 @@ import { calculateInvoicePricing } from './pricing.js'
 import { getPaymentSettingsAdmin, updatePaymentSettings } from './paymentSettings.js'
 import { normalizePaymentMode } from './paymentSettingsNormalize.js'
 import { maskPaymentCredential, canStorePaymentSecrets } from './paymentSettingsCrypto.js'
-import { BASE_MONTHLY_PRICE, MAX_REFERRER_DISCOUNT_COUNT, REFERRER_DISCOUNT_PER_ACTIVE_REFERRAL } from '../referrals/policy.js'
+import { BASE_MONTHLY_PRICE } from '../referrals/policy.js'
 import {
   BILLING_PLANS,
   calculateFreeReferralCount,
   calculateReferralDiscountForPlan,
 } from '../lib/pricingPolicy.js'
 
-function createReferralMockExecutor(activeCount) {
-  const activeRows = Array.from({ length: activeCount }, () => ({
-    role: 'USER',
-    status: 'active',
-    is_deleted: false,
-    subscription_plan: 'PAID',
-    subscription_expires_at: new Date(Date.now() + 86400000),
-  }))
+function createReferralMockExecutor(activePaidCount, opts = {}) {
+  const seen = []
   return {
+    seen,
     query: async (sql) => {
-      if (String(sql).includes('referral_relationships rr')) {
-        return { rows: activeRows, rowCount: activeCount }
+      const text = String(sql)
+      seen.push(text)
+      if (text.includes('billing_referrals') && text.includes("status = 'active_paid'")) {
+        return { rows: [{ c: activePaidCount }], rowCount: 1 }
       }
-      if (String(sql).includes('payment_invoices') && String(sql).includes("status = 'paid'")) {
-        return { rows: [], rowCount: 0 }
+      if (text.includes('referral_relationships WHERE referred_user_id')) {
+        return { rows: opts.referred ? [{ id: 1 }] : [], rowCount: opts.referred ? 1 : 0 }
       }
-      if (String(sql).includes('referral_relationships WHERE referred_user_id')) {
-        return { rows: [], rowCount: 0 }
-      }
-      if (String(sql).includes('app_settings')) {
+      if (text.includes('app_settings')) {
         return { rows: [{ value_json: false }] }
       }
       return { rows: [], rowCount: 0 }
@@ -39,23 +33,7 @@ function createReferralMockExecutor(activeCount) {
 }
 
 test('calculateInvoicePricing — 0 active referrals', async () => {
-  const executor = {
-    query: async (sql, params) => {
-      if (String(sql).includes('referral_relationships rr')) {
-        return { rows: [], rowCount: 0 }
-      }
-      if (String(sql).includes('payment_invoices') && String(sql).includes("status = 'paid'")) {
-        return { rows: [], rowCount: 0 }
-      }
-      if (String(sql).includes('referral_relationships WHERE referred_user_id')) {
-        return { rows: [], rowCount: 0 }
-      }
-      if (String(sql).includes('app_settings')) {
-        return { rows: [{ value_json: false }] }
-      }
-      return { rows: [], rowCount: 0 }
-    },
-  }
+  const executor = createReferralMockExecutor(0)
   const pricing = await calculateInvoicePricing(executor, 'user-1')
   assert.equal(pricing.baseSupplyAmount, BASE_MONTHLY_PRICE)
   assert.equal(pricing.baseAmount, BILLING_PLANS.STANDARD_MONTHLY.totalAmount)
@@ -73,165 +51,56 @@ test('calculateInvoicePricing — DISCOUNT_MONTHLY plan 0 referrals', async () =
   assert.equal(pricing.finalAmount, 5500)
 })
 
-test('calculateReferralDiscountForPlan — monthly_discount delays discount until 4th referral', () => {
+test('calculateReferralDiscountForPlan — 2026-10 정책: 1명째부터 1,000원, 최종금액 cap', () => {
   const plan = BILLING_PLANS.DISCOUNT_MONTHLY
-  assert.equal(calculateFreeReferralCount(plan), 8)
-  assert.equal(calculateReferralDiscountForPlan(plan, 3).referralDiscountSupplyAmount, 0)
-  assert.equal(calculateReferralDiscountForPlan(plan, 4).referralDiscountSupplyAmount, 1000)
-  assert.equal(calculateReferralDiscountForPlan(plan, 8).referralDiscountSupplyAmount, 5000)
+  assert.equal(calculateFreeReferralCount(plan), 6)
+  assert.equal(calculateReferralDiscountForPlan(plan, 1).referralDiscountAmount, 1000)
+  assert.equal(calculateReferralDiscountForPlan(plan, 3).referralDiscountAmount, 3000)
+  assert.equal(calculateReferralDiscountForPlan(plan, 6).referralDiscountAmount, 5500)
+  assert.equal(calculateReferralDiscountForPlan(plan, 20).referralDiscountAmount, 5500)
+  assert.equal(calculateFreeReferralCount(BILLING_PLANS.STANDARD_MONTHLY), 9)
 })
 
-test('calculateInvoicePricing — DISCOUNT_MONTHLY 3 referrals still 5500', async () => {
-  const executor = createReferralMockExecutor(3)
-  const pricing = await calculateInvoicePricing(executor, 'user-1', {
-    planCode: 'DISCOUNT_MONTHLY',
-    policyActive: true,
+for (const [count, expected] of [
+  [1, 7800],
+  [8, 800],
+  [9, 0],
+  [10, 0],
+]) {
+  test(`calculateInvoicePricing — STANDARD ${count} active_paid → ${expected}`, async () => {
+    const executor = createReferralMockExecutor(count)
+    const pricing = await calculateInvoicePricing(executor, 'user-1')
+    assert.equal(pricing.finalAmount, expected)
+    assert.equal(pricing.finalSupplyAmount + pricing.vatAmount, expected)
+    assert.equal(pricing.referralDiscountAmount, 8800 - expected)
   })
-  assert.equal(pricing.finalAmount, 5500)
-})
+}
 
-test('calculateInvoicePricing — DISCOUNT_MONTHLY 4 referrals is 4400', async () => {
-  const executor = createReferralMockExecutor(4)
-  const pricing = await calculateInvoicePricing(executor, 'user-1', {
-    planCode: 'DISCOUNT_MONTHLY',
-    policyActive: true,
+for (const [count, expected] of [
+  [3, 2500],
+  [4, 1500],
+  [5, 500],
+  [6, 0],
+]) {
+  test(`calculateInvoicePricing — DISCOUNT_MONTHLY ${count} active_paid → ${expected}`, async () => {
+    const executor = createReferralMockExecutor(count)
+    const pricing = await calculateInvoicePricing(executor, 'user-1', { planCode: 'DISCOUNT_MONTHLY' })
+    assert.equal(pricing.finalAmount, expected)
   })
-  assert.equal(pricing.finalAmount, 4400)
+}
+
+test('calculateInvoicePricing — 피추천인 첫 결제 2,000원 할인 제거', async () => {
+  const executor = createReferralMockExecutor(0, { referred: true })
+  const pricing = await calculateInvoicePricing(executor, 'user-1')
+  assert.equal(pricing.refereeFirstMonthDiscountAmount, 0)
+  assert.equal(pricing.finalAmount, 8800)
 })
 
-test('calculateInvoicePricing — DISCOUNT_MONTHLY 5 referrals is 3300', async () => {
-  const executor = createReferralMockExecutor(5)
-  const pricing = await calculateInvoicePricing(executor, 'user-1', {
-    planCode: 'DISCOUNT_MONTHLY',
-    policyActive: true,
-  })
-  assert.equal(pricing.finalAmount, 3300)
-})
-
-test('calculateInvoicePricing — DISCOUNT_MONTHLY 8 referrals is free', async () => {
-  const executor = createReferralMockExecutor(8)
-  const pricing = await calculateInvoicePricing(executor, 'user-1', {
-    planCode: 'DISCOUNT_MONTHLY',
-    policyActive: true,
-  })
-  assert.equal(pricing.finalAmount, 0)
-})
-
-test('calculateInvoicePricing — 1 active referral', async () => {
-  const executor = {
-    query: async (sql) => {
-      if (String(sql).includes('referral_relationships rr')) {
-        return {
-          rows: [
-            {
-              role: 'USER',
-              status: 'active',
-              is_deleted: false,
-              subscription_plan: 'PAID',
-              subscription_expires_at: new Date(Date.now() + 86400000),
-            },
-          ],
-          rowCount: 1,
-        }
-      }
-      if (String(sql).includes('payment_invoices') && String(sql).includes("status = 'paid'")) {
-        return { rows: [], rowCount: 0 }
-      }
-      if (String(sql).includes('referral_relationships WHERE referred_user_id')) {
-        return { rows: [], rowCount: 0 }
-      }
-      if (String(sql).includes('app_settings')) {
-        return { rows: [{ value_json: false }] }
-      }
-      return { rows: [], rowCount: 0 }
-    },
-  }
-  const pricing = await calculateInvoicePricing(executor, 'user-1', { policyActive: true })
-  assert.equal(pricing.activeReferralCount, 1)
-  assert.equal(pricing.finalAmount, 7700)
-})
-
-test('calculateInvoicePricing — 8 active referrals is free', async () => {
-  const activeRows = Array.from({ length: 8 }, () => ({
-    role: 'USER',
-    status: 'active',
-    is_deleted: false,
-    subscription_plan: 'PAID',
-    subscription_expires_at: new Date(Date.now() + 86400000),
-  }))
-  const executor = {
-    query: async (sql) => {
-      if (String(sql).includes('referral_relationships rr')) {
-        return { rows: activeRows, rowCount: 8 }
-      }
-      if (String(sql).includes('payment_invoices') && String(sql).includes("status = 'paid'")) {
-        return { rows: [], rowCount: 0 }
-      }
-      if (String(sql).includes('referral_relationships WHERE referred_user_id')) {
-        return { rows: [], rowCount: 0 }
-      }
-      if (String(sql).includes('app_settings')) {
-        return { rows: [{ value_json: false }] }
-      }
-      return { rows: [], rowCount: 0 }
-    },
-  }
-  const pricing = await calculateInvoicePricing(executor, 'user-1', { policyActive: true })
-  assert.equal(pricing.appliedReferralCount, MAX_REFERRER_DISCOUNT_COUNT)
-  assert.equal(pricing.referralDiscountAmount, MAX_REFERRER_DISCOUNT_COUNT * REFERRER_DISCOUNT_PER_ACTIVE_REFERRAL)
-  assert.equal(pricing.finalAmount, 0)
-})
-
-test('calculateInvoicePricing — 10 active referrals still free', async () => {
-  const activeRows = Array.from({ length: 10 }, () => ({
-    role: 'USER',
-    status: 'active',
-    is_deleted: false,
-    subscription_plan: 'PAID',
-    subscription_expires_at: new Date(Date.now() + 86400000),
-  }))
-  const executor = {
-    query: async (sql) => {
-      if (String(sql).includes('referral_relationships rr')) {
-        return { rows: activeRows, rowCount: 10 }
-      }
-      if (String(sql).includes('payment_invoices') && String(sql).includes("status = 'paid'")) {
-        return { rows: [], rowCount: 0 }
-      }
-      if (String(sql).includes('referral_relationships WHERE referred_user_id')) {
-        return { rows: [], rowCount: 0 }
-      }
-      if (String(sql).includes('app_settings')) {
-        return { rows: [{ value_json: false }] }
-      }
-      return { rows: [], rowCount: 0 }
-    },
-  }
-  const pricing = await calculateInvoicePricing(executor, 'user-1', { policyActive: true })
-  assert.equal(pricing.finalAmount, 0)
-})
-
-test('calculateInvoicePricing — referred user first payment discount', async () => {
-  const executor = {
-    query: async (sql) => {
-      if (String(sql).includes('referral_relationships rr')) {
-        return { rows: [], rowCount: 0 }
-      }
-      if (String(sql).includes('payment_invoices') && String(sql).includes("status = 'paid'")) {
-        return { rows: [], rowCount: 0 }
-      }
-      if (String(sql).includes('referral_relationships WHERE referred_user_id')) {
-        return { rows: [{ id: 1 }], rowCount: 1 }
-      }
-      if (String(sql).includes('app_settings')) {
-        return { rows: [{ value_json: true }] }
-      }
-      return { rows: [], rowCount: 0 }
-    },
-  }
-  const pricing = await calculateInvoicePricing(executor, 'user-ref')
-  assert.equal(pricing.refereeFirstMonthDiscountAmount, 2000)
-  assert.equal(pricing.finalAmount, 6600)
+test('calculateInvoicePricing — 추천 카운트는 billing_referrals active_paid (Engine B 와 동일 소스)', async () => {
+  const executor = createReferralMockExecutor(2)
+  await calculateInvoicePricing(executor, 'user-1')
+  assert.ok(executor.seen.some((sql) => sql.includes('billing_referrals') && sql.includes('active_paid')))
+  assert.ok(!executor.seen.some((sql) => sql.includes('referral_relationships rr')))
 })
 
 test('getPaymentSettingsAdmin returns virtual defaults when row is missing', async () => {
