@@ -6,11 +6,10 @@ import { describe, expect, it } from 'vitest'
 const read = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), 'utf8')
 
 describe('Todo date-only 계약', () => {
-  it('TodoEditorDialog: 시간 입력 없음, 생성·수정 payload dueTime: null', () => {
+  it('TodoEditorDialog: 시간 입력 없음(main 정책: 수정 시 기존 dueTime 은 화면에 보이지 않게 보존)', () => {
     const src = read('../components/TodoEditorDialog.tsx')
     expect(src).not.toMatch(/type=["']time["']/)
-    expect(src).not.toMatch(/setDueTime|dueTime:\s*[^n\s]/)
-    expect(src.match(/dueTime:\s*null/g)?.length).toBe(2)
+    expect(src).not.toMatch(/setDueTime/)
   })
   it('Todo 표시 화면에 dueTime 을 렌더하지 않음', () => {
     for (const rel of [
