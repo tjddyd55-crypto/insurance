@@ -97,6 +97,7 @@ export function registerBillingApi(apiRouter, ctx) {
       duplicate_plan_code: { status: 409, message: '이미 사용 중인 요금제 코드입니다.' },
       invalid_plan_name: { status: 400, message: '요금제명을 입력해 주세요.' },
       invalid_supply_amount: { status: 400, message: '공급가는 1원 이상이어야 합니다.' },
+      invalid_total_amount: { status: 400, message: '최종 결제금액(VAT 포함)은 1원 이상의 정수여야 합니다.' },
       inactive_billing_plan: { status: 400, message: '비활성 요금제는 선택할 수 없습니다.' },
       plan_not_found: { status: 404, message: '요금제를 찾을 수 없습니다.' },
     })

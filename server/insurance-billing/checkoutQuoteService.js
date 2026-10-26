@@ -19,8 +19,8 @@ import { systemQuery } from '../utils/dbSafeQuery.js'
  * 할인 후 총액 → 공급가/VAT 분해 (VAT 포함 총액 기준, 10% 가정).
  * @param {number} totalAmount
  */
-export function splitInclusiveTotalAmount(totalAmount) {
-  return splitVatInclusiveTotal(totalAmount)
+export function splitInclusiveTotalAmount(totalAmount, opts = {}) {
+  return splitVatInclusiveTotal(totalAmount, opts)
 }
 
 /**
@@ -44,7 +44,12 @@ export function resolveCheckoutChargeAmounts(plan, billingCycle, promo = null) {
       ? Math.max(0, Math.round(Number(promo.finalAmount)))
       : base.totalAmount - discountAmount
   const finalAmount = Math.max(0, Math.min(base.totalAmount, finalFromPromo))
-  const split = splitInclusiveTotalAmount(finalAmount)
+  // 월 결제는 관리자 요금제 VAT 설정(apply_vat/vat_rate)을 따른다. 연 결제는 기존 10% 분해 유지.
+  const vatOpts =
+    billingCycle === 'monthly' && plan
+      ? { applyVat: plan.apply_vat !== false, vatRate: plan.vat_rate != null ? Number(plan.vat_rate) : undefined }
+      : {}
+  const split = splitInclusiveTotalAmount(finalAmount, vatOpts)
   return {
     baseAmount: base.totalAmount,
     baseSupplyAmount: base.supplyAmount,
