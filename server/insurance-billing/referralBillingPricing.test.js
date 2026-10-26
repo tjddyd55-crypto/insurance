@@ -199,3 +199,12 @@ test('initDb seed: 재시작 시 관리자 설정 금액 덮어쓰기 금지', (
     assert.doesNotMatch(conflict, /is_active = EXCLUDED/)
   }
 })
+
+test('checkout quote: VAT OFF 요금제는 오늘 결제 공급가=총액, VAT 0 (DEV QA 발견 회귀)', async () => {
+  const row = planRow(19900, { apply_vat: false, monthly_price: 19900 })
+  const client = createMockClient({ plan: row, activePaid: 0 })
+  const quote = await buildCheckoutQuote(client, { userId: 'u1', planCode: 'insurance_basic', billingCycle: 'monthly' })
+  assert.equal(quote.todayChargeAmount, 19900)
+  assert.equal(quote.todaySupplyAmount, 19900)
+  assert.equal(quote.todayVatAmount, 0)
+})
