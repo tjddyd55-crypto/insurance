@@ -300,3 +300,58 @@ test('initDb seed: 추천 1명당 할인은 신규 행 초기값(3000)만, ON CO
     assert.doesNotMatch(conflict, /yearly_total = EXCLUDED\.yearly_total/)
   }
 })
+
+function createSubPlanMockClient({ plan, subPlanCode, subExists = true }) {
+  return {
+    query: async (sql) => {
+      const text = String(sql)
+      if (text.includes('FROM billing_subscriptions WHERE user_id')) {
+        return subExists
+          ? { rows: [{ id: 11, tenant_id: 1, status: 'active_paid', plan_code: subPlanCode }], rowCount: 1 }
+          : { rows: [], rowCount: 0 }
+      }
+      if (text.includes('FROM billing_plans')) return { rows: [plan], rowCount: 1 }
+      return { rows: [], rowCount: 0 }
+    },
+  }
+}
+
+test('비활성 요금제: 신규 견적 거부(plan_not_found), 기존 구독자 견적은 유지', async () => {
+  const inactive = planRow(14900, { code: 'qa_inactive', is_active: false, referral_discount_unit_supply_amount: 3000 })
+  await assert.rejects(
+    () => buildCheckoutQuote(createSubPlanMockClient({ plan: inactive, subPlanCode: 'insurance_basic' }), { userId: 'u1', planCode: 'qa_inactive' }),
+    /plan_not_found/,
+  )
+  await assert.rejects(
+    () => buildCheckoutQuote(createSubPlanMockClient({ plan: inactive, subExists: false }), { userId: 'u1', planCode: 'qa_inactive' }),
+    /plan_not_found/,
+  )
+  const q = await buildCheckoutQuote(createSubPlanMockClient({ plan: inactive, subPlanCode: 'qa_inactive' }), { userId: 'u1', planCode: 'qa_inactive' })
+  assert.equal(q.valid, true)
+  assert.equal(q.baseAmount, 14900)
+})
+
+test('비활성 요금제: 기존 구독 갱신/결제 경로(Toss pending)는 유지, 타 요금제 구독자의 신규 결제는 거부', async () => {
+  const inactive = planRow(14900, { code: 'qa_inactive', is_active: false })
+  await assert.rejects(
+    () => createPendingInsurancePaymentRow(createSubPlanMockClient({ plan: inactive, subPlanCode: 'insurance_basic' }), { userId: 'u1', planCode: 'qa_inactive' }),
+    /plan_not_found/,
+  )
+  const lifecycle = readFileSync(new URL('./subscriptionLifecycle.js', import.meta.url), 'utf8')
+  assert.match(lifecycle, /!plan\.is_active && subscriptionPlanCode !== planCode/)
+  const toss = readFileSync(new URL('./providers/tossBillingService.js', import.meta.url), 'utf8')
+  assert.match(toss, /!plan\.is_active && subscriptionPlanCode !== planCode/)
+})
+
+test('비활성 요금제 갱신 0원 경로: 기존 구독자 견적은 할인 반영 후 0원도 valid', async () => {
+  const inactive = planRow(3000, { code: 'qa_inactive', is_active: false, referral_discount_unit_supply_amount: 3000 })
+  const client = createSubPlanMockClient({ plan: inactive, subPlanCode: 'qa_inactive' })
+  const base = client.query
+  client.query = async (sql, p) => {
+    if (String(sql).includes('billing_referrals') && String(sql).includes("status = 'active_paid'")) return { rows: [{ c: 1, count: 1, cnt: 1 }], rowCount: 1 }
+    return base(sql, p)
+  }
+  const q = await buildCheckoutQuote(client, { userId: 'u1', planCode: 'qa_inactive' })
+  assert.equal(q.valid, true)
+  assert.equal(q.todayChargeAmount, 0)
+})
