@@ -32,6 +32,28 @@ import { isAiFeatureVisible } from '../ai-secretary/config/aiSecretaryUserUiGate
 export type { DynamicNewsletterBoardMenuItem }
 
 /**
+ * 웹 메뉴의 연락처 진입을 잠시 숨긴다.
+ * 라우트·페이지·API는 유지하고, 대시보드·사이드바·드로어·스태프 탭 노출만 끈다.
+ */
+const HIDDEN_CONTACTS_MENU_PATHS = [
+  '/insurance/contacts',
+  '/contacts',
+  '/insurance/company-registry',
+  '/contacts/manage',
+] as const
+
+export function isContactsNavEntryHidden(path: string): boolean {
+  const normalized = String(path ?? '').split('?')[0]?.split('#')[0] ?? ''
+  return HIDDEN_CONTACTS_MENU_PATHS.some(
+    (item) => normalized === item || normalized.startsWith(`${item}/`),
+  )
+}
+
+function withoutHiddenContactsMenu(entries: GaTenantDashboardMenuEntry[]): GaTenantDashboardMenuEntry[] {
+  return entries.filter((entry) => entry.type !== 'link' || !isContactsNavEntryHidden(entry.path))
+}
+
+/**
  * 일반 USER 앱 메뉴 노출 게이트.
  * 라우트·API·페이지는 유지하고, 대시보드/사이드바/드로어 메뉴 노출만 제어한다.
  * 대분류와 고객관리 하위는 별도 플래그로 분리한다.
@@ -672,7 +694,9 @@ export function buildAppMenuForSession(
           ...filtered,
         ]
       : filtered
-  return applyEntitlementBadgesForSession(withAiAssistant, gaCode, gaName, options)
+  return withoutHiddenContactsMenu(
+    applyEntitlementBadgesForSession(withAiAssistant, gaCode, gaName, options),
+  )
 }
 
 function filterMenuForExpired(

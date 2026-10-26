@@ -1,4 +1,4 @@
-import { useRef, type ChangeEvent, type ClipboardEvent, InputHTMLAttributes } from 'react'
+import { useRef, type ChangeEvent, type ClipboardEvent, type InputHTMLAttributes, type KeyboardEvent, type MouseEvent } from 'react'
 import FormInput from '../form/FormInput'
 import { coerceStoredDateValue, isValidDateString, normalizeDateInput } from '../../utils/dateInput'
 
@@ -10,6 +10,11 @@ export type AppDateInputProps = Omit<
   onChange: (value: string) => void
   wrapperClassName?: string
   inputClassName?: string
+  /**
+   * text: YYYY-MM-DD 직접 입력 + 달력 버튼 (기본).
+   * picker: 숫자 입력 없이 칸·달력 버튼을 누르면 네이티브 달력만 연다.
+   */
+  entry?: 'text' | 'picker'
 }
 
 export function openNativeDatePicker(
@@ -63,19 +68,32 @@ export default function AppDateInput({
   min,
   max,
   onPaste,
+  entry = 'text',
+  onClick,
+  onKeyDown,
   ...props
 }: AppDateInputProps) {
   const nativeDateRef = useRef<HTMLInputElement>(null)
-  const displayValue = normalizeDateInput(value ?? '')
+  const pickerEntry = entry === 'picker'
+  const displayValue = pickerEntry ? coerceStoredDateValue(value ?? '') : normalizeDateInput(value ?? '')
   const nativeValue = isValidDateString(displayValue)
     ? displayValue
     : coerceStoredDateValue(value ?? '')
 
+  const openPicker = () => {
+    openNativeDatePicker(nativeDateRef.current, { disabled, readOnly: pickerEntry ? false : readOnly })
+  }
+
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    if (pickerEntry) return
     onChange(normalizeDateInput(event.target.value))
   }
 
   const handlePaste = (event: ClipboardEvent<HTMLInputElement>) => {
+    if (pickerEntry) {
+      event.preventDefault()
+      return
+    }
     event.preventDefault()
     onChange(normalizeDateInput(event.clipboardData.getData('text')))
     onPaste?.(event)
@@ -88,30 +106,46 @@ export default function AppDateInput({
     }
   }
 
-  const pickerDisabled = Boolean(disabled || readOnly)
+  const handleClick = (event: MouseEvent<HTMLInputElement>) => {
+    onClick?.(event)
+    if (pickerEntry) openPicker()
+  }
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    onKeyDown?.(event)
+    if (!pickerEntry || event.defaultPrevented) return
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      openPicker()
+    }
+  }
+
+  const pickerDisabled = Boolean(disabled || (!pickerEntry && readOnly))
   const mergedInputClassName = ['app-date-input__text', inputClassName || className].filter(Boolean).join(' ')
 
   return (
-    <div className={['app-date-input', wrapperClassName].filter(Boolean).join(' ')}>
+    <div className={['app-date-input', pickerEntry ? 'app-date-input--picker' : '', wrapperClassName].filter(Boolean).join(' ')}>
       <FormInput
         {...props}
         type="text"
-        inputMode="numeric"
+        inputMode={pickerEntry ? undefined : 'numeric'}
         autoComplete="off"
         placeholder={placeholder}
         className={mergedInputClassName}
         value={displayValue}
         maxLength={10}
         disabled={disabled}
-        readOnly={readOnly}
+        readOnly={pickerEntry || readOnly}
         onChange={handleChange}
         onPaste={handlePaste}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
       />
 
       <button
         type="button"
         className="app-date-input__button"
-        onClick={() => openNativeDatePicker(nativeDateRef.current, { disabled, readOnly })}
+        onClick={openPicker}
         disabled={pickerDisabled}
         aria-label="날짜 선택"
         tabIndex={-1}

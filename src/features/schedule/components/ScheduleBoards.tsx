@@ -421,7 +421,7 @@ export function ScheduleTaskDetailDialog({ taskDetail, today, onCloseTaskDetail,
     >
       <dl className="schedule-page__detail">
         {isGoogle ? <div><dt>목록</dt><dd>{taskDetail.taskListName || '내 할 일 목록'}</dd></div> : null}
-        <div><dt>예정일</dt><dd>{taskDueLabel(taskDetail)}{isOverdueTask(taskDetail, today) ? ' (지남)' : ''}</dd></div>
+        <div><dt>날짜</dt><dd>{taskDueLabel(taskDetail)}{isOverdueTask(taskDetail, today) ? ' (지남)' : ''}</dd></div>
         <div><dt>상태</dt><dd>{taskDetail.status === 'completed' ? '완료' : '진행 중'}</dd></div>
         {taskDetail.customerName ? <div><dt>고객</dt><dd>{taskDetail.customerName}</dd></div> : null}
         {taskDetail.notes ? <div><dt>메모</dt><dd className="schedule-page__detail-desc">{taskDetail.notes}</dd></div> : null}
