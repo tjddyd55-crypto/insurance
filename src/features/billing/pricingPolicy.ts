@@ -240,3 +240,19 @@ export function formatReferralDiscountPolicySummary(plan: {
   }
   return parts.join(' · ')
 }
+
+/**
+ * 관리자 모달 "현재 설정 기준 예상 결제금액" 표. 계산은 computeReferralPayment / calculateFreeReferralCount(SSOT) 재사용.
+ * 무료 도달 인원 = ceil(monthlyFinal / perUser), perUser 0 이면 null(표시 안 함). 무료 도달 행은 'N명 이상' 1행.
+ */
+export function buildReferralPaymentPreview(monthlyFinalAmount: number, referralDiscountPerUser: number, maxRows = 50) {
+  const total = Math.max(Math.round(Number(monthlyFinalAmount) || 0), 0)
+  const perUser = Math.max(Math.round(Number(referralDiscountPerUser) || 0), 0)
+  const freeReferralCount = calculateFreeReferralCount({ totalAmount: total, referralDiscountUnitSupplyAmount: perUser })
+  const lastCount = freeReferralCount == null ? 0 : Math.min(freeReferralCount, maxRows)
+  const rows = []
+  for (let n = 0; n <= lastCount; n += 1) {
+    rows.push({ count: n, isFreeRow: n === freeReferralCount, ...computeReferralPayment(total, n, perUser) })
+  }
+  return { freeReferralCount, rows }
+}
