@@ -553,7 +553,7 @@ export default function AdminBillingManagePage() {
                 <dt>기본 월 공급가</dt>
                 <dd>{formatWon(referralPolicy.baseMonthlySupplyAmount)}</dd>
                 <dt>추천인 월 할인</dt>
-                <dd>유료 추천 1명당 {formatWon(referralPolicy.referrerDiscountPerActiveReferral)}</dd>
+                <dd>유료 추천 1명당 요금제별 설정 금액 (신규 요금제 기본 {formatWon(referralPolicy.referrerDiscountPerActiveReferral)})</dd>
                 <dt>추천받은 가입자 혜택</dt>
                 <dd>자동 할인 없음</dd>
                 <dt>최대 추천 할인</dt>
