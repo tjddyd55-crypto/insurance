@@ -436,30 +436,36 @@ export function BillingPlanFormDialog({
             </FieldWrapper>
           </FormSection>
           <FormSection title="현재 요금제 요약">
-            <dl className="billing-plan-form-modal__summary" data-testid="plan-summary">
-              <dt>월 이용료</dt>
-              <dd>{priced ? formatKrwTotal(priced.totalAmount) : '—'}</dd>
-              <dt>연간 이용료</dt>
-              <dd>
-                {annual
-                  ? `${formatKrwTotal(annual.annualTotal)} (${ANNUAL_USAGE_MONTHS}개월 이용 / ${ANNUAL_USAGE_MONTHS - ANNUAL_PAID_MONTHS}개월 무료)`
-                  : '—'}
-              </dd>
-              <dt>추천 할인</dt>
-              <dd>
-                {values.allowsReferralDiscount
-                  ? perUser != null
-                    ? `유료 추천 1명당 월 ${formatKrwTotal(perUser)}`
-                    : '—'
-                  : '미적용'}
-              </dd>
-              <dt>무료 이용 조건</dt>
-              <dd>
-                {values.allowsReferralDiscount && freeReferralCount != null
-                  ? `유료 추천 ${freeReferralCount}명 이상 유지`
-                  : '없음'}
-              </dd>
-            </dl>
+            {priced ? (
+              <dl className="billing-plan-form-modal__summary" data-testid="plan-summary">
+                <dt>월 이용료</dt>
+                <dd>{priced ? formatKrwTotal(priced.totalAmount) : '—'}</dd>
+                <dt>연간 이용료</dt>
+                <dd>
+                  {annual
+                    ? `${formatKrwTotal(annual.annualTotal)} (${ANNUAL_USAGE_MONTHS}개월 이용 / ${ANNUAL_USAGE_MONTHS - ANNUAL_PAID_MONTHS}개월 무료)`
+                    : '—'}
+                </dd>
+                <dt>추천 할인</dt>
+                <dd>
+                  {values.allowsReferralDiscount
+                    ? perUser != null
+                      ? `유료 추천 1명당 월 ${formatKrwTotal(perUser)}`
+                      : '—'
+                    : '미적용'}
+                </dd>
+                <dt>무료 이용 조건</dt>
+                <dd>
+                  {values.allowsReferralDiscount && freeReferralCount != null
+                    ? `유료 추천 ${freeReferralCount}명 이상 유지`
+                    : '없음'}
+                </dd>
+              </dl>
+            ) : (
+              <p className="billing-plan-form-modal__hint" data-testid="plan-summary-empty">
+                월 이용료를 입력하면 요약이 표시됩니다.
+              </p>
+            )}
           </FormSection>
         </div>
 
