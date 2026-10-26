@@ -1,16 +1,20 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 import { FormSelect } from '../../../components/form'
 import { readScheduleHolidayMode, writeScheduleHolidayMode, type ScheduleHolidayMode } from '../domain/koreanHolidays'
+import { getScheduleViewPrefs, queueScheduleViewPrefs, subscribeScheduleViewPrefs } from '../domain/scheduleViewPrefs'
 
-/** 개인 설정: 공휴일 표시(대한민국 공휴일 / 표시 안 함). 브라우저에 사용자별로 저장한다. */
-export function useScheduleHolidayMode(userKey?: string): [ScheduleHolidayMode, (mode: ScheduleHolidayMode) => void] {
-  const userId = userKey || undefined
-  const [state, setState] = useState<{ userId: string | undefined; mode: ScheduleHolidayMode }>(() => ({ userId, mode: readScheduleHolidayMode(userId) }))
-  const mode = state.userId === userId ? state.mode : readScheduleHolidayMode(userId)
+/**
+ * 개인 설정: 공휴일 표시(대한민국 공휴일 / 표시 안 함).
+ * 사용자별 서버 설정(holidayMode)이 우선, 없으면 이전 브라우저 설정 → 기본 'kr'.
+ */
+export function useScheduleHolidayMode(userKey?: string, token?: string | null): [ScheduleHolidayMode, (mode: ScheduleHolidayMode) => void] {
+  const userId = userKey || ''
+  const prefs = useSyncExternalStore(subscribeScheduleViewPrefs, () => getScheduleViewPrefs(userId), () => getScheduleViewPrefs(userId))
+  const mode: ScheduleHolidayMode = prefs.holidayMode ?? readScheduleHolidayMode(userId || undefined)
   const update = useCallback((next: ScheduleHolidayMode) => {
-    writeScheduleHolidayMode(userId, next)
-    setState({ userId, mode: next })
-  }, [userId])
+    writeScheduleHolidayMode(userId || undefined, next)
+    queueScheduleViewPrefs(userId, token, { holidayMode: next })
+  }, [token, userId])
   return [mode, update]
 }
 

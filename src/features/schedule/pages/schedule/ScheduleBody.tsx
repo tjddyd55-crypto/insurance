@@ -28,7 +28,7 @@ function sameMonth(a: string, b: string): boolean {
  * 모바일 웹은 기존 동작 그대로.
  */
 export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?: boolean; compact?: boolean }) {
-  const [holidayMode, setHolidayMode] = useScheduleHolidayMode(props.userKey)
+  const [holidayMode, setHolidayMode] = useScheduleHolidayMode(props.userKey, props.token)
   const decorMode = props.calendarDecor ? holidayMode : undefined
   const pc = Boolean(props.calendarDecor)
   // 열린 고객 팝업은 연 계정(owner)과 같이 둔다. 다른 계정으로 바뀌면 바로 닫힌 것으로 본다(계정 분리).

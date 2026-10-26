@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { ApiError } from '../../../lib/apiClient'
@@ -17,6 +17,12 @@ import {
   type ScheduleTask,
 } from '../api/scheduleApi'
 import { filterScheduleTasks } from '../domain/scheduleTasks'
+import {
+  getScheduleViewPrefs,
+  loadScheduleViewPrefs,
+  queueScheduleViewPrefs,
+  subscribeScheduleViewPrefs,
+} from '../domain/scheduleViewPrefs'
 import {
   scheduleViewFromParam,
   seoulToday,
@@ -186,12 +192,23 @@ export function useScheduleState(): ScheduleViewProps {
   const view = scheduleViewFromParam(params.view)
   const today = seoulToday()
   const anchor = YMD.test(searchParams.get('date') ?? '') ? String(searchParams.get('date')) : today
-  const sourcesKey = searchParams.get('sources') ?? ''
+  // 표시 설정 우선순위(키별): URL 쿼리 > 사용자 저장값(서버, 로드 전엔 사용자별 캐시) > 기본값.
+  const savedPrefs = useSyncExternalStore(
+    subscribeScheduleViewPrefs,
+    () => getScheduleViewPrefs(userKey),
+    () => getScheduleViewPrefs(userKey),
+  )
+  const sourcesKey = searchParams.has('sources')
+    ? searchParams.get('sources') ?? ''
+    : savedPrefs.sources
+      ? (savedPrefs.sources.length === 0 ? 'none' : savedPrefs.sources.join(','))
+      : ''
   const sources = useMemo(() => parseScheduleSources(sourcesKey), [sourcesKey])
-  const calendarsKey = searchParams.get('calendars') ?? ''
-  const calendarIds = useMemo(() => calendarsKey.split(',').map((id) => id.trim()).filter(Boolean), [calendarsKey])
-  const includeCompleted = searchParams.get('done') === '1'
-  const includeOverdue = searchParams.get('overdue') === '1'
+  const requestedCalendarsKey = searchParams.has('calendars')
+    ? searchParams.get('calendars') ?? ''
+    : (savedPrefs.googleCalendarIds ?? []).join(',')
+  const includeCompleted = searchParams.has('done') ? searchParams.get('done') === '1' : savedPrefs.includeCompleted === true
+  const includeOverdue = searchParams.has('overdue') ? searchParams.get('overdue') === '1' : savedPrefs.includeOverdue === true
   const [reloadNonce, setReloadNonce] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
   const [refreshMessage, setRefreshMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
@@ -211,6 +228,25 @@ export function useScheduleState(): ScheduleViewProps {
   const [editBaselineDate, setEditBaselineDate] = useState('')
 
   const hasToken = Boolean(token?.trim())
+  // 저장/요청된 Google 캘린더 중 실제 존재하는 것만. 하나도 없으면 기본 표시(빈 목록).
+  const knownCalendars = hasToken && result.owner === userKey && result.google.status === 'connected' ? result.google.calendars : null
+  const calendarsKey = useMemo(() => {
+    const ids = requestedCalendarsKey.split(',').map((id) => id.trim()).filter(Boolean)
+    if (!knownCalendars || knownCalendars.length === 0) return ids.join(',')
+    return ids.filter((id) => knownCalendars.some((calendar) => calendar.id === id)).join(',')
+  }, [knownCalendars, requestedCalendarsKey])
+  const calendarIds = useMemo(() => calendarsKey.split(',').map((id) => id.trim()).filter(Boolean), [calendarsKey])
+
+  // 로그인 사용자 저장값 로드(읽기만 — 기본값으로 덮어쓰거나 저장하지 않음). 실패 시 캐시/기본값 유지.
+  useEffect(() => {
+    if (!userKey || !token?.trim()) return
+    loadScheduleViewPrefs(userKey, token).catch(() => {})
+  }, [token, userKey])
+
+  /** 사용자 토글만 저장한다(복원 경로에서는 호출 금지 → 저장 루프 없음). */
+  const savePrefs = useCallback((patch: Parameters<typeof queueScheduleViewPrefs>[2]) => {
+    queueScheduleViewPrefs(userKey, token, patch)
+  }, [token, userKey])
   const requestKey = `${userKey}|${view}|${anchor}|${calendarsKey}|${reloadNonce}`
 
   const replaceQuery = useCallback((patch: Record<string, string>) => {
@@ -395,7 +431,10 @@ export function useScheduleState(): ScheduleViewProps {
     tasks: visibleTasks,
     includeCompleted,
     includeOverdue,
-    onToggleOverdue: () => replaceQuery({ overdue: includeOverdue ? '' : '1' }),
+    onToggleOverdue: () => {
+      savePrefs({ includeOverdue: !includeOverdue })
+      replaceQuery({ overdue: includeOverdue ? '' : '1' })
+    },
     google,
     sourceStatus,
     loading,
@@ -435,6 +474,7 @@ export function useScheduleState(): ScheduleViewProps {
       const next = source !== 'all' && isFilterGroup(source)
         ? toggleScheduleFilterGroup(sources, source)
         : toggleScheduleSource(sources, source)
+      savePrefs({ sources: next })
       replaceQuery({ sources: next.length === SCHEDULE_FILTER_KEYS.length ? '' : next.length === 0 ? 'none' : next.join(',') })
     },
     onToggleCalendar: (calendarId) => {
@@ -445,11 +485,15 @@ export function useScheduleState(): ScheduleViewProps {
         ? current.filter((id) => id !== calendarId)
         : [...current, calendarId]
       // 모두 끄면 기본 표시로 돌아간다(빈 목록 = 서버 기본값).
+      savePrefs({ googleCalendarIds: next.length > 0 ? next : null })
       replaceQuery({ calendars: next.join(',') })
     },
     onOpenEvent,
     onCloseDetail: () => setDetailState(null),
-    onToggleCompleted: () => replaceQuery({ done: includeCompleted ? '' : '1' }),
+    onToggleCompleted: () => {
+      savePrefs({ includeCompleted: !includeCompleted })
+      replaceQuery({ done: includeCompleted ? '' : '1' })
+    },
     // ONE FC 할 일 → 할 일 목록과 같은 상세 모달을 그 자리에서. Google 할 일 → 기존 상세(쓰기 버튼은 기존 정책).
     onOpenTask: (task) => {
       if (task.source === 'onefc_todo') {
