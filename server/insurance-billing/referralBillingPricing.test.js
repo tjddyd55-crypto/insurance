@@ -20,6 +20,8 @@ function planRow(total, extra = {}) {
     apply_vat: true,
     vat_rate: 0.1,
     allows_referral_discount: true,
+    // 레거시 픽스처: 1명당 1,000원(요금제별 설정값). 신규 정책 케이스는 extra 로 3,000 지정.
+    referral_discount_unit_supply_amount: 1000,
     monthly_total: total,
     monthly_price: Math.round(total / 1.1),
     yearly_total: 88000,
@@ -128,11 +130,13 @@ test('createPendingInsurancePaymentRow: renewal 도 매 회차 active_paid 재�
   assert.equal(pending.totalAmount, 0)
 })
 
-test('연 결제는 추천 할인 미적용(기존 연 요금 유지)', async () => {
+test('연 결제는 추천 할인 미적용, 연간 금액 = 월 × 10 (yearly_* 레거시 컬럼 무시)', async () => {
   const row = planRow(10500)
   const client = createMockClient({ plan: row, activePaid: 5 })
   const r = await resolveReferralAdjustedPlanAmounts(client, { userId: 'u1', plan: row, billingCycle: 'yearly' })
-  assert.equal(r.paymentTotal, 88000)
+  assert.equal(r.paymentTotal, 105000)
+  assert.equal(r.appliedReferralDiscount, 0)
+  assert.equal(r.supplyAmount + r.vatAmount, 105000)
 })
 
 test('Toss 0원 charge 금지: executeTossBillingCharge 는 PG 호출 전에 거부', async () => {
@@ -207,4 +211,92 @@ test('checkout quote: VAT OFF 요금제는 오늘 결제 공급가=총액, VAT 0
   assert.equal(quote.todayChargeAmount, 19900)
   assert.equal(quote.todaySupplyAmount, 19900)
   assert.equal(quote.todayVatAmount, 0)
+})
+
+// ── 2026-10 정책: 14,900 / 3,000 per plan, 연간 ×10 ──
+
+for (const [count, expected] of [
+  [0, 14900],
+  [1, 11900],
+  [2, 8900],
+  [3, 5900],
+  [4, 2900],
+  [5, 0],
+  [6, 0],
+]) {
+  test(`정책 14,900/3,000: ${count}명 → ${expected}원 · Engine A = Engine B = quote`, async () => {
+    const row = planRow(14900, { referral_discount_unit_supply_amount: 3000 })
+    const client = createMockClient({ plan: row, activePaid: count })
+    const b = await resolveReferralAdjustedPlanAmounts(client, { userId: 'u1', plan: row, billingCycle: 'monthly' })
+    const a = await calculateInvoicePricing(client, 'u1', {
+      resolvedPlan: { plan: buildPlanDefinitionFromDbRow(row), source: 'test' },
+    })
+    const quote = await buildCheckoutQuote(client, { userId: 'u1', planCode: 'insurance_basic', billingCycle: 'monthly' })
+    assert.equal(b.paymentTotal, expected)
+    assert.equal(a.finalAmount, expected)
+    assert.equal(quote.todayChargeAmount, expected)
+    assert.equal(quote.todaySupplyAmount, b.supplyAmount)
+    assert.equal(quote.todayVatAmount, b.vatAmount)
+  })
+}
+
+test('정책: 1명당 할인 2,000 변경 → 다음 계산부터 1명 12,900 / 2명 10,900', async () => {
+  for (const [n, exp] of [
+    [1, 12900],
+    [2, 10900],
+  ]) {
+    const row = planRow(14900, { referral_discount_unit_supply_amount: 2000 })
+    const client = createMockClient({ plan: row, activePaid: n })
+    const b = await resolveReferralAdjustedPlanAmounts(client, { userId: 'u1', plan: row, billingCycle: 'monthly' })
+    assert.equal(b.paymentTotal, exp)
+  }
+})
+
+test('정책: 연간 결제 = 월 × 10 (14,900 → 149,000 / 19,900 → 199,000), 추천 할인 없음, quote 일치', async () => {
+  for (const [m, y] of [
+    [14900, 149000],
+    [19900, 199000],
+    [12000, 120000],
+  ]) {
+    const row = planRow(m, { referral_discount_unit_supply_amount: 3000 })
+    const client = createMockClient({ plan: row, activePaid: 3 })
+    const r = resolvePlanPaymentAmounts(row, 'yearly')
+    assert.equal(r.totalAmount, y)
+    assert.equal(r.supplyAmount + r.vatAmount, y)
+    const quote = await buildCheckoutQuote(client, { userId: 'u1', planCode: 'insurance_basic', billingCycle: 'yearly' })
+    assert.equal(quote.todayChargeAmount, y)
+    assert.equal(quote.referralDiscountAmount ?? 0, 0)
+  }
+})
+
+test('정책: Toss 0원 요청 금지 — 5명 이상(0원) pending 은 0원, PG 미호출 경로', async () => {
+  const row = planRow(14900, { referral_discount_unit_supply_amount: 3000 })
+  const client = createMockClient({ plan: row, activePaid: 5 })
+  const pending = await createPendingInsurancePaymentRow(client, {
+    userId: 'u1',
+    planCode: 'insurance_basic',
+    billingCycle: 'monthly',
+    provider: 'toss',
+  })
+  assert.equal(pending.totalAmount, 0)
+})
+
+test('관리자 입력: 1명당 할인 0 이상 정수만 허용', async () => {
+  const { parseReferralDiscountPerUser } = await import('../billing/billingPlanService.js')
+  assert.equal(parseReferralDiscountPerUser(3000), 3000)
+  assert.equal(parseReferralDiscountPerUser('2000'), 2000)
+  assert.equal(parseReferralDiscountPerUser(0), 0)
+  assert.throws(() => parseReferralDiscountPerUser(-1), /invalid_referral_discount_per_user/)
+  assert.throws(() => parseReferralDiscountPerUser(1.5), /invalid_referral_discount_per_user/)
+  assert.throws(() => parseReferralDiscountPerUser('abc'), /invalid_referral_discount_per_user/)
+})
+
+test('initDb seed: 추천 1명당 할인은 신규 행 초기값(3000)만, ON CONFLICT 에서 갱신 금지', () => {
+  const src = readFileSync(new URL('../initDb.js', import.meta.url), 'utf8')
+  const seeds = src.split('INSERT INTO billing_plans').slice(1).map((s) => s.slice(0, 1800))
+  for (const seed of seeds) {
+    const conflict = seed.slice(seed.indexOf('ON CONFLICT'))
+    assert.doesNotMatch(conflict, /referral_discount_unit_supply_amount\s*=/)
+    assert.doesNotMatch(conflict, /yearly_total = EXCLUDED\.yearly_total/)
+  }
 })

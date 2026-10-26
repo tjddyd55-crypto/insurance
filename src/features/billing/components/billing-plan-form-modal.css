@@ -285,3 +285,44 @@
     padding-right: 16px;
   }
 }
+
+.billing-plan-form-modal__referral-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.billing-plan-form-modal__referral-table th,
+.billing-plan-form-modal__referral-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: right;
+}
+
+.billing-plan-form-modal__referral-table th:first-child,
+.billing-plan-form-modal__referral-table td:first-child {
+  text-align: left;
+}
+
+.billing-plan-form-modal__summary {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f9fafb;
+}
+
+.billing-plan-form-modal__summary dt {
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.billing-plan-form-modal__summary dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: right;
+}

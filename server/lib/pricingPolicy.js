@@ -1,5 +1,6 @@
 import {
-  REFERRAL_DISCOUNT_PER_ACTIVE_PAID,
+  DEFAULT_REFERRAL_DISCOUNT_PER_USER,
+  calculateFreeReferralCount as calculateFreeReferralCountFromAmounts,
   computeBillingPayment,
   splitVatInclusiveTotal,
 } from './billingAmounts.js'
@@ -10,8 +11,11 @@ import {
 
 export const VAT_RATE = 0.1
 
-/** @deprecated plan별 referral_discount_unit_supply_amount 우선 */
-export const DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT = 1000
+/**
+ * 신규 요금제 초기값: 유료 추천 1명당 월 할인(VAT 포함 원). 실제 값은 plan별
+ * referral_discount_unit_supply_amount(컬럼명은 하위호환, 의미 = 1명당 월 할인 최종금액).
+ */
+export const DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT = DEFAULT_REFERRAL_DISCOUNT_PER_USER
 
 /** @deprecated plan별 referral_discount_start_count 우선 */
 export const DEFAULT_REFERRAL_DISCOUNT_START_COUNT = 1
@@ -121,13 +125,9 @@ function resolveReferralDiscountSettings(row) {
     1,
     Math.round(Number(row.referral_discount_start_count ?? DEFAULT_REFERRAL_DISCOUNT_START_COUNT) || 1),
   )
-  const referralDiscountUnitSupplyAmount = Math.max(
-    1,
-    Math.round(
-      Number(row.referral_discount_unit_supply_amount ?? DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT) ||
-        DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT,
-    ),
-  )
+  const rawUnit = Math.round(Number(row.referral_discount_unit_supply_amount ?? DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT))
+  const referralDiscountUnitSupplyAmount =
+    Number.isFinite(rawUnit) && rawUnit >= 0 ? rawUnit : DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT
   return {
     allowsReferralDiscount,
     referralDiscountStartCount,
@@ -240,9 +240,9 @@ export function calculateDiscountedTotalAmount(baseSupplyAmount, supplyDiscountA
 
 /**
  * 요금제별 추천 할인 (VAT 포함 최종금액 기준, 2026-10 정책).
- * active_paid 추천 1명당 1,000원, 첫 추천부터 적용, 상한 = 요금제 최종금액(고정 상한 없음).
+ * active_paid 추천 1명당 요금제별 설정액(referralDiscountUnitSupplyAmount), 첫 추천부터 적용, 상한 = 요금제 최종금액.
  * referralDiscountSupplyAmount 는 하위호환 필드명이며 값은 최종금액 기준 할인액과 같다.
- * @param {{ allowsReferralDiscount?: boolean; totalAmount?: number }} plan
+ * @param {{ allowsReferralDiscount?: boolean; totalAmount?: number; referralDiscountUnitSupplyAmount?: number }} plan
  * @param {number} activeReferralCount
  */
 export function calculateReferralDiscountForPlan(plan, activeReferralCount) {
@@ -252,6 +252,7 @@ export function calculateReferralDiscountForPlan(plan, activeReferralCount) {
     configuredTotal: plan?.totalAmount ?? 0,
     activeReferralCount: referralCount,
     referralEnabled: enabled,
+    referralDiscountPerUser: plan?.referralDiscountUnitSupplyAmount,
   })
   const applied = enabled ? referralCount : 0
   return {
@@ -264,8 +265,8 @@ export function calculateReferralDiscountForPlan(plan, activeReferralCount) {
 }
 
 /**
- * 결제금액 0원이 되는 active_paid 추천 수 = ceil(최종금액 / 1,000).
- * @param {{ allowsReferralDiscount?: boolean; totalAmount?: number }} plan
+ * 결제금액 0원이 되는 active_paid 추천 수 = ceil(최종금액 / 1명당 할인). 1명당 0원이면 null.
+ * @param {{ allowsReferralDiscount?: boolean; totalAmount?: number; referralDiscountUnitSupplyAmount?: number }} plan
  * @returns {number | null}
  */
 export function calculateFreeReferralCount(plan) {
@@ -276,7 +277,10 @@ export function calculateFreeReferralCount(plan) {
   if (total <= 0) {
     return null
   }
-  return Math.ceil(total / REFERRAL_DISCOUNT_PER_ACTIVE_PAID)
+  return calculateFreeReferralCountFromAmounts(
+    total,
+    plan?.referralDiscountUnitSupplyAmount ?? DEFAULT_REFERRAL_DISCOUNT_PER_USER,
+  )
 }
 
 /**

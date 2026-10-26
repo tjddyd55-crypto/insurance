@@ -130,9 +130,13 @@ export async function calculateInvoicePricing(executor, userId, options = {}) {
   const baseSupplyAmount = plan.supplyAmount
   const configuredTotal = plan.totalAmount
 
-  // 2026-10 정책: billing_referrals.status='active_paid' 1명당 1,000원, 최종금액 cap, 피추천인 할인 없음.
+  // 2026-10 정책: billing_referrals.status='active_paid' 1명당 요금제별 설정액, 최종금액 cap, 피추천인 할인 없음.
   const activeReferralCount = await countActivePaidBillingReferrals(executor, userId)
-  const referralCalc = computeBillingPayment({ configuredTotal, activeReferralCount })
+  const referralCalc = computeBillingPayment({
+    configuredTotal,
+    activeReferralCount,
+    referralDiscountPerUser: plan.referralDiscountUnitSupplyAmount,
+  })
   const referralDiscountAmount = referralCalc.appliedReferralDiscount
   const appliedReferralCount = activeReferralCount
   const refereeFirstMonthDiscountAmount = 0
