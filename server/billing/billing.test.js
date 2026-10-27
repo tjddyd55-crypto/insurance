@@ -7,17 +7,49 @@ import { maskPaymentCredential, canStorePaymentSecrets } from './paymentSettings
 import { BASE_MONTHLY_PRICE } from '../referrals/policy.js'
 import {
   BILLING_PLANS,
+  buildPlanDefinitionFromDbRow,
   calculateFreeReferralCount,
   calculateReferralDiscountForPlan,
 } from '../lib/pricingPolicy.js'
+
+const persistedBillingPlanRows = {
+  monthly_basic: {
+    code: 'monthly_basic',
+    name: '월 이용료',
+    amount: 8800,
+    supply_amount: 8000,
+    vat_rate: 0.1,
+    apply_vat: true,
+    allows_referral_discount: true,
+    referral_discount_start_count: 1,
+    referral_discount_unit_supply_amount: 1000,
+    is_active: true,
+  },
+  monthly_discount: {
+    code: 'monthly_discount',
+    name: '할인 이용료',
+    amount: 5500,
+    supply_amount: 5000,
+    vat_rate: 0.1,
+    apply_vat: true,
+    allows_referral_discount: true,
+    referral_discount_start_count: 1,
+    referral_discount_unit_supply_amount: 1000,
+    is_active: true,
+  },
+}
 
 function createReferralMockExecutor(activePaidCount, opts = {}) {
   const seen = []
   return {
     seen,
-    query: async (sql) => {
+    query: async (sql, params = []) => {
       const text = String(sql)
       seen.push(text)
+      if (text.includes('FROM billing_plans') && text.includes('WHERE code = $1')) {
+        const row = persistedBillingPlanRows[String(params[0])]
+        return { rows: row ? [row] : [], rowCount: row ? 1 : 0 }
+      }
       if (text.includes('billing_referrals') && text.includes("status = 'active_paid'")) {
         return { rows: [{ c: activePaidCount }], rowCount: 1 }
       }
@@ -52,13 +84,16 @@ test('calculateInvoicePricing — DISCOUNT_MONTHLY plan 0 referrals', async () =
 })
 
 test('calculateReferralDiscountForPlan — 2026-10 정책: 1명째부터 1,000원, 최종금액 cap', () => {
-  const plan = BILLING_PLANS.DISCOUNT_MONTHLY
+  const plan = buildPlanDefinitionFromDbRow(persistedBillingPlanRows.monthly_discount)
   assert.equal(calculateFreeReferralCount(plan), 6)
   assert.equal(calculateReferralDiscountForPlan(plan, 1).referralDiscountAmount, 1000)
   assert.equal(calculateReferralDiscountForPlan(plan, 3).referralDiscountAmount, 3000)
   assert.equal(calculateReferralDiscountForPlan(plan, 6).referralDiscountAmount, 5500)
   assert.equal(calculateReferralDiscountForPlan(plan, 20).referralDiscountAmount, 5500)
-  assert.equal(calculateFreeReferralCount(BILLING_PLANS.STANDARD_MONTHLY), 9)
+  assert.equal(
+    calculateFreeReferralCount(buildPlanDefinitionFromDbRow(persistedBillingPlanRows.monthly_basic)),
+    9,
+  )
 })
 
 for (const [count, expected] of [
@@ -69,7 +104,7 @@ for (const [count, expected] of [
 ]) {
   test(`calculateInvoicePricing — STANDARD ${count} active_paid → ${expected}`, async () => {
     const executor = createReferralMockExecutor(count)
-    const pricing = await calculateInvoicePricing(executor, 'user-1')
+    const pricing = await calculateInvoicePricing(executor, 'user-1', { planCode: 'monthly_basic' })
     assert.equal(pricing.finalAmount, expected)
     assert.equal(pricing.finalSupplyAmount + pricing.vatAmount, expected)
     assert.equal(pricing.referralDiscountAmount, 8800 - expected)
@@ -84,10 +119,18 @@ for (const [count, expected] of [
 ]) {
   test(`calculateInvoicePricing — DISCOUNT_MONTHLY ${count} active_paid → ${expected}`, async () => {
     const executor = createReferralMockExecutor(count)
-    const pricing = await calculateInvoicePricing(executor, 'user-1', { planCode: 'DISCOUNT_MONTHLY' })
+    const pricing = await calculateInvoicePricing(executor, 'user-1', { planCode: 'monthly_discount' })
     assert.equal(pricing.finalAmount, expected)
   })
 }
+
+test('calculateInvoicePricing — 저장 요금제가 없으면 신규/default 3,000원 fallback', async () => {
+  const executor = createReferralMockExecutor(1)
+  const pricing = await calculateInvoicePricing(executor, 'user-without-plan')
+  assert.equal(pricing.planSource, 'system_default')
+  assert.equal(pricing.referralDiscountAmount, 3000)
+  assert.equal(pricing.finalAmount, 5800)
+})
 
 test('calculateInvoicePricing — 피추천인 첫 결제 2,000원 할인 제거', async () => {
   const executor = createReferralMockExecutor(0, { referred: true })
