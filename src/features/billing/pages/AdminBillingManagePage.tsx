@@ -173,7 +173,7 @@ export default function AdminBillingManagePage() {
     setPlanFormError('')
     try {
       const payload = {
-        code: values.code,
+        ...(planFormMode === 'edit' ? { code: values.code } : {}),
         name: values.name,
         totalAmount: Number(values.totalAmount),
         applyVat: values.applyVat,
