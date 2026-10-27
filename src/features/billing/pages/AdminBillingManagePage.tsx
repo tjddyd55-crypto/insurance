@@ -12,6 +12,7 @@ import {
 import {
   BILLING_PLAN_SOURCE_LABEL,
   BILLING_STATUS_LABEL,
+  deleteAdminBillingPlan,
   createAdminBillingPlan,
   fetchAdminBillingPlans,
   fetchAdminBillingSettings,
@@ -95,6 +96,8 @@ export default function AdminBillingManagePage() {
   const [planFormError, setPlanFormError] = useState('')
   const [deactivateTarget, setDeactivateTarget] = useState<BillingPlanAdminRow | null>(null)
   const [deactivateBusy, setDeactivateBusy] = useState(false)
+  const [deletePlanTarget, setDeletePlanTarget] = useState<BillingPlanAdminRow | null>(null)
+  const [deletePlanBusy, setDeletePlanBusy] = useState(false)
 
   const setTab = (tab: BillingAdminTabId) => {
     setSearchParams({ tab }, { replace: true })
@@ -240,6 +243,24 @@ export default function AdminBillingManagePage() {
       setActionError(e instanceof Error ? e.message : '활성화에 실패했습니다.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const onConfirmDeletePlan = async () => {
+    if (!token?.trim() || !deletePlanTarget || deletePlanBusy) return
+    setDeletePlanBusy(true)
+    setActionError('')
+    setActionInfo('')
+    try {
+      await deleteAdminBillingPlan(token, deletePlanTarget.dbCode)
+      setActionInfo('요금제가 삭제되었습니다.')
+      setDeletePlanTarget(null)
+      await load()
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : '요금제 삭제에 실패했습니다.')
+      setDeletePlanTarget(null)
+    } finally {
+      setDeletePlanBusy(false)
     }
   }
 
@@ -414,6 +435,14 @@ export default function AdminBillingManagePage() {
                         활성화
                       </FormButton>
                     )}
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      disabled={busy || deletePlanBusy}
+                      onClick={() => setDeletePlanTarget(plan)}
+                    >
+                      삭제
+                    </FormButton>
                   </div>
                 </li>
               ))}
@@ -661,6 +690,23 @@ export default function AdminBillingManagePage() {
         onCancel={() => {
           if (deactivateBusy) return
           setDeactivateTarget(null)
+        }}
+      />
+      <ConfirmDialog
+        open={Boolean(deletePlanTarget)}
+        title="요금제 삭제"
+        message={
+          deletePlanTarget
+            ? `요금제(${deletePlanTarget.label})를 삭제하시겠습니까? 삭제 후 복구할 수 없습니다. 사용·구독·결제·프로모션 이력이 있거나 시스템 기본 요금제이면 서버에서 삭제가 차단됩니다.`
+            : ''
+        }
+        confirmLabel="삭제"
+        tone="danger"
+        busy={deletePlanBusy}
+        onConfirm={() => void onConfirmDeletePlan()}
+        onCancel={() => {
+          if (deletePlanBusy) return
+          setDeletePlanTarget(null)
         }}
       />
     </AdminPageShell>
