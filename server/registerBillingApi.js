@@ -9,6 +9,7 @@ import {
 } from './billing/billingService.js'
 import {
   createBillingPlanAdmin,
+  deleteBillingPlanAdmin,
   listBillingPlansAdmin,
   listBillingUsersAdmin,
   listGaBillingPlansAdmin,
@@ -101,6 +102,11 @@ export function registerBillingApi(apiRouter, ctx) {
     invalid_referral_discount_per_user: { status: 400, message: '추천 1명당 할인금액은 0원 이상의 정수여야 합니다.' },
       inactive_billing_plan: { status: 400, message: '비활성 요금제는 선택할 수 없습니다.' },
       plan_not_found: { status: 404, message: '요금제를 찾을 수 없습니다.' },
+      billing_plan_in_use: {
+        status: 409,
+        message: '사용 또는 결제 이력이 있는 요금제는 삭제할 수 없습니다. 비활성화해 주세요.',
+      },
+      billing_plan_system_default: { status: 409, message: '시스템 기본 요금제는 삭제할 수 없습니다.' },
     })
     const mapped = table[code]
     if (mapped) {
@@ -223,6 +229,31 @@ export function registerBillingApi(apiRouter, ctx) {
     } catch (e) {
       if (mapBillingError(e, res)) return
       handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.delete('/admin/billing/plans/:code', requireAuth, requireSuperAdmin, async (req, res) => {
+    const client = await pool.connect()
+    try {
+      const code = String(req.params.code ?? '').trim()
+      if (!code) {
+        res.status(400).json({ message: '요금제 코드가 필요합니다.' })
+        return
+      }
+      await client.query('BEGIN')
+      const result = await deleteBillingPlanAdmin(client, code)
+      await client.query('COMMIT')
+      res.json(result)
+    } catch (e) {
+      try {
+        await client.query('ROLLBACK')
+      } catch {
+        /* */
+      }
+      if (mapBillingError(e, res)) return
+      handleDbError(e, req, res)
+    } finally {
+      client.release()
     }
   })
 

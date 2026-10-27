@@ -28,6 +28,8 @@ export function parseReferralDiscountPerUser(raw) {
 import { assertValidBillingPlanCode } from './billingPlanCode.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 
+const SYSTEM_BILLING_PLAN_CODES = new Set(['monthly_basic', 'monthly_discount', 'insurance_basic'])
+
 const PLAN_ROW_SELECT = `
   code, name, amount, supply_amount, vat_rate, apply_vat, cycle, is_active,
   allows_referral_discount, referral_discount_start_count, referral_discount_unit_supply_amount,
@@ -430,6 +432,70 @@ export async function setBillingPlanActiveAdmin(executor, code, isActive) {
       !isActive && (usage.gaCount > 0 || usage.userCount > 0)
         ? '이 요금제를 사용 중인 GA 또는 사용자가 있습니다. 신규 선택만 제한됩니다.'
         : null,
+  }
+}
+
+/**
+ * 요금제는 미사용이고 참조·청구 이력이 없을 때만 물리 삭제한다.
+ * API 호출처가 transaction을 열며, 비-FK 참조 테이블의 동시 추가를 막기 위해 잠근다.
+ * @param {import('pg').PoolClient} executor
+ * @param {string} code
+ */
+export async function deleteBillingPlanAdmin(executor, code) {
+  const planCode = assertValidBillingPlanCode(code)
+  if (SYSTEM_BILLING_PLAN_CODES.has(planCode)) {
+    throw new Error('billing_plan_system_default')
+  }
+
+  // These tables store plan_code without a foreign key. Serialize their writes with deletion.
+  await systemQuery(
+    executor,
+    'LOCK TABLE billing_payments, billing_promotion_codes IN SHARE ROW EXCLUSIVE MODE',
+  )
+
+  const existing = await systemQuery(
+    executor,
+    'SELECT code FROM billing_plans WHERE code = $1 LIMIT 1 FOR UPDATE',
+    [planCode],
+  )
+  if (!existing.rows[0]) {
+    throw new Error('plan_not_found')
+  }
+
+  const usage = await systemQuery(
+    executor,
+    `
+    SELECT
+      (SELECT COUNT(*)::int FROM ga_billing_settings WHERE default_plan_code = $1) AS ga_count,
+      (SELECT COUNT(*)::int FROM user_billing_settings WHERE override_plan_code = $1) AS user_count,
+      (SELECT COUNT(*)::int FROM billing_subscriptions WHERE plan_code = $1) AS subscription_count,
+      (SELECT COUNT(*)::int FROM payment_invoices WHERE plan_code = $1) AS invoice_count,
+      (SELECT COUNT(*)::int FROM billing_payments WHERE plan_code = $1) AS payment_count,
+      (SELECT COUNT(*)::int FROM billing_promotion_codes WHERE applies_to_plan_code = $1) AS promotion_count
+    `,
+    [planCode],
+  )
+  const counts = usage.rows[0] ?? {}
+  const hasReferences = Object.values(counts).some((value) => Number(value ?? 0) > 0)
+  if (hasReferences) {
+    throw new Error('billing_plan_in_use')
+  }
+
+  try {
+    const deleted = await systemQuery(
+      executor,
+      'DELETE FROM billing_plans WHERE code = $1 RETURNING code',
+      [planCode],
+    )
+    if (!deleted.rows[0]) {
+      throw new Error('plan_not_found')
+    }
+    return { ok: true, planCode }
+  } catch (error) {
+    if (error?.code === '23503') {
+      throw new Error('billing_plan_in_use')
+    }
+    throw error
   }
 }
 
