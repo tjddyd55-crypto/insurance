@@ -26,6 +26,8 @@ describe('BillingPlanFormDialog 현재 요금제 요약', () => {
     expect(html).not.toContain('data-testid="plan-summary"')
     expect(html).not.toContain('유료 추천 1명당 월 3,000원')
     expect(html).not.toContain('무료 이용 조건')
+    expect(html).not.toContain('요금제 코드')
+    expect(html).not.toContain('monthly_special')
     // 입력칸은 기본값 3,000 그대로 유지
     expect(html).toContain('value="3,000"')
   })

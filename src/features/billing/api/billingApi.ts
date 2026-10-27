@@ -312,7 +312,7 @@ export async function fetchAdminBillingPlans(
 export async function createAdminBillingPlan(
   token: string,
   body: {
-    code: string
+    code?: string
     name: string
     /** VAT 포함 최종 결제금액 (SSOT) */
     totalAmount?: number
