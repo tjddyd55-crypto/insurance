@@ -260,7 +260,16 @@ export function registerNotificationsApi(apiRouter, ctx) {
         return
       }
       const data = await getUserNotificationSettings(pool, userId, gaId)
-      res.json({ success: true, data })
+      const configuredResult = await safeQuery(
+        pool,
+        `SELECT EXISTS (
+          SELECT 1
+          FROM user_notification_settings
+          WHERE user_id = $1 AND ga_id = $2
+        ) AS configured`,
+        [userId, gaId],
+      )
+      res.json({ success: true, data, configured: configuredResult.rows[0]?.configured === true })
     } catch (error) {
       handleDbError(error, req, res)
     }
