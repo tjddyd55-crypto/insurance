@@ -1,3 +1,4 @@
+import { ensureScheduleViewPrefsTable } from './apis/registerScheduleViewPrefsApi.js'
 import bcrypt from 'bcryptjs'
 import { randomUUID } from 'node:crypto'
 import { ensurePromotionCodesSchema } from './promotions/ensurePromotionCodesSchema.js'
@@ -2227,6 +2228,9 @@ export async function initDb() {
       PRIMARY KEY (user_id, ga_id, column_name)
     )
   `)
+
+  // 일정 화면 표시 설정(사용자별) — additive only
+  await ensureScheduleViewPrefsTable(pool)
 
   await pool.query(`
     ALTER TABLE insurance_forms

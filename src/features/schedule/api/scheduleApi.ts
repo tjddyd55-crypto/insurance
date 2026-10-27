@@ -345,3 +345,24 @@ export const GOOGLE_READ_ONLY_REASON: Record<string, string> = {
   special_type: '이 유형의 일정은 Google Calendar에서 수정해 주세요.',
   locked: '잠긴 일정은 수정할 수 없습니다.',
 }
+
+/** 일정 화면 표시 설정(사용자별, 서버 SSOT). 없는 키 = 클라이언트 기본값. */
+export type ScheduleViewPrefs = {
+  sources?: ScheduleFilterKey[]
+  includeCompleted?: boolean
+  includeOverdue?: boolean
+  googleCalendarIds?: string[] | null
+  holidayMode?: 'kr' | 'none'
+}
+
+const VIEW_PREFS_PATH = '/api/me/schedule-view-prefs'
+
+export async function fetchScheduleViewPrefs(token: string): Promise<ScheduleViewPrefs> {
+  const raw = await apiRequest<{ prefs?: ScheduleViewPrefs }>(VIEW_PREFS_PATH, { token })
+  return raw && typeof raw.prefs === 'object' && raw.prefs ? raw.prefs : {}
+}
+
+export async function saveScheduleViewPrefs(token: string, prefs: ScheduleViewPrefs): Promise<ScheduleViewPrefs> {
+  const raw = await apiRequest<{ prefs?: ScheduleViewPrefs }>(VIEW_PREFS_PATH, { token, method: 'PATCH', body: JSON.stringify({ prefs }) })
+  return raw && typeof raw.prefs === 'object' && raw.prefs ? raw.prefs : {}
+}
