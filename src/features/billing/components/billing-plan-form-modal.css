@@ -285,3 +285,128 @@
     padding-right: 16px;
   }
 }
+
+.billing-plan-form-modal__referral-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.billing-plan-form-modal__referral-table th,
+.billing-plan-form-modal__referral-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: right;
+}
+
+.billing-plan-form-modal__referral-table th:first-child,
+.billing-plan-form-modal__referral-table td:first-child {
+  text-align: left;
+}
+
+.billing-plan-form-modal__summary {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f9fafb;
+}
+
+.billing-plan-form-modal__summary dt {
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.billing-plan-form-modal__summary dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: right;
+}
+
+/* t544u: ①월 ②연간 | ③추천 1명당 할인 ④예상표 2열 한 흐름, 1280x800 첫 화면 최대 노출 */
+.billing-plan-form-modal-panel {
+  width: min(1040px, calc(100% - 32px));
+  max-width: min(1040px, calc(100% - 32px));
+  max-height: calc(100vh - 40px);
+}
+.billing-plan-form-modal__shell {
+  max-height: calc(100vh - 40px);
+}
+.billing-plan-form-modal__header {
+  padding: 14px 20px 10px;
+}
+.billing-plan-form-modal__body {
+  padding: 14px 20px;
+  gap: 12px;
+}
+.billing-plan-form-modal__section {
+  gap: 10px;
+  padding: 12px 14px;
+}
+.billing-plan-form-modal__pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.billing-plan-form-modal__pricing-col {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.billing-plan-form-modal__price-preview {
+  padding: 10px 12px;
+}
+.billing-plan-form-modal__price-preview dl {
+  gap: 6px 12px;
+}
+.billing-plan-form-modal__grid-2 {
+  align-items: start;
+}
+/* (b)(c) 힌트 문구: 입력칸 바로 아래 좌측 정렬, 줄바꿈 정돈 */
+.billing-plan-form-modal-panel .field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+}
+.billing-plan-form-modal-panel .field__hint {
+  display: block;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #6b7280;
+  white-space: normal;
+  word-break: keep-all;
+}
+.billing-plan-form-modal__referral-body {
+  display: grid;
+  gap: 8px;
+}
+.billing-plan-form-modal__referral-body.is-disabled {
+  opacity: 0.5;
+}
+.billing-plan-form-modal__subhead {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #374151;
+}
+.billing-plan-form-modal__free-note {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #047857;
+}
+@media (max-width: 900px) {
+  .billing-plan-form-modal__pricing-grid {
+    grid-template-columns: 1fr;
+  }
+}

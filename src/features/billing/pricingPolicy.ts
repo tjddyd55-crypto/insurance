@@ -118,71 +118,141 @@ export function calculateDiscountedTotalAmount(baseSupplyAmount: number, supplyD
   return calculateVatIncludedPrice(finalSupply)
 }
 
+/**
+ * VAT 포함 최종금액 → 공급가/VAT 역산 (서버 server/lib/billingAmounts.js splitVatInclusiveTotal 미러).
+ * supply = round(total / (1 + rate)), vat = total - supply. VAT 미적용이면 vat = 0.
+ */
+export function splitVatInclusiveTotal(totalAmount: number, applyVat = true, vatRate = VAT_RATE): VatIncludedPrice {
+  const total = Math.max(Math.round(Number(totalAmount) || 0), 0)
+  if (total === 0) return { supplyAmount: 0, vatAmount: 0, totalAmount: 0, vatRate: applyVat ? vatRate : 0 }
+  if (!applyVat || vatRate <= 0) return { supplyAmount: total, vatAmount: 0, totalAmount: total, vatRate: 0 }
+  const supplyAmount = Math.round(total / (1 + vatRate))
+  return { supplyAmount, vatAmount: total - supplyAmount, totalAmount: total, vatRate }
+}
+
+/**
+ * 추천 할인 적용 결제금액 (서버 computeBillingPayment 미러, 표시용 — 실제 청구액은 서버 계산).
+ */
+export function computeReferralPayment(
+  configuredTotal: number,
+  activeReferralCount: number,
+  referralDiscountPerUser: number = DEFAULT_REFERRAL_DISCOUNT_PER_USER,
+) {
+  const total = Math.max(Math.round(Number(configuredTotal) || 0), 0)
+  const count = Math.max(Math.round(Number(activeReferralCount) || 0), 0)
+  const perUser = Math.max(Math.round(Number(referralDiscountPerUser) || 0), 0)
+  const appliedReferralDiscount = Math.min(count * perUser, total)
+  return { configuredTotal: total, appliedReferralDiscount, paymentTotal: total - appliedReferralDiscount }
+}
+
+/** 연간 결제: 12개월 이용 / 10개월분 결제(2개월 무료). 서버 computeAnnualAmounts 미러. */
+export const ANNUAL_USAGE_MONTHS = 12
+export const ANNUAL_PAID_MONTHS = 10
+
+export function computeAnnualAmounts(monthlyFinalAmount: number, applyVat = true, vatRate = VAT_RATE) {
+  const monthly = Math.max(Math.round(Number(monthlyFinalAmount) || 0), 0)
+  const annualTotal = monthly * ANNUAL_PAID_MONTHS
+  const regularTotal = monthly * ANNUAL_USAGE_MONTHS
+  const split = splitVatInclusiveTotal(annualTotal, applyVat, vatRate)
+  return {
+    annualTotal,
+    regularTotal,
+    annualDiscount: regularTotal - annualTotal,
+    supplyAmount: split.supplyAmount,
+    vatAmount: split.vatAmount,
+  }
+}
+
+/** 공통 금액 포맷터: 14900 → "14,900" (천 단위 콤마, 단위 없음). */
+export function formatAmount(amount: number): string {
+  return Math.max(Math.round(Number(amount) || 0), 0).toLocaleString('ko-KR')
+}
+
 export function formatKrwTotal(totalAmount: number): string {
-  return `${Math.max(Math.round(Number(totalAmount) || 0), 0).toLocaleString('ko-KR')}원`
+  return `${formatAmount(totalAmount)}원`
+}
+
+/** 금액 입력: 숫자 외 문자(-, ., 콤마 등) 제거한 정수 문자열. 빈 값은 ''. */
+export function sanitizeAmountInput(raw: string): string {
+  const digits = String(raw ?? '').replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '')
+  return digits
+}
+
+/** 입력창 표시용: 숫자 문자열 → 콤마 포함. */
+export function formatAmountInput(raw: string): string {
+  const digits = sanitizeAmountInput(raw)
+  return digits === '' ? '' : formatAmount(Number(digits))
+}
+
+/** 숫자만 허용하는 키 입력 가드(마이너스/소수점/지수 차단). */
+export function isBlockedAmountKey(key: string): boolean {
+  return key === '-' || key === '.' || key === 'e' || key === 'E' || key === '+'
 }
 
 export function formatPricingBreakdown(priced: Pick<VatIncludedPrice, 'supplyAmount' | 'vatAmount' | 'totalAmount'>): string {
   return `공급가 ${formatKrwTotal(priced.supplyAmount)} · 부가세 ${formatKrwTotal(priced.vatAmount)} · 결제금액 ${formatKrwTotal(priced.totalAmount)}`
 }
 
+/** 신규 요금제 기본값: 유료 추천 1명당 월 할인(VAT 포함). 실제 값은 요금제별 설정. 서버 billingAmounts.js 와 동일. */
+export const DEFAULT_REFERRAL_DISCOUNT_PER_USER = 3000
+/** @deprecated DEFAULT_REFERRAL_DISCOUNT_PER_USER */
+export const REFERRAL_DISCOUNT_PER_ACTIVE_PAID = DEFAULT_REFERRAL_DISCOUNT_PER_USER
+
 export function calculateFreeReferralCount(plan: {
   allowsReferralDiscount?: boolean
-  referralDiscountStartCount?: number
+  totalAmount?: number
   referralDiscountUnitSupplyAmount?: number
-  supplyAmount?: number
 }): number | null {
   if (plan.allowsReferralDiscount === false) {
     return null
   }
-  const startCount = Math.max(
-    1,
-    Math.round(Number(plan.referralDiscountStartCount ?? DEFAULT_REFERRAL_DISCOUNT_START_COUNT) || 1),
-  )
-  const unitAmount = Math.max(
-    1,
-    Math.round(
-      Number(plan.referralDiscountUnitSupplyAmount ?? DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT) ||
-        DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT,
-    ),
-  )
-  const supply = Math.max(Math.round(Number(plan.supplyAmount) || 0), 0)
-  if (unitAmount <= 0 || supply <= 0) {
+  const total = Math.max(Math.round(Number(plan.totalAmount) || 0), 0)
+  if (total <= 0) {
     return null
   }
-  return startCount + Math.ceil(supply / unitAmount) - 1
+  const perUser = Math.max(
+    Math.round(Number(plan.referralDiscountUnitSupplyAmount ?? DEFAULT_REFERRAL_DISCOUNT_PER_USER) || 0),
+    0,
+  )
+  if (perUser <= 0) {
+    return null
+  }
+  return Math.ceil(total / perUser)
 }
 
 export function formatReferralDiscountPolicySummary(plan: {
   allowsReferralDiscount?: boolean
-  referralDiscountStartCount?: number
+  totalAmount?: number
   referralDiscountUnitSupplyAmount?: number
-  supplyAmount?: number
   freeReferralCount?: number | null
 }): string {
   if (plan.allowsReferralDiscount === false) {
     return '추천인 할인: 미적용'
   }
-  const startCount = Math.max(
-    1,
-    Math.round(Number(plan.referralDiscountStartCount ?? DEFAULT_REFERRAL_DISCOUNT_START_COUNT) || 1),
-  )
-  const unitAmount = Math.max(
-    1,
-    Math.round(
-      Number(plan.referralDiscountUnitSupplyAmount ?? DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT) ||
-        DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT,
-    ),
-  )
   const freeCount = plan.freeReferralCount ?? calculateFreeReferralCount(plan)
-  const startLabel = startCount <= 1 ? '1명째부터' : `${startCount}명째부터`
-  const parts = [
-    '추천인 할인: 적용',
-    `할인 시작: ${startLabel}`,
-    `1명당 할인: 공급가 ${unitAmount.toLocaleString('ko-KR')}원`,
-  ]
+  const perUser = Math.max(
+    Math.round(Number(plan.referralDiscountUnitSupplyAmount ?? DEFAULT_REFERRAL_DISCOUNT_PER_USER) || 0),
+    0,
+  )
+  const parts = ['추천인 할인: 적용', `유료 추천 1명당 월 ${formatKrwTotal(perUser)} (최종 결제금액 한도)`]
   if (freeCount != null) {
-    parts.push(`무료 기준: ${freeCount}명 추천 시 무료`)
+    parts.push(`${freeCount}명 추천 시 0원`)
   }
   return parts.join(' · ')
+}
+
+/**
+ * 관리자 모달 "현재 설정 기준 예상 결제금액" 표. 계산은 computeReferralPayment / calculateFreeReferralCount(SSOT) 재사용.
+ * 무료 도달 인원 = ceil(monthlyFinal / perUser), perUser 0 이면 null(표시 안 함). 무료 도달 행은 'N명 이상' 1행.
+ */
+export function buildReferralPaymentPreview(monthlyFinalAmount: number, referralDiscountPerUser: number, maxRows = 50) {
+  const total = Math.max(Math.round(Number(monthlyFinalAmount) || 0), 0)
+  const perUser = Math.max(Math.round(Number(referralDiscountPerUser) || 0), 0)
+  const freeReferralCount = calculateFreeReferralCount({ totalAmount: total, referralDiscountUnitSupplyAmount: perUser })
+  const lastCount = freeReferralCount == null ? 0 : Math.min(freeReferralCount, maxRows)
+  const rows = []
+  for (let n = 0; n <= lastCount; n += 1) {
+    rows.push({ count: n, isFreeRow: n === freeReferralCount, ...computeReferralPayment(total, n, perUser) })
+  }
+  return { freeReferralCount, rows }
 }

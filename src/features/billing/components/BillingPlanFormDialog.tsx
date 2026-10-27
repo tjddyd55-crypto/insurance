@@ -2,8 +2,18 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { BaseDialog } from '../../../components/dialog/BaseDialog'
 import { DialogActions } from '../../../components/dialog/DialogActions'
 import { FieldWrapper, FormButton, FormInput, FormTextarea } from '../../../components/form'
-import { calculateVatIncludedPrice, formatPricingBreakdown, VAT_RATE } from '../pricingPolicy'
-import { formatWon } from '../api/billingApi'
+import {
+  ANNUAL_PAID_MONTHS,
+  ANNUAL_USAGE_MONTHS,
+  DEFAULT_REFERRAL_DISCOUNT_PER_USER,
+  buildReferralPaymentPreview,
+  computeAnnualAmounts,
+  formatAmountInput,
+  formatKrwTotal,
+  isBlockedAmountKey,
+  sanitizeAmountInput,
+  splitVatInclusiveTotal,
+} from '../pricingPolicy'
 import type { BillingPlanAdminRow } from '../api/billingApi'
 import './billing-plan-form-modal.css'
 
@@ -12,7 +22,8 @@ const PLAN_CODE_PATTERN = /^[a-z0-9_]+$/
 export type BillingPlanFormValues = {
   code: string
   name: string
-  supplyAmount: string
+  /** VAT 포함 최종 결제금액 */
+  totalAmount: string
   applyVat: boolean
   allowsReferralDiscount: boolean
   referralDiscountStartCount: string
@@ -29,31 +40,35 @@ type BillingPlanFormDialogProps = {
   error: string
   onClose: () => void
   onSubmit: (values: BillingPlanFormValues) => void | Promise<void>
+  /** 신규 요금제 기본 1명당 할인금액 — 서버 /admin/billing/referral-policy 값(서버 DEFAULT_REFERRAL_DISCOUNT_PER_USER) */
+  defaultReferralDiscountPerUser?: number | null
 }
 
-const emptyValues: BillingPlanFormValues = {
+const makeEmptyValues = (defaultPerUser: number): BillingPlanFormValues => ({
   code: '',
   name: '',
-  supplyAmount: '',
+  totalAmount: '',
   applyVat: true,
   allowsReferralDiscount: true,
   referralDiscountStartCount: '1',
-  referralDiscountUnitSupplyAmount: '1000',
+  referralDiscountUnitSupplyAmount: String(defaultPerUser),
   description: '',
   isActive: true,
-}
+})
 
 function CheckboxField({
   label,
   description,
   checked,
   disabled,
+  testId,
   onChange,
 }: {
   label: string
   description?: string
   checked: boolean
   disabled?: boolean
+  testId?: string
   onChange: (checked: boolean) => void
 }) {
   return (
@@ -62,6 +77,7 @@ function CheckboxField({
         type="checkbox"
         checked={checked}
         disabled={disabled}
+        data-testid={testId}
         onChange={(e) => onChange(e.target.checked)}
       />
       <span className="billing-plan-form-modal__check-copy">
@@ -77,23 +93,31 @@ function AmountInput({
   helperText,
   value,
   disabled,
+  testId,
   onChange,
 }: {
   label: string
   helperText?: string
   value: string
   disabled?: boolean
+  testId?: string
   onChange: (value: string) => void
 }) {
   return (
     <FieldWrapper label={label} helperText={helperText}>
       <div className="billing-plan-form-modal__input-suffix-wrap">
+        {/* 표시는 천 단위 콤마, 상태/API 값은 숫자 문자열(콤마 없음). -, . 입력 차단 */}
         <FormInput
-          type="number"
-          min={1}
-          value={value}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          value={formatAmountInput(value)}
           disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
+          data-testid={testId}
+          onKeyDown={(e) => {
+            if (isBlockedAmountKey(e.key)) e.preventDefault()
+          }}
+          onChange={(e) => onChange(sanitizeAmountInput(e.target.value))}
         />
         <span className="billing-plan-form-modal__input-suffix">원</span>
       </div>
@@ -118,8 +142,14 @@ export function BillingPlanFormDialog({
   error,
   onClose,
   onSubmit,
+  defaultReferralDiscountPerUser,
 }: BillingPlanFormDialogProps) {
-  const [values, setValues] = useState<BillingPlanFormValues>(emptyValues)
+  // 서버 기본값 우선, 미수신 시에만 공용 상수(서버 SSOT 미러) 사용
+  const defaultPerUser =
+    typeof defaultReferralDiscountPerUser === 'number' && Number.isInteger(defaultReferralDiscountPerUser) && defaultReferralDiscountPerUser >= 0
+      ? defaultReferralDiscountPerUser
+      : DEFAULT_REFERRAL_DISCOUNT_PER_USER
+  const [values, setValues] = useState<BillingPlanFormValues>(() => makeEmptyValues(defaultPerUser))
   const [localError, setLocalError] = useState('')
 
   useEffect(() => {
@@ -129,40 +159,51 @@ export function BillingPlanFormDialog({
       setValues({
         code: initialPlan.dbCode,
         name: initialPlan.label,
-        supplyAmount: String(initialPlan.supplyAmount),
+        totalAmount: String(initialPlan.totalAmount),
         applyVat: initialPlan.applyVat,
         allowsReferralDiscount: initialPlan.allowsReferralDiscount,
         referralDiscountStartCount: String(initialPlan.referralDiscountStartCount ?? 1),
-        referralDiscountUnitSupplyAmount: String(initialPlan.referralDiscountUnitSupplyAmount ?? 1000),
+        referralDiscountUnitSupplyAmount: String(initialPlan.referralDiscountUnitSupplyAmount ?? defaultPerUser),
         description: initialPlan.description ?? '',
         isActive: initialPlan.isActive,
       })
       return
     }
-    setValues(emptyValues)
-  }, [open, mode, initialPlan])
+    setValues(makeEmptyValues(defaultPerUser))
+  }, [open, mode, initialPlan, defaultPerUser])
 
   const priced = useMemo(() => {
-    const supply = Math.max(Math.round(Number(values.supplyAmount) || 0), 0)
-    if (supply <= 0) {
+    const raw = Number(values.totalAmount)
+    if (!Number.isInteger(raw) || raw <= 0) {
       return null
     }
-    if (!values.applyVat) {
-      return { supplyAmount: supply, vatAmount: 0, totalAmount: supply }
-    }
-    return calculateVatIncludedPrice(supply, VAT_RATE)
-  }, [values.applyVat, values.supplyAmount])
+    return splitVatInclusiveTotal(raw, values.applyVat)
+  }, [values.applyVat, values.totalAmount])
 
-  const referralUnitPreview = useMemo(() => {
-    const amount = Math.round(Number(values.referralDiscountUnitSupplyAmount) || 0)
-    if (!values.allowsReferralDiscount || amount <= 0) return ''
-    return `1명당 ${formatWon(amount)} 할인`
-  }, [values.allowsReferralDiscount, values.referralDiscountUnitSupplyAmount])
+  const annual = useMemo(
+    () => (priced ? computeAnnualAmounts(priced.totalAmount, values.applyVat) : null),
+    [priced, values.applyVat],
+  )
+
+  const perUser = useMemo(() => {
+    const raw = values.referralDiscountUnitSupplyAmount
+    if (!/^\d+$/.test(raw)) return null
+    return Number(raw)
+  }, [values.referralDiscountUnitSupplyAmount])
+
+  // 체크 해제 시에도 values.referralDiscountUnitSupplyAmount 는 지우지 않음 → 재체크 시 그대로 복원
+  const preview = useMemo(
+    () => (priced && perUser != null ? buildReferralPaymentPreview(priced.totalAmount, perUser) : null),
+    [priced, perUser],
+  )
+  const freeReferralCount = values.allowsReferralDiscount ? (preview?.freeReferralCount ?? null) : null
+  const referralRows = preview?.rows ?? []
 
   const handleSubmit = () => {
     const code = values.code.trim().toLowerCase()
     const name = values.name.trim()
-    const supplyAmount = Math.round(Number(values.supplyAmount))
+    const totalRaw = values.totalAmount.trim()
+    const totalAmount = Number(totalRaw)
     if (mode === 'create' && (!code || !PLAN_CODE_PATTERN.test(code))) {
       setLocalError('요금제 코드는 영문 소문자, 숫자, 밑줄(_)만 사용할 수 있습니다.')
       return
@@ -171,24 +212,16 @@ export function BillingPlanFormDialog({
       setLocalError('요금제명을 입력해 주세요.')
       return
     }
-    if (!Number.isFinite(supplyAmount) || supplyAmount <= 0) {
-      setLocalError('공급가는 1원 이상이어야 합니다.')
+    if (!/^\d+$/.test(totalRaw) || !Number.isInteger(totalAmount) || totalAmount <= 0) {
+      setLocalError('최종 결제금액은 1원 이상의 정수(음수·소수 불가)로 입력해 주세요.')
       return
     }
-    const referralDiscountStartCount = Math.round(Number(values.referralDiscountStartCount))
-    const referralDiscountUnitSupplyAmount = Math.round(Number(values.referralDiscountUnitSupplyAmount))
-    if (values.allowsReferralDiscount) {
-      if (!Number.isFinite(referralDiscountStartCount) || referralDiscountStartCount < 1) {
-        setLocalError('할인 시작 추천인 수는 1 이상이어야 합니다.')
-        return
-      }
-      if (!Number.isFinite(referralDiscountUnitSupplyAmount) || referralDiscountUnitSupplyAmount < 1) {
-        setLocalError('1명당 할인 공급가는 1원 이상이어야 합니다.')
-        return
-      }
+    if (values.allowsReferralDiscount && !/^\d+$/.test(values.referralDiscountUnitSupplyAmount.trim())) {
+      setLocalError('유료 추천 1명당 월 할인금액은 0원 이상의 정수로 입력해 주세요.')
+      return
     }
     setLocalError('')
-    void onSubmit({ ...values, code, name, supplyAmount: String(supplyAmount) })
+    void onSubmit({ ...values, code, name, totalAmount: String(totalAmount) })
   }
 
   const displayError = localError || error
@@ -232,7 +265,7 @@ export function BillingPlanFormDialog({
           <FormSection title="기본 정보">
             <div className="billing-plan-form-modal__grid-2">
               {mode === 'create' ? (
-                <FieldWrapper label="요금제 코드" helperText="예: monthly_special">
+                <FieldWrapper label="요금제 코드" helperText="예: monthly_special" className="billing-plan-form-modal__field">
                   <FormInput
                     value={values.code}
                     onChange={(e) => setValues((prev) => ({ ...prev, code: e.target.value }))}
@@ -257,80 +290,132 @@ export function BillingPlanFormDialog({
             </div>
           </FormSection>
 
-          <FormSection title="가격 설정">
-            <AmountInput
-              label="공급가"
-              value={values.supplyAmount}
-              disabled={busy}
-              onChange={(next) => setValues((prev) => ({ ...prev, supplyAmount: next }))}
-            />
-            <CheckboxField
-              label="VAT 적용"
-              description="체크 시 공급가에 10% 부가세가 적용됩니다."
-              checked={values.applyVat}
-              disabled={busy}
-              onChange={(applyVat) => setValues((prev) => ({ ...prev, applyVat }))}
-            />
-            <div className="billing-plan-form-modal__price-preview">
-              <p className="billing-plan-form-modal__price-preview-title">가격 미리보기</p>
-              {priced ? (
-                <dl>
-                  <dt>공급가</dt>
-                  <dd>{formatWon(priced.supplyAmount)}</dd>
-                  <dt>부가세</dt>
-                  <dd>{formatWon(priced.vatAmount)}</dd>
-                  <dt>결제금액</dt>
-                  <dd className="billing-plan-form-modal__price-total">{formatWon(priced.totalAmount)}</dd>
-                </dl>
-              ) : (
-                <p className="billing-plan-form-modal__hint">공급가를 입력하면 부가세·결제금액이 계산됩니다.</p>
-              )}
-              {priced ? (
-                <p className="billing-plan-form-modal__hint">{formatPricingBreakdown(priced)}</p>
-              ) : null}
-            </div>
-          </FormSection>
+          <div className="billing-plan-form-modal__pricing-grid" data-testid="pricing-flow">
+            <div className="billing-plan-form-modal__pricing-col">
+              <FormSection title="① 월 최종 결제금액">
+                <AmountInput
+                  label="월 이용료 (VAT 포함 최종 결제금액)"
+                  helperText="고객이 매월 실제 결제하는 금액. 공급가·부가세는 자동 역산됩니다."
+                  value={values.totalAmount}
+                  disabled={busy}
+                  testId="monthly-total-input"
+                  onChange={(next) => setValues((prev) => ({ ...prev, totalAmount: next }))}
+                />
+                <CheckboxField
+                  label="VAT 적용"
+                  description="입력 금액에 부가세(10%)가 포함된 것으로 보고 나눕니다."
+                  checked={values.applyVat}
+                  disabled={busy}
+                  onChange={(applyVat) => setValues((prev) => ({ ...prev, applyVat }))}
+                />
+                <div className="billing-plan-form-modal__price-preview" data-testid="monthly-preview">
+                  {priced ? (
+                    <dl>
+                      <dt>월 결제금액</dt>
+                      <dd className="billing-plan-form-modal__price-total">{formatKrwTotal(priced.totalAmount)}</dd>
+                      <dt>공급가 / 부가세</dt>
+                      <dd>
+                        {formatKrwTotal(priced.supplyAmount)} / {formatKrwTotal(priced.vatAmount)}
+                      </dd>
+                    </dl>
+                  ) : (
+                    <p className="billing-plan-form-modal__hint">월 이용료를 입력하면 공급가·부가세가 계산됩니다.</p>
+                  )}
+                </div>
+              </FormSection>
 
-          <FormSection title="추천 할인">
-            <CheckboxField
-              label="추천 할인 적용"
-              description="추천 유료 가입자 수에 따라 월 이용료를 할인합니다."
-              checked={values.allowsReferralDiscount}
-              disabled={busy}
-              onChange={(allowsReferralDiscount) =>
-                setValues((prev) => ({ ...prev, allowsReferralDiscount }))
-              }
-            />
-            {values.allowsReferralDiscount ? (
-              <div className="billing-plan-form-modal__grid-2">
-                <FieldWrapper label="할인 시작 추천 수" helperText="monthly_basic=1, monthly_discount=4">
-                  <FormInput
-                    type="number"
-                    min={1}
-                    value={values.referralDiscountStartCount}
-                    onChange={(e) =>
-                      setValues((prev) => ({ ...prev, referralDiscountStartCount: e.target.value }))
-                    }
-                    disabled={busy}
-                    placeholder="4"
-                  />
-                </FieldWrapper>
-                <div>
+              <FormSection title="② 연간 결제금액 (자동 계산)">
+                <div className="billing-plan-form-modal__price-preview" data-testid="annual-preview">
+                  {annual ? (
+                    <dl>
+                      <dt>연간 결제금액</dt>
+                      <dd className="billing-plan-form-modal__price-total" data-testid="annual-total">
+                        {formatKrwTotal(annual.annualTotal)}
+                      </dd>
+                      <dt>정상 {ANNUAL_USAGE_MONTHS}개월 / 할인</dt>
+                      <dd>
+                        {formatKrwTotal(annual.regularTotal)} / -{formatKrwTotal(annual.annualDiscount)}
+                      </dd>
+                      <dt>공급가 / 부가세</dt>
+                      <dd>
+                        {formatKrwTotal(annual.supplyAmount)} / {formatKrwTotal(annual.vatAmount)}
+                      </dd>
+                    </dl>
+                  ) : (
+                    <p className="billing-plan-form-modal__hint">월 이용료를 입력하면 연간 금액이 자동 계산됩니다.</p>
+                  )}
+                  <p className="billing-plan-form-modal__hint">
+                    {ANNUAL_USAGE_MONTHS}개월 이용 / {ANNUAL_PAID_MONTHS}개월분 결제 ({ANNUAL_USAGE_MONTHS - ANNUAL_PAID_MONTHS}개월 무료)
+                  </p>
+                </div>
+              </FormSection>
+            </div>
+
+            <div className="billing-plan-form-modal__pricing-col">
+              <FormSection title="추천 할인">
+                <CheckboxField
+                  label="추천 할인 적용"
+                  description="유료 이용 중인 추천회원 1명당 매월 설정 금액 할인"
+                  checked={values.allowsReferralDiscount}
+                  disabled={busy}
+                  testId="referral-enabled-checkbox"
+                  onChange={(allowsReferralDiscount) =>
+                    setValues((prev) => ({ ...prev, allowsReferralDiscount }))
+                  }
+                />
+                <div
+                  className={`billing-plan-form-modal__referral-body${values.allowsReferralDiscount ? '' : ' is-disabled'}`}
+                  data-testid="referral-body"
+                  aria-disabled={!values.allowsReferralDiscount}
+                >
                   <AmountInput
-                    label="1명당 할인 공급가"
+                    label="③ 유료 추천 1명당 월 할인금액"
+                    helperText="0원 이상 정수. 변경 시 다음 결제 계산부터 적용(과거 결제 재계산 없음)."
                     value={values.referralDiscountUnitSupplyAmount}
-                    disabled={busy}
+                    disabled={busy || !values.allowsReferralDiscount}
+                    testId="referral-discount-per-user-input"
                     onChange={(next) =>
                       setValues((prev) => ({ ...prev, referralDiscountUnitSupplyAmount: next }))
                     }
                   />
-                  {referralUnitPreview ? (
-                    <p className="billing-plan-form-modal__hint">{referralUnitPreview}</p>
+                  <p className="billing-plan-form-modal__subhead">④ 현재 설정 기준 예상 결제금액</p>
+                  {values.allowsReferralDiscount && referralRows.length > 0 ? (
+                    <table className="billing-plan-form-modal__referral-table" data-testid="referral-table">
+                      <thead>
+                        <tr>
+                          <th>유료 추천</th>
+                          <th>할인</th>
+                          <th>월 결제금액</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {referralRows.map((row) => (
+                          <tr key={row.count} data-testid={`referral-row-${row.count}`}>
+                            <td>
+                              {row.count}명{row.isFreeRow ? ' 이상' : ''}
+                            </td>
+                            <td>{formatKrwTotal(row.appliedReferralDiscount)}</td>
+                            <td>{formatKrwTotal(row.paymentTotal)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p className="billing-plan-form-modal__hint">
+                      {values.allowsReferralDiscount ? '월 이용료와 할인금액을 입력하면 표시됩니다.' : '추천 할인 미적용'}
+                    </p>
+                  )}
+                  {freeReferralCount != null ? (
+                    <p className="billing-plan-form-modal__free-note" data-testid="referral-free-count">
+                      유료 추천 {freeReferralCount}명 이상 유지 시 월 이용료 0원
+                    </p>
+                  ) : values.allowsReferralDiscount && perUser === 0 ? (
+                    <p className="billing-plan-form-modal__hint">1명당 할인금액이 0원이면 무료 조건이 없습니다.</p>
                   ) : null}
                 </div>
-              </div>
-            ) : null}
-          </FormSection>
+              </FormSection>
+            </div>
+          </div>
 
           <FormSection title="상태 및 설명">
             <CheckboxField
@@ -349,6 +434,38 @@ export function BillingPlanFormDialog({
                 placeholder="요금제 설명을 입력하세요."
               />
             </FieldWrapper>
+          </FormSection>
+          <FormSection title="현재 요금제 요약">
+            {priced ? (
+              <dl className="billing-plan-form-modal__summary" data-testid="plan-summary">
+                <dt>월 이용료</dt>
+                <dd>{priced ? formatKrwTotal(priced.totalAmount) : '—'}</dd>
+                <dt>연간 이용료</dt>
+                <dd>
+                  {annual
+                    ? `${formatKrwTotal(annual.annualTotal)} (${ANNUAL_USAGE_MONTHS}개월 이용 / ${ANNUAL_USAGE_MONTHS - ANNUAL_PAID_MONTHS}개월 무료)`
+                    : '—'}
+                </dd>
+                <dt>추천 할인</dt>
+                <dd>
+                  {values.allowsReferralDiscount
+                    ? perUser != null
+                      ? `유료 추천 1명당 월 ${formatKrwTotal(perUser)}`
+                      : '—'
+                    : '미적용'}
+                </dd>
+                <dt>무료 이용 조건</dt>
+                <dd>
+                  {values.allowsReferralDiscount && freeReferralCount != null
+                    ? `유료 추천 ${freeReferralCount}명 이상 유지`
+                    : '없음'}
+                </dd>
+              </dl>
+            ) : (
+              <p className="billing-plan-form-modal__hint" data-testid="plan-summary-empty">
+                월 이용료를 입력하면 요약이 표시됩니다.
+              </p>
+            )}
           </FormSection>
         </div>
 
@@ -384,6 +501,6 @@ export function buildBillingPlanSelectOptions(
     .filter((plan) => plan.isActive || selected.has(plan.dbCode))
     .map((plan) => ({
       value: plan.dbCode,
-      label: `${plan.label} (${plan.displayPriceWithVatNote})${plan.isActive ? '' : ' · 비활성'}`,
+      label: `${plan.label} ${plan.totalAmount.toLocaleString('ko-KR')}원 / 월 (${plan.applyVat === false ? 'VAT 미적용' : 'VAT 포함'})${plan.isActive ? '' : ' · 비활성'}`,
     }))
 }

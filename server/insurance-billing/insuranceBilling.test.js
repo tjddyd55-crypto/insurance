@@ -45,9 +45,13 @@ describe('insurance billing config', () => {
     assert.equal(isInsuranceBillingEntitledStatus('none'), false)
   })
 
-  it('referrer discount caps at 8000', () => {
-    assert.equal(calculateReferrerDiscountAmount(3), 3000)
-    assert.equal(calculateReferrerDiscountAmount(10), 8000)
+  it('referrer discount: 요금제별 1명당 할인(기본 3,000), 고정 8,000 상한 없음, 최종금액 cap', () => {
+    // 기본값(신규 요금제) 1명당 3,000 / 요금제별 설정값 우선
+    assert.equal(calculateReferrerDiscountAmount(3), 9000)
+    assert.equal(calculateReferrerDiscountAmount(3, null, 1000), 3000)
+    assert.equal(calculateReferrerDiscountAmount(10, 10500, 1000), 10000)
+    assert.equal(calculateReferrerDiscountAmount(10, 10500), 10500)
+    assert.equal(calculateReferrerDiscountAmount(12, 10500), 10500)
   })
 
   it('mock payment blocked in production node env', () => {
@@ -633,7 +637,8 @@ describe('insurance billing referral discount count', () => {
     }
     const activePaidCount = await countActivePaidReferrals(activePaidExecutor, 'referrer-1')
     assert.equal(activePaidCount, 1)
-    assert.equal(calculateReferrerDiscountAmount(activePaidCount), 1000)
+    assert.equal(calculateReferrerDiscountAmount(activePaidCount), 3000)
+    assert.equal(calculateReferrerDiscountAmount(activePaidCount, 14900, 2000), 2000)
   })
 })
 

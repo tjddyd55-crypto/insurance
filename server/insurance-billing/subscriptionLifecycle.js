@@ -1,3 +1,10 @@
+import {
+  DEFAULT_REFERRAL_DISCOUNT_PER_USER,
+  computeAnnualAmounts,
+  resolveReferralDiscountPerUser,
+  computeBillingPayment,
+  splitVatInclusiveTotal,
+} from '../lib/billingAmounts.js'
 import { randomUUID } from 'node:crypto'
 import { INSURANCE_BASIC_PLAN_CODE, isInsuranceBillingEnabled } from './config.js'
 import {
@@ -218,11 +225,21 @@ export async function qualifyBillingReferralOnPaidPayment(client, referredUserId
  */
 export async function recordReferrerDiscountSnapshot(client, referrerUserId, appliedPaymentId = null) {
   const count = await countActivePaidReferrals(client, referrerUserId)
-  const discountAmount = calculateReferrerDiscountAmount(count)
   const subR = await systemQuery(
     client,
-    `SELECT id FROM billing_subscriptions WHERE user_id = $1 LIMIT 1`,
+    `
+    SELECT s.id, bp.monthly_total, bp.amount, bp.referral_discount_unit_supply_amount
+    FROM billing_subscriptions s
+    LEFT JOIN billing_plans bp ON bp.code = s.plan_code
+    WHERE s.user_id = $1
+    LIMIT 1
+    `,
     [referrerUserId],
+  )
+  const discountAmount = calculateReferrerDiscountAmount(
+    count,
+    resolveMonthlyConfiguredTotal(subR.rows[0] ?? {}),
+    resolveReferralDiscountPerUser(subR.rows[0] ?? {}),
   )
   const subscriptionId = subR.rows[0]?.id ?? null
   const billingPeriod = new Date().toISOString().slice(0, 7)
@@ -322,13 +339,25 @@ export async function countActivePaidReferrals(executor, referrerUserId) {
 }
 
 /**
- * 추천 할인: active_paid referral 1명당 1,000원, 최대 8,000원
+ * 추천 할인: active_paid referral 1명당 매월 1,000원. 상한 = 그 달 최종 결제 기준금액(고정 상한 없음).
  *
  * @param {number} activePaidReferralCount
+ * @param {number} [configuredTotal] 미지정 시 상한 없이 raw 할인
  */
-export function calculateReferrerDiscountAmount(activePaidReferralCount) {
-  const count = Math.max(0, Number(activePaidReferralCount) || 0)
-  return Math.min(count * 1000, 8000)
+export function calculateReferrerDiscountAmount(activePaidReferralCount, configuredTotal, referralDiscountPerUser) {
+  const count = Math.max(0, Math.round(Number(activePaidReferralCount) || 0))
+  const perUser =
+    referralDiscountPerUser == null ? DEFAULT_REFERRAL_DISCOUNT_PER_USER : Math.max(0, Math.round(Number(referralDiscountPerUser) || 0))
+  const raw = count * perUser
+  if (configuredTotal == null) return raw
+  return computeBillingPayment({ configuredTotal, activeReferralCount: count, referralDiscountPerUser: perUser })
+    .appliedReferralDiscount
+}
+
+/** @param {object} plan */
+function resolveMonthlyConfiguredTotal(plan) {
+  const raw = plan?.monthly_total ?? plan?.amount ?? 8800
+  return Math.max(0, Math.round(Number(raw) || 0))
 }
 
 /**
@@ -337,16 +366,56 @@ export function calculateReferrerDiscountAmount(activePaidReferralCount) {
  */
 export function resolvePlanPaymentAmounts(plan, billingCycle) {
   const cycle = String(billingCycle ?? 'monthly').trim().toLowerCase() === 'yearly' ? 'yearly' : 'monthly'
-  const totalAmount =
-    cycle === 'yearly'
-      ? Number(plan.yearly_total ?? plan.amount ?? 88000)
-      : Number(plan.monthly_total ?? plan.amount ?? 8800)
-  const supplyAmount =
-    cycle === 'yearly'
-      ? Number(plan.yearly_price ?? 80000)
-      : Number(plan.monthly_price ?? plan.supply_amount ?? 8000)
-  const vatAmount = totalAmount - supplyAmount
-  return { billingCycle: cycle, totalAmount, supplyAmount, vatAmount }
+  const vatOpts = {
+    applyVat: plan?.apply_vat !== false,
+    vatRate: plan?.vat_rate != null ? Number(plan.vat_rate) : undefined,
+  }
+  if (cycle === 'yearly') {
+    // 연간: 별도 컬럼(yearly_*)을 읽지 않고 월 최종금액 × 10 에서 파생(12개월 이용/10개월분 결제).
+    const annual = computeAnnualAmounts(resolveMonthlyConfiguredTotal(plan), vatOpts)
+    return {
+      billingCycle: cycle,
+      totalAmount: annual.annualTotal,
+      supplyAmount: annual.supplyAmount,
+      vatAmount: annual.vatAmount,
+    }
+  }
+  // 월 요금: VAT 포함 최종금액(monthly_total)이 SSOT. 공급가/VAT 는 역산(합 일치).
+  const split = splitVatInclusiveTotal(resolveMonthlyConfiguredTotal(plan), vatOpts)
+  return { billingCycle: cycle, ...split }
+}
+
+/**
+ * 서버 SSOT: 설정 최종금액 → 추천 할인(현재 active_paid 수) → 실제 결제금액 → 공급가/VAT 역산.
+ * 월 결제·프로모션 미사용일 때만 추천 할인 적용(연 결제·쿠폰 결제는 기존 금액 경로 유지).
+ *
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {{ userId: string; plan: object; billingCycle: string; applyReferral?: boolean }} params
+ */
+export async function resolveReferralAdjustedPlanAmounts(executor, params) {
+  const base = resolvePlanPaymentAmounts(params.plan, params.billingCycle)
+  const referralEnabled =
+    params.applyReferral !== false &&
+    base.billingCycle === 'monthly' &&
+    params.plan?.allows_referral_discount !== false
+  const activeReferralCount =
+    referralEnabled && params.userId ? await countActivePaidReferrals(executor, params.userId) : 0
+  const calc = computeBillingPayment({
+    configuredTotal: base.totalAmount,
+    activeReferralCount,
+    referralEnabled,
+    referralDiscountPerUser: resolveReferralDiscountPerUser(params.plan),
+    applyVat: params.plan?.apply_vat !== false,
+    vatRate: params.plan?.vat_rate != null ? Number(params.plan.vat_rate) : undefined,
+  })
+  return {
+    billingCycle: base.billingCycle,
+    baseAmount: base.totalAmount,
+    baseSupplyAmount: base.supplyAmount,
+    baseVatAmount: base.vatAmount,
+    ...calc,
+    totalAmount: calc.paymentTotal,
+  }
 }
 
 /**
@@ -371,7 +440,8 @@ export async function createPendingInsurancePayment(client, params) {
   const planR = await systemQuery(
     client,
     `
-    SELECT code, monthly_total, yearly_total, monthly_price, yearly_price, is_active
+    SELECT code, amount, apply_vat, vat_rate, allows_referral_discount, referral_discount_unit_supply_amount,
+           monthly_total, yearly_total, monthly_price, yearly_price, is_active
     FROM billing_plans
     WHERE code = $1
     LIMIT 1
@@ -416,7 +486,7 @@ export async function createPendingInsurancePayment(client, params) {
     supplyAmount = amounts.supplyAmount
     vatAmount = amounts.vatAmount
   } else {
-    const amounts = resolvePlanPaymentAmounts(plan, billingCycle)
+    const amounts = await resolveReferralAdjustedPlanAmounts(client, { userId, plan, billingCycle })
     totalAmount = amounts.totalAmount
     supplyAmount = amounts.supplyAmount
     vatAmount = amounts.vatAmount
@@ -582,7 +652,7 @@ export async function finalizeInsurancePaymentAsPaid(client, params) {
     const planR = await systemQuery(
       client,
       `
-      SELECT monthly_total, yearly_total, monthly_price, yearly_price
+      SELECT amount, apply_vat, vat_rate, monthly_total, yearly_total, monthly_price, yearly_price
       FROM billing_plans WHERE code = $1 LIMIT 1
       `,
       [planCode],

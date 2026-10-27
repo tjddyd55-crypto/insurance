@@ -28,8 +28,8 @@ import {
   BASE_MONTHLY_PRICE,
   MAX_REFERRER_DISCOUNT_COUNT,
   REFEREE_FIRST_MONTH_DISCOUNT_AMOUNT,
-  REFERRER_DISCOUNT_PER_ACTIVE_REFERRAL,
 } from './referrals/policy.js'
+import { DEFAULT_REFERRAL_DISCOUNT_PER_USER } from './lib/billingAmounts.js'
 
 /**
  * @param {import('express').Router} apiRouter
@@ -97,6 +97,8 @@ export function registerBillingApi(apiRouter, ctx) {
       duplicate_plan_code: { status: 409, message: '이미 사용 중인 요금제 코드입니다.' },
       invalid_plan_name: { status: 400, message: '요금제명을 입력해 주세요.' },
       invalid_supply_amount: { status: 400, message: '공급가는 1원 이상이어야 합니다.' },
+      invalid_total_amount: { status: 400, message: '최종 결제금액(VAT 포함)은 1원 이상의 정수여야 합니다.' },
+    invalid_referral_discount_per_user: { status: 400, message: '추천 1명당 할인금액은 0원 이상의 정수여야 합니다.' },
       inactive_billing_plan: { status: 400, message: '비활성 요금제는 선택할 수 없습니다.' },
       plan_not_found: { status: 404, message: '요금제를 찾을 수 없습니다.' },
     })
@@ -295,7 +297,8 @@ export function registerBillingApi(apiRouter, ctx) {
   apiRouter.get('/admin/billing/referral-policy', requireAuth, requireSuperAdmin, async (_req, res) => {
     res.json({
       baseMonthlySupplyAmount: BASE_MONTHLY_PRICE,
-      referrerDiscountPerActiveReferral: REFERRER_DISCOUNT_PER_ACTIVE_REFERRAL,
+      // 표시용: 신규 요금제 기본값. 실제 할인액은 요금제별 설정(referral_discount_unit_supply_amount).
+      referrerDiscountPerActiveReferral: DEFAULT_REFERRAL_DISCOUNT_PER_USER,
       refereeFirstMonthDiscountAmount: 0,
       maxReferrerDiscountCount: MAX_REFERRER_DISCOUNT_COUNT,
       notes: [

@@ -227,7 +227,19 @@ export interface BillingPlanAdminRow {
   allowsReferralDiscount: boolean
   referralDiscountStartCount: number
   referralDiscountUnitSupplyAmount: number
+  /** 유료 추천 1명당 월 할인(VAT 포함) — referralDiscountUnitSupplyAmount 별칭 */
+  referralDiscountPerUser?: number
   freeReferralCount: number | null
+  /** 서버 파생 연간 금액(월 × 10) */
+  annual?: {
+    totalAmount: number
+    regularTotalAmount: number
+    discountAmount: number
+    supplyAmount: number
+    vatAmount: number
+    usageMonths: number
+    paidMonths: number
+  }
   isActive: boolean
   description: string | null
   cycle: string
@@ -302,7 +314,10 @@ export async function createAdminBillingPlan(
   body: {
     code: string
     name: string
-    supplyAmount: number
+    /** VAT 포함 최종 결제금액 (SSOT) */
+    totalAmount?: number
+    /** legacy: 공급가 입력 */
+    supplyAmount?: number
     applyVat?: boolean
     vatRate?: number
     allowsReferralDiscount?: boolean
@@ -324,6 +339,7 @@ export async function updateAdminBillingPlan(
   code: string,
   body: {
     name?: string
+    totalAmount?: number
     supplyAmount?: number
     applyVat?: boolean
     vatRate?: number
