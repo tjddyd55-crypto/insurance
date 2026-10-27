@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   computeBillingPlanAmounts,
   createBillingPlanAdmin,
+  deleteBillingPlanAdmin,
   setBillingPlanActiveAdmin,
   updateBillingPlanAdmin,
 } from './billingPlanService.js'
@@ -59,6 +60,27 @@ function createMockExecutor(state) {
           state.plans[code].is_active = params[10]
         }
         return { rows: [], rowCount: 1 }
+      }
+
+      if (q.includes('AS ga_count')) {
+        return {
+          rows: [{
+            ga_count: state.planUsage?.ga ?? 0,
+            user_count: state.planUsage?.user ?? 0,
+            subscription_count: state.planUsage?.subscription ?? 0,
+            invoice_count: state.planUsage?.invoice ?? 0,
+            payment_count: state.planUsage?.payment ?? 0,
+            promotion_count: state.planUsage?.promotion ?? 0,
+          }],
+          rowCount: 1,
+        }
+      }
+
+      if (q.includes('DELETE FROM billing_plans')) {
+        const code = String(params[0])
+        const plan = state.plans[code]
+        if (plan) delete state.plans[code]
+        return { rows: plan ? [{ code }] : [], rowCount: plan ? 1 : 0 }
       }
 
       if (q.includes('FROM billing_plans') && q.includes('WHERE code = $1')) {
@@ -258,4 +280,63 @@ test('setBillingPlanActiveAdmin deactivates plan', async () => {
   const result = await setBillingPlanActiveAdmin(executor, 'monthly_special', false)
   assert.equal(result.plan.isActive, false)
   assert.equal(state.plans.monthly_special.is_active, false)
+})
+
+test('deleteBillingPlanAdmin deletes an unused non-default plan', async () => {
+  const state = {
+    plans: {
+      plan_unused: {
+        code: 'plan_unused', name: 'QA', amount: 14900, supply_amount: 13545,
+        vat_rate: 0.1, apply_vat: true, cycle: 'monthly', is_active: false,
+        allows_referral_discount: true, referral_discount_start_count: 1,
+        referral_discount_unit_supply_amount: 3000, description: null,
+      },
+    },
+    planUsage: {},
+    gaPlans: {},
+    users: {},
+  }
+  const result = await deleteBillingPlanAdmin(createMockExecutor(state), 'plan_unused')
+  assert.deepEqual(result, { ok: true, planCode: 'plan_unused' })
+  assert.equal(state.plans.plan_unused, undefined)
+})
+
+test('deleteBillingPlanAdmin blocks every kind of usage and billing history', async (t) => {
+  for (const [kind, key] of [
+    ['GA default', 'ga'],
+    ['user override', 'user'],
+    ['subscription', 'subscription'],
+    ['invoice', 'invoice'],
+    ['payment history', 'payment'],
+    ['promotion reference', 'promotion'],
+  ]) {
+    await t.test(kind, async () => {
+      const state = {
+        plans: {
+          plan_used: {
+            code: 'plan_used', name: 'QA', amount: 14900, supply_amount: 13545,
+            vat_rate: 0.1, apply_vat: true, cycle: 'monthly', is_active: false,
+            allows_referral_discount: true, referral_discount_start_count: 1,
+            referral_discount_unit_supply_amount: 3000, description: null,
+          },
+        },
+        planUsage: { [key]: 1 },
+        gaPlans: {},
+        users: {},
+      }
+      await assert.rejects(
+        deleteBillingPlanAdmin(createMockExecutor(state), 'plan_used'),
+        (error) => error?.message === 'billing_plan_in_use',
+      )
+      assert.ok(state.plans.plan_used)
+    })
+  }
+})
+
+test('deleteBillingPlanAdmin protects built-in plan codes', async () => {
+  const state = { plans: {}, gaPlans: {}, users: {} }
+  await assert.rejects(
+    deleteBillingPlanAdmin(createMockExecutor(state), 'monthly_basic'),
+    (error) => error?.message === 'billing_plan_system_default',
+  )
 })
