@@ -357,6 +357,13 @@ export async function updateAdminBillingPlan(
   })
 }
 
+export async function deleteAdminBillingPlan(token: string, code: string): Promise<{ ok: boolean; planCode: string }> {
+  return apiRequest(`/api/admin/billing/plans/${encodeURIComponent(code)}`, {
+    method: 'DELETE',
+    token,
+  })
+}
+
 export async function setAdminBillingPlanStatus(
   token: string,
   code: string,

@@ -6,6 +6,7 @@ import {
   resolveEffectiveRenewalBillingCycle,
   resolveNextChargeAmountFromPlan,
 } from '../insurance-billing/subscriptionManageActions.js'
+import { buildManageSubscriptionView, mapUserPaymentRow } from '../insurance-billing/billingManageService.js'
 
 test('normalizeBillingCycle yearly/monthly', () => {
   assert.equal(normalizeBillingCycle('yearly'), 'yearly')
@@ -77,4 +78,39 @@ test('next charge amounts from plan SSOT', () => {
   }
   assert.equal(resolveNextChargeAmountFromPlan(plan, 'monthly').totalAmount, 8800)
   assert.equal(resolveNextChargeAmountFromPlan(plan, 'yearly').totalAmount, 88000)
+})
+
+test('plan price edits apply to next charge, while an existing payment row keeps its stored amount', () => {
+  const view = buildManageSubscriptionView(
+    {
+      status: 'active_paid',
+      plan_code: 'monthly_basic',
+      billing_cycle: 'monthly',
+      current_period_end: '2026-11-01T00:00:00.000Z',
+    },
+    {
+      planCode: 'monthly_basic',
+      planName: '월 이용료',
+      billingCycle: 'monthly',
+      hasBillingCredential: true,
+      planAmounts: {
+        monthly_total: 14900,
+        monthly_price: 13545,
+        monthly_vat: 1355,
+      },
+    },
+  )
+  const existingPayment = mapUserPaymentRow({
+    id: 17,
+    status: 'pending',
+    amount: 8000,
+    vat_amount: 800,
+    total_amount: 8800,
+    billing_cycle: 'monthly',
+    plan_code: 'monthly_basic',
+    created_at: '2026-10-01T00:00:00.000Z',
+  })
+
+  assert.equal(view.nextChargeAmount, 14900)
+  assert.equal(existingPayment.totalAmount, 8800)
 })
