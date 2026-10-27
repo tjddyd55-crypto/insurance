@@ -7,6 +7,23 @@ import {
   calculateVatIncludedPrice,
   resolveBillingPlan,
 } from '../lib/pricingPolicy.js'
+import {
+  DEFAULT_REFERRAL_DISCOUNT_PER_USER,
+  computeAnnualAmounts,
+  splitVatInclusiveTotal,
+} from '../lib/billingAmounts.js'
+
+/**
+ * 유료 추천 1명당 월 할인(VAT 포함 원). 0 이상 정수만 허용.
+ * @param {unknown} raw
+ */
+export function parseReferralDiscountPerUser(raw) {
+  const n = typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : raw
+  if (typeof n !== 'number' || !Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
+    throw new Error('invalid_referral_discount_per_user')
+  }
+  return n
+}
 import { assertValidBillingPlanCode } from './billingPlanCode.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 
@@ -33,7 +50,21 @@ function mapPlanRowToAdminDto(row) {
     allowsReferralDiscount: plan.allowsReferralDiscount,
     referralDiscountStartCount: plan.referralDiscountStartCount,
     referralDiscountUnitSupplyAmount: plan.referralDiscountUnitSupplyAmount,
+    /** 유료 추천 1명당 월 할인(VAT 포함). referralDiscountUnitSupplyAmount 와 동일 값(명확한 별칭). */
+    referralDiscountPerUser: plan.referralDiscountUnitSupplyAmount,
     freeReferralCount,
+    annual: (() => {
+      const a = computeAnnualAmounts(plan.totalAmount, { applyVat: row.apply_vat !== false, vatRate: plan.vatRate })
+      return {
+        totalAmount: a.annualTotal,
+        regularTotalAmount: a.regularTotal,
+        discountAmount: a.annualDiscount,
+        supplyAmount: a.supplyAmount,
+        vatAmount: a.vatAmount,
+        usageMonths: a.usageMonths,
+        paidMonths: a.paidMonths,
+      }
+    })(),
     isActive: row.is_active !== false,
     description: row.description ?? null,
     cycle: String(row.cycle ?? 'monthly'),
@@ -152,7 +183,8 @@ export async function fetchBillingPlanDefinition(executor, planCodeOrDbCode, opt
  * @param {{
  *   code: string;
  *   name: string;
- *   supplyAmount: number;
+ *   totalAmount?: number;
+ *   supplyAmount?: number;
  *   applyVat?: boolean;
  *   vatRate?: number;
  *   allowsReferralDiscount?: boolean;
@@ -163,12 +195,22 @@ export async function fetchBillingPlanDefinition(executor, planCodeOrDbCode, opt
  * }} body
  */
 export function computeBillingPlanAmounts(body) {
+  const applyVat = body.applyVat !== false
+  const vatRate = applyVat ? Number(body.vatRate ?? VAT_RATE) || VAT_RATE : 0
+  if (body.totalAmount != null) {
+    // SSOT: 관리자는 VAT 포함 최종 결제금액을 입력. 공급가/VAT 는 역산(합 = 입력값).
+    const raw = Number(body.totalAmount)
+    if (!Number.isFinite(raw) || !Number.isInteger(raw) || raw <= 0) {
+      throw new Error('invalid_total_amount')
+    }
+    const split = splitVatInclusiveTotal(raw, { applyVat, vatRate })
+    return { ...split, vatRate, applyVat }
+  }
+  // legacy 입력(공급가) 하위호환
   const supplyAmount = Math.max(Math.round(Number(body.supplyAmount) || 0), 0)
   if (supplyAmount <= 0) {
     throw new Error('invalid_supply_amount')
   }
-  const applyVat = body.applyVat !== false
-  const vatRate = applyVat ? Number(body.vatRate ?? VAT_RATE) || VAT_RATE : 0
   if (applyVat && vatRate > 0) {
     const priced = calculateVatIncludedPrice(supplyAmount, vatRate)
     return {
@@ -208,10 +250,10 @@ export async function createBillingPlanAdmin(executor, body) {
     1,
     Math.round(Number(body.referralDiscountStartCount ?? 1) || 1),
   )
-  const referralDiscountUnitSupplyAmount = Math.max(
-    1,
-    Math.round(Number(body.referralDiscountUnitSupplyAmount ?? 1000) || 1000),
-  )
+  const rawPerUser = body.referralDiscountPerUser ?? body.referralDiscountUnitSupplyAmount
+  // 신규 행만 기본값(DEFAULT_REFERRAL_DISCOUNT_PER_USER)으로 초기화
+  const referralDiscountUnitSupplyAmount =
+    rawPerUser == null ? DEFAULT_REFERRAL_DISCOUNT_PER_USER : parseReferralDiscountPerUser(rawPerUser)
   const description = String(body.description ?? '').trim() || null
   const isActive = body.isActive !== false
 
@@ -221,9 +263,9 @@ export async function createBillingPlanAdmin(executor, body) {
     INSERT INTO billing_plans (
       code, name, amount, supply_amount, vat_rate, apply_vat, cycle, is_active,
       allows_referral_discount, referral_discount_start_count, referral_discount_unit_supply_amount,
-      description
+      description, monthly_total, monthly_price, monthly_vat
     )
-    VALUES ($1, $2, $3, $4, $5, $6, 'monthly', $7, $8, $9, $10, $11)
+    VALUES ($1, $2, $3, $4, $5, $6, 'monthly', $7, $8, $9, $10, $11, $3, $4, $12)
     `,
     [
       code,
@@ -237,6 +279,7 @@ export async function createBillingPlanAdmin(executor, body) {
       referralDiscountStartCount,
       referralDiscountUnitSupplyAmount,
       description,
+      amounts.vatAmount,
     ],
   )
 
@@ -261,16 +304,19 @@ export async function updateBillingPlanAdmin(executor, code, body) {
     throw new Error('invalid_plan_name')
   }
 
-  const supplyAmount =
-    body.supplyAmount != null ? Math.round(Number(body.supplyAmount)) : Number(existing.supply_amount)
   const applyVat = body.applyVat != null ? body.applyVat !== false : existing.apply_vat !== false
   const vatRate =
     body.vatRate != null ? Number(body.vatRate) : Number(existing.vat_rate ?? VAT_RATE) || VAT_RATE
-  const amounts = computeBillingPlanAmounts({
-    supplyAmount,
-    applyVat,
-    vatRate,
-  })
+  const amounts =
+    body.totalAmount != null
+      ? computeBillingPlanAmounts({ totalAmount: body.totalAmount, applyVat, vatRate })
+      : body.supplyAmount != null
+        ? computeBillingPlanAmounts({ supplyAmount: Math.round(Number(body.supplyAmount)), applyVat, vatRate })
+        : computeBillingPlanAmounts({
+            totalAmount: Math.round(Number(existing.amount)),
+            applyVat,
+            vatRate,
+          })
 
   const allowsReferralDiscount =
     body.allowsReferralDiscount != null
@@ -280,10 +326,12 @@ export async function updateBillingPlanAdmin(executor, code, body) {
     body.referralDiscountStartCount != null
       ? Math.max(1, Math.round(Number(body.referralDiscountStartCount) || 1))
       : Math.max(1, Math.round(Number(existing.referral_discount_start_count ?? 1) || 1))
+  const rawPerUser = body.referralDiscountPerUser ?? body.referralDiscountUnitSupplyAmount
+  // 미전달 시 기존 값 유지(덮어쓰기 금지)
   const referralDiscountUnitSupplyAmount =
-    body.referralDiscountUnitSupplyAmount != null
-      ? Math.max(1, Math.round(Number(body.referralDiscountUnitSupplyAmount) || 1000))
-      : Math.max(1, Math.round(Number(existing.referral_discount_unit_supply_amount ?? 1000) || 1000))
+    rawPerUser != null
+      ? parseReferralDiscountPerUser(rawPerUser)
+      : Math.max(0, Math.round(Number(existing.referral_discount_unit_supply_amount ?? DEFAULT_REFERRAL_DISCOUNT_PER_USER)))
   const description =
     body.description != null ? String(body.description).trim() || null : existing.description ?? null
   const isActive = body.isActive != null ? body.isActive !== false : existing.is_active !== false
@@ -302,6 +350,9 @@ export async function updateBillingPlanAdmin(executor, code, body) {
         referral_discount_unit_supply_amount = $9,
         description = $10,
         is_active = $11,
+        monthly_total = $3,
+        monthly_price = $4,
+        monthly_vat = $12,
         updated_at = NOW()
     WHERE code = $1
     `,
@@ -317,6 +368,7 @@ export async function updateBillingPlanAdmin(executor, code, body) {
       referralDiscountUnitSupplyAmount,
       description,
       isActive,
+      amounts.vatAmount,
     ],
   )
 

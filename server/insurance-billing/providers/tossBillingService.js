@@ -11,7 +11,7 @@ import { assertNoActivePendingInsurancePayment } from '../pendingPaymentPolicy.j
 import {
   finalizeInsurancePaymentAsPaid,
   recordBillingEvent,
-  resolvePlanPaymentAmounts,
+  resolveReferralAdjustedPlanAmounts,
 } from '../subscriptionLifecycle.js'
 import { INSURANCE_BASIC_PLAN_CODE, isInsuranceBillingProductionRuntime } from '../config.js'
 import { chargeTossBillingKey, issueTossBillingKey } from './toss/tossHttpClient.js'
@@ -45,7 +45,8 @@ async function loadInsurancePlanForPayment(client, planCode) {
   const r = await systemQuery(
     client,
     `
-    SELECT code, monthly_total, yearly_total, monthly_price, yearly_price, is_active, name
+    SELECT code, amount, apply_vat, vat_rate, allows_referral_discount, referral_discount_unit_supply_amount,
+           monthly_total, yearly_total, monthly_price, yearly_price, is_active, name
     FROM billing_plans
     WHERE code = $1
     LIMIT 1
@@ -93,14 +94,24 @@ export async function createPendingInsurancePaymentRow(client, params) {
   let supplyAmount
   let vatAmount
   let discountAmount = 0
+  let referralPricing = null
   const promotionCode = params.promotionCode ? String(params.promotionCode).trim() : null
 
   // renewal 은 pending cycle / plan SSOT 그대로. checkout 만 쿠폰 할인 반영.
+  // 추천 할인(현재 active_paid 수, 최종금액 cap)은 서버가 매 결제마다 재계산. 클라이언트 금액 미사용.
   if (paymentSource === 'renewal' || !promotionCode) {
-    const amounts = resolvePlanPaymentAmounts(plan, billingCycle)
+    const amounts = await resolveReferralAdjustedPlanAmounts(client, { userId, plan, billingCycle })
     totalAmount = amounts.totalAmount
     supplyAmount = amounts.supplyAmount
     vatAmount = amounts.vatAmount
+    discountAmount = amounts.appliedReferralDiscount
+    referralPricing = {
+      configuredTotal: amounts.configuredTotal,
+      activeReferralCount: amounts.activeReferralCount,
+      rawReferralDiscount: amounts.rawReferralDiscount,
+      appliedReferralDiscount: amounts.appliedReferralDiscount,
+      paymentTotal: amounts.paymentTotal,
+    }
   } else {
     const validated = await validateInsurancePromotionCode(client, {
       code: promotionCode,
@@ -182,6 +193,7 @@ export async function createPendingInsurancePaymentRow(client, params) {
       discountAmount,
       provider,
       promotionCode,
+      referralPricing,
     },
   })
 
@@ -205,6 +217,12 @@ export async function createPendingInsurancePaymentRow(client, params) {
  * @param {{ paymentId: number; userId: string; billingKey: string; customerKey: string; orderName: string; totalAmount: number; orderId: string; secretKey: string; mode: string; testCode?: string | null }} params
  */
 export async function executeTossBillingCharge(client, params) {
+  if (!(Number(params.totalAmount) > 0)) {
+    // 0원 이하는 PG 호출 금지 — 호출측에서 finalizeInsurancePaymentAsPaid 0원 경로 사용
+    const err = new Error('zero_amount_charge_forbidden')
+    err.code = 'ZERO_AMOUNT_CHARGE_FORBIDDEN'
+    throw err
+  }
   const chargeRes = await chargeTossBillingKey({
     secretKey: params.secretKey,
     billingKey: params.billingKey,

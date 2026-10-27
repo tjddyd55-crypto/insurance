@@ -6,6 +6,19 @@ import {
   PROMOTION_ALREADY_USED_ERROR_CODE,
 } from './billingPromotionRedemptionPolicy.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
+import { computeAnnualAmounts, splitVatInclusiveTotal } from '../lib/billingAmounts.js'
+
+/** 월 최종금액(VAT 포함)·VAT 설정에서 월/연간 금액 파생(연간 = 월 × 10). */
+function derivePlanCycleAmounts(plan) {
+  const monthlyTotal = Math.max(0, Math.round(Number(plan?.monthly_total ?? plan?.amount ?? 8800) || 0))
+  const vatOpts = {
+    applyVat: plan?.apply_vat !== false,
+    vatRate: plan?.vat_rate != null ? Number(plan.vat_rate) : undefined,
+  }
+  const monthly = splitVatInclusiveTotal(monthlyTotal, vatOpts)
+  const annual = computeAnnualAmounts(monthlyTotal, vatOpts)
+  return { monthly, annual }
+}
 
 function normalizeCode(raw) {
   return String(raw ?? '').trim().toUpperCase()
@@ -102,16 +115,14 @@ export async function validateInsurancePromotionCode(executor, params) {
   const planR = await systemQuery(
     executor,
     `
-    SELECT monthly_total, yearly_total, monthly_price, yearly_price
+    SELECT monthly_total, yearly_total, monthly_price, yearly_price, amount, apply_vat, vat_rate
     FROM billing_plans WHERE code = $1 AND is_active = true LIMIT 1
     `,
     [planCode],
   )
   const plan = planR.rows[0]
-  const baseAmount =
-    billingCycle === 'yearly'
-      ? Number(plan?.yearly_total ?? 88000)
-      : Number(plan?.monthly_total ?? 8800)
+  const derived = derivePlanCycleAmounts(plan)
+  const baseAmount = billingCycle === 'yearly' ? derived.annual.annualTotal : derived.monthly.totalAmount
 
   let finalAmount = baseAmount
   let discountAmount = 0
@@ -173,7 +184,7 @@ export async function getCheckoutSummary(executor, userId) {
     executor,
     `
     SELECT code, name, monthly_price, monthly_vat, monthly_total,
-           yearly_price, yearly_vat, yearly_total, currency
+           yearly_price, yearly_vat, yearly_total, currency, amount, apply_vat, vat_rate
     FROM billing_plans WHERE code = $1 LIMIT 1
     `,
     [planCode],
@@ -193,12 +204,17 @@ export async function getCheckoutSummary(executor, userId) {
       ? {
           code: plan.code,
           name: plan.name,
-          monthlyPrice: Number(plan.monthly_price ?? 8000),
-          monthlyVat: Number(plan.monthly_vat ?? 800),
-          monthlyTotal: Number(plan.monthly_total ?? 8800),
-          yearlyPrice: Number(plan.yearly_price ?? 80000),
-          yearlyVat: Number(plan.yearly_vat ?? 8000),
-          yearlyTotal: Number(plan.yearly_total ?? 88000),
+          ...(() => {
+            const d = derivePlanCycleAmounts(plan)
+            return {
+              monthlyPrice: d.monthly.supplyAmount,
+              monthlyVat: d.monthly.vatAmount,
+              monthlyTotal: d.monthly.totalAmount,
+              yearlyPrice: d.annual.supplyAmount,
+              yearlyVat: d.annual.vatAmount,
+              yearlyTotal: d.annual.annualTotal,
+            }
+          })(),
           currency: plan.currency ?? 'KRW',
         }
       : null,

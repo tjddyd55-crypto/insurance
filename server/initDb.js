@@ -5096,38 +5096,18 @@ async function ensureBillingSchema(executor) {
       code, name, amount, supply_amount, vat_rate, apply_vat, cycle, is_active,
       allows_referral_discount, referral_discount_start_count, referral_discount_unit_supply_amount
     )
-    VALUES ('monthly_basic', '월 이용료', 8800, 8000, 0.1, true, 'monthly', true, true, 1, 1000)
-    ON CONFLICT (code) DO UPDATE
-      SET name = EXCLUDED.name,
-          amount = EXCLUDED.amount,
-          supply_amount = EXCLUDED.supply_amount,
-          vat_rate = EXCLUDED.vat_rate,
-          apply_vat = EXCLUDED.apply_vat,
-          cycle = EXCLUDED.cycle,
-          is_active = EXCLUDED.is_active,
-          allows_referral_discount = EXCLUDED.allows_referral_discount,
-          referral_discount_start_count = EXCLUDED.referral_discount_start_count,
-          referral_discount_unit_supply_amount = EXCLUDED.referral_discount_unit_supply_amount,
-          updated_at = NOW()
+    VALUES ('monthly_basic', '월 이용료', 8800, 8000, 0.1, true, 'monthly', true, true, 1, 3000)
+    -- 재시작 시 관리자 설정(금액·VAT·활성·추천) 덮어쓰기 금지: 신규 행만 초기화
+    ON CONFLICT (code) DO NOTHING
   `)
   await executor.query(`
     INSERT INTO billing_plans (
       code, name, amount, supply_amount, vat_rate, apply_vat, cycle, is_active,
       allows_referral_discount, referral_discount_start_count, referral_discount_unit_supply_amount
     )
-    VALUES ('monthly_discount', '할인 이용료', 5500, 5000, 0.1, true, 'monthly', true, true, 4, 1000)
-    ON CONFLICT (code) DO UPDATE
-      SET name = EXCLUDED.name,
-          amount = EXCLUDED.amount,
-          supply_amount = EXCLUDED.supply_amount,
-          vat_rate = EXCLUDED.vat_rate,
-          apply_vat = EXCLUDED.apply_vat,
-          cycle = EXCLUDED.cycle,
-          is_active = EXCLUDED.is_active,
-          allows_referral_discount = EXCLUDED.allows_referral_discount,
-          referral_discount_start_count = EXCLUDED.referral_discount_start_count,
-          referral_discount_unit_supply_amount = EXCLUDED.referral_discount_unit_supply_amount,
-          updated_at = NOW()
+    VALUES ('monthly_discount', '할인 이용료', 5500, 5000, 0.1, true, 'monthly', true, true, 4, 3000)
+    -- 재시작 시 관리자 설정(금액·VAT·활성·추천) 덮어쓰기 금지: 신규 행만 초기화
+    ON CONFLICT (code) DO NOTHING
   `)
 
   await executor.query(`
@@ -5257,24 +5237,29 @@ async function ensureInsuranceBillingPhase1Schema(executor) {
   await executor.query(`
     INSERT INTO billing_plans (
       code, name, amount, supply_amount, vat_rate, apply_vat, cycle, is_active,
-      monthly_price, monthly_vat, monthly_total, yearly_price, yearly_vat, yearly_total, currency
+      monthly_price, monthly_vat, monthly_total, yearly_price, yearly_vat, yearly_total, currency,
+      referral_discount_unit_supply_amount
     )
     VALUES (
       'insurance_basic', '보험 CRM 베이직', 8800, 8000, 0.1, true, 'monthly', true,
-      8000, 800, 8800, 80000, 8000, 88000, 'KRW'
+      -- yearly_* 는 레거시 컬럼(계산 미사용). 연간 금액은 monthly_total × 10 에서 파생.
+      8000, 800, 8800, 80000, 8000, 88000, 'KRW',
+      -- 추천 1명당 할인 기본값은 신규 행 초기화에만 사용(ON CONFLICT 에서 갱신하지 않음)
+      3000
     )
+    -- 재시작 시 관리자 설정 금액 덮어쓰기 금지: 비어 있는 컬럼만 채운다.
     ON CONFLICT (code) DO UPDATE SET
-      name = EXCLUDED.name,
-      amount = EXCLUDED.amount,
-      supply_amount = EXCLUDED.supply_amount,
-      monthly_price = EXCLUDED.monthly_price,
-      monthly_vat = EXCLUDED.monthly_vat,
-      monthly_total = EXCLUDED.monthly_total,
-      yearly_price = EXCLUDED.yearly_price,
-      yearly_vat = EXCLUDED.yearly_vat,
-      yearly_total = EXCLUDED.yearly_total,
-      currency = EXCLUDED.currency,
-      updated_at = NOW()
+      monthly_total = COALESCE(billing_plans.monthly_total, billing_plans.amount, EXCLUDED.monthly_total),
+      monthly_price = COALESCE(billing_plans.monthly_price, billing_plans.supply_amount, EXCLUDED.monthly_price),
+      monthly_vat = COALESCE(
+        billing_plans.monthly_vat,
+        billing_plans.amount - billing_plans.supply_amount,
+        EXCLUDED.monthly_vat
+      ),
+      yearly_price = COALESCE(billing_plans.yearly_price, EXCLUDED.yearly_price),
+      yearly_vat = COALESCE(billing_plans.yearly_vat, EXCLUDED.yearly_vat),
+      yearly_total = COALESCE(billing_plans.yearly_total, EXCLUDED.yearly_total),
+      currency = COALESCE(billing_plans.currency, EXCLUDED.currency)
   `)
 
   await executor.query(`

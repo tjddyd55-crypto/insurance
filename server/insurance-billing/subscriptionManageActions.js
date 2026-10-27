@@ -367,7 +367,8 @@ export async function loadBillingPlanAmounts(executor, planCode) {
   const r = await systemQuery(
     executor,
     `
-    SELECT code, name, monthly_price, monthly_vat, monthly_total, yearly_price, yearly_vat, yearly_total
+    SELECT code, name, amount, apply_vat, vat_rate,
+           monthly_price, monthly_vat, monthly_total, yearly_price, yearly_vat, yearly_total
     FROM billing_plans
     WHERE code = $1
     LIMIT 1
