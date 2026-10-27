@@ -1,5 +1,6 @@
 import { notificationBadgeLabel, notificationNavigateKind } from '@insurance-shared/userNotificationCatalog.js'
 import { ApiError, apiRequest } from '../../../lib/apiClient'
+import { DEFAULT_USER_ALERT_SETTINGS } from '../config/notificationCenter.config'
 
 export type NotificationRow = {
   id: string
@@ -150,13 +151,63 @@ export async function suppressNotificationModalToday(token: string): Promise<{ o
 
 export async function fetchNotificationSettings(
   token: string,
-): Promise<{ success: boolean; data: UserAlertSettings }> {
+): Promise<UserAlertSettings> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  return apiRequest<{ success: boolean; data: UserAlertSettings }>('/api/notifications/settings', {
-    token,
-  })
+  const payload = await apiRequest<unknown>('/api/notifications/settings', { token })
+  // apiRequest applies safeApiResponse, which unwraps { success: true, data } when
+  // it has no other payload fields. Accept both shapes so callers always receive settings.
+  const envelope = asRecord(payload)
+  if (envelope?.configured === false) {
+    return copyDefaultUserAlertSettings()
+  }
+  const source = asRecord(envelope?.data) ?? envelope
+  if (!source) {
+    throw new ApiError('알림 설정을 불러오지 못했습니다.', 500)
+  }
+
+  return {
+    insuranceAge: normalizeWindowedAlertSetting(source.insuranceAge, DEFAULT_USER_ALERT_SETTINGS.insuranceAge),
+    carExpiry: normalizeWindowedAlertSetting(source.carExpiry, DEFAULT_USER_ALERT_SETTINGS.carExpiry),
+    specialDate: normalizeWindowedAlertSetting(source.specialDate, DEFAULT_USER_ALERT_SETTINGS.specialDate),
+    claimRequest: normalizeToggleAlertSetting(source.claimRequest, DEFAULT_USER_ALERT_SETTINGS.claimRequest),
+  }
+}
+
+function copyDefaultUserAlertSettings(): UserAlertSettings {
+  return {
+    insuranceAge: { ...DEFAULT_USER_ALERT_SETTINGS.insuranceAge },
+    carExpiry: { ...DEFAULT_USER_ALERT_SETTINGS.carExpiry },
+    specialDate: { ...DEFAULT_USER_ALERT_SETTINGS.specialDate },
+    claimRequest: { ...DEFAULT_USER_ALERT_SETTINGS.claimRequest },
+  }
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function normalizeToggleAlertSetting(value: unknown, fallback: ToggleAlertSetting): ToggleAlertSetting {
+  const row = asRecord(value)
+  return { enabled: typeof row?.enabled === 'boolean' ? row.enabled : fallback.enabled }
+}
+
+function normalizeWindowedAlertSetting(
+  value: unknown,
+  fallback: WindowedAlertSetting,
+): WindowedAlertSetting {
+  const row = asRecord(value)
+  const daysBefore = row?.daysBefore
+  return {
+    enabled: typeof row?.enabled === 'boolean' ? row.enabled : fallback.enabled,
+    daysBefore:
+      typeof daysBefore === 'number' && Number.isInteger(daysBefore) && daysBefore >= 0 && daysBefore <= 365
+        ? daysBefore
+        : fallback.daysBefore,
+  }
 }
 
 export async function patchNotificationSettings(
