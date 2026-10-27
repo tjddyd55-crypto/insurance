@@ -123,7 +123,7 @@ test('computeBillingPlanAmounts — supply 3000 → total 3300', () => {
   assert.equal(priced.totalAmount, 3300)
 })
 
-test('createBillingPlanAdmin — monthly_special 3300', async () => {
+test('createBillingPlanAdmin accepts an explicit internal code for seed/backward compatibility', async () => {
   const state = { plans: {}, gaPlans: {}, users: { 'user-1': { ga_id: 1, override_plan_code: null } } }
   state.plans.monthly_basic = {
     code: 'monthly_basic',
@@ -150,6 +150,41 @@ test('createBillingPlanAdmin — monthly_special 3300', async () => {
   assert.equal(plan.supplyAmount, 3000)
 })
 
+test('createBillingPlanAdmin generates unique opaque codes when omitted', async () => {
+  const state = { plans: {}, gaPlans: {}, users: {} }
+  const executor = createMockExecutor(state)
+  const first = await createBillingPlanAdmin(executor, { name: '뉴 기본', totalAmount: 14900 })
+  const second = await createBillingPlanAdmin(executor, { name: '다른 요금제', totalAmount: 14900 })
+
+  assert.match(first.dbCode, /^plan_[a-f0-9]{16}$/)
+  assert.match(second.dbCode, /^plan_[a-f0-9]{16}$/)
+  assert.notEqual(first.dbCode, second.dbCode)
+  assert.equal(state.plans[first.dbCode].name, '뉴 기본')
+  assert.equal(state.plans[second.dbCode].name, '다른 요금제')
+})
+
+test('createBillingPlanAdmin retries a generated code unique-key collision', async () => {
+  const state = { plans: {}, gaPlans: {}, users: {} }
+  const base = createMockExecutor(state)
+  let insertAttempts = 0
+  const executor = {
+    query: async (sql, params) => {
+      if (String(sql).includes('INSERT INTO billing_plans') && insertAttempts++ === 0) {
+        const error = new Error('duplicate key')
+        error.code = '23505'
+        error.constraint = 'billing_plans_code_key'
+        throw error
+      }
+      return base.query(sql, params)
+    },
+  }
+
+  const plan = await createBillingPlanAdmin(executor, { name: '충돌 재시도', totalAmount: 14900 })
+  assert.match(plan.dbCode, /^plan_[a-f0-9]{16}$/)
+  assert.equal(insertAttempts, 2)
+  assert.equal(state.plans[plan.dbCode].name, '충돌 재시도')
+})
+
 test('updateBillingPlanAdmin — supply 4000 → total 4400', async () => {
   const state = {
     plans: {
@@ -172,6 +207,7 @@ test('updateBillingPlanAdmin — supply 4000 → total 4400', async () => {
   const executor = createMockExecutor(state)
   const plan = await updateBillingPlanAdmin(executor, 'monthly_special', { supplyAmount: 4000 })
   assert.equal(plan.totalAmount, 4400)
+  assert.equal(plan.dbCode, 'monthly_special')
 })
 
 test('invoice pricing uses custom GA plan 3300', async () => {

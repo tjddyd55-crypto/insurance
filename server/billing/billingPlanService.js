@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import { GENERAL_GA_CODE_CANONICAL } from '../lib/generalGa.js'
 import {
   BILLING_PLANS,
@@ -235,14 +236,12 @@ export function computeBillingPlanAmounts(body) {
  * @param {object} body
  */
 export async function createBillingPlanAdmin(executor, body) {
-  const code = assertValidBillingPlanCode(body.code)
+  const suppliedCode = body.code == null || String(body.code).trim() === ''
+    ? null
+    : assertValidBillingPlanCode(body.code)
   const name = String(body.name ?? '').trim()
   if (!name) {
     throw new Error('invalid_plan_name')
-  }
-  const dup = await systemQuery(executor, `SELECT 1 FROM billing_plans WHERE code = $1 LIMIT 1`, [code])
-  if (dup.rowCount > 0) {
-    throw new Error('duplicate_plan_code')
   }
   const amounts = computeBillingPlanAmounts(body)
   const allowsReferralDiscount = body.allowsReferralDiscount !== false
@@ -257,7 +256,7 @@ export async function createBillingPlanAdmin(executor, body) {
   const description = String(body.description ?? '').trim() || null
   const isActive = body.isActive !== false
 
-  await systemQuery(
+  const insertPlan = (code) => systemQuery(
     executor,
     `
     INSERT INTO billing_plans (
@@ -283,8 +282,33 @@ export async function createBillingPlanAdmin(executor, body) {
     ],
   )
 
-  const row = await fetchBillingPlanRowByCode(executor, code, { allowInactive: true })
-  return mapPlanRowToAdminDto(row)
+  if (suppliedCode) {
+    const dup = await systemQuery(executor, `SELECT 1 FROM billing_plans WHERE code = $1 LIMIT 1`, [suppliedCode])
+    if (dup.rowCount > 0) {
+      throw new Error('duplicate_plan_code')
+    }
+    await insertPlan(suppliedCode)
+    const row = await fetchBillingPlanRowByCode(executor, suppliedCode, { allowInactive: true })
+    return mapPlanRowToAdminDto(row)
+  }
+
+  // Opaque IDs stay stable when the plan name changes; retry rare unique-key races.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const code = `plan_${randomBytes(8).toString('hex')}`
+    const dup = await systemQuery(executor, `SELECT 1 FROM billing_plans WHERE code = $1 LIMIT 1`, [code])
+    if (dup.rowCount > 0) continue
+    try {
+      await insertPlan(code)
+      const row = await fetchBillingPlanRowByCode(executor, code, { allowInactive: true })
+      return mapPlanRowToAdminDto(row)
+    } catch (error) {
+      if (error?.code === '23505' && (!error.constraint || String(error.constraint).includes('billing_plans_code'))) {
+        continue
+      }
+      throw error
+    }
+  }
+  throw new Error('plan_code_generation_failed')
 }
 
 /**

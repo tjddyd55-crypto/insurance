@@ -17,8 +17,6 @@ import {
 import type { BillingPlanAdminRow } from '../api/billingApi'
 import './billing-plan-form-modal.css'
 
-const PLAN_CODE_PATTERN = /^[a-z0-9_]+$/
-
 export type BillingPlanFormValues = {
   code: string
   name: string
@@ -204,10 +202,6 @@ export function BillingPlanFormDialog({
     const name = values.name.trim()
     const totalRaw = values.totalAmount.trim()
     const totalAmount = Number(totalRaw)
-    if (mode === 'create' && (!code || !PLAN_CODE_PATTERN.test(code))) {
-      setLocalError('요금제 코드는 영문 소문자, 숫자, 밑줄(_)만 사용할 수 있습니다.')
-      return
-    }
     if (!name) {
       setLocalError('요금제명을 입력해 주세요.')
       return
@@ -221,7 +215,7 @@ export function BillingPlanFormDialog({
       return
     }
     setLocalError('')
-    void onSubmit({ ...values, code, name, totalAmount: String(totalAmount) })
+    void onSubmit({ ...values, code: mode === 'edit' ? code : '', name, totalAmount: String(totalAmount) })
   }
 
   const displayError = localError || error
@@ -263,22 +257,12 @@ export function BillingPlanFormDialog({
           {displayError ? <p className="billing-plan-form-modal__error">{displayError}</p> : null}
 
           <FormSection title="기본 정보">
-            <div className="billing-plan-form-modal__grid-2">
-              {mode === 'create' ? (
-                <FieldWrapper label="요금제 코드" helperText="예: monthly_special" className="billing-plan-form-modal__field">
-                  <FormInput
-                    value={values.code}
-                    onChange={(e) => setValues((prev) => ({ ...prev, code: e.target.value }))}
-                    autoComplete="off"
-                    disabled={busy}
-                    placeholder="monthly_discount"
-                  />
-                </FieldWrapper>
-              ) : (
+            <div className={mode === 'create' ? '' : 'billing-plan-form-modal__grid-2'}>
+              {mode === 'edit' ? (
                 <FieldWrapper label="요금제 코드">
                   <p className="billing-plan-form-modal__code-readonly">{values.code}</p>
                 </FieldWrapper>
-              )}
+              ) : null}
               <FieldWrapper label="요금제명">
                 <FormInput
                   value={values.name}
