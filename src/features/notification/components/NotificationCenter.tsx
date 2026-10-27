@@ -151,8 +151,8 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
     setSettingsError('')
     setSettingsBusy(true)
     try {
-      const { data } = await fetchNotificationSettings(token)
-      setSettingsDraft(data ?? { ...DEFAULT_USER_ALERT_SETTINGS })
+      const settings = await fetchNotificationSettings(token)
+      setSettingsDraft(settings)
       try {
         const g = await fetchGoogleAutoSync(token)
         setGoogleDraft(g)
