@@ -635,15 +635,17 @@ export default function CompanyRegistryPage() {
               onChange={(e) => {
                 pendingLocalEditRef.current = true
                 const name = e.target.value
+                const generatedCode =
+                  company.id == null && isInsuranceCategory(selectedType) && name.trim()
+                    ? buildStaticCompanyCode(selectedType, name.trim())
+                    : ''
+                if (company.id == null && isInsuranceCategory(selectedType)) {
+                  setSelectedCompanyCode(generatedCode)
+                }
                 setCompany((prev) => {
                   const next = { ...prev, name }
-                  if (
-                    prev.id == null &&
-                    selectedType &&
-                    isInsuranceCategory(selectedType) &&
-                    name.trim()
-                  ) {
-                    next.companyCode = buildStaticCompanyCode(selectedType, name.trim())
+                  if (prev.id == null && isInsuranceCategory(selectedType)) {
+                    next.companyCode = generatedCode
                   }
                   return next
                 })
