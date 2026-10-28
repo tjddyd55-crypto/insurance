@@ -118,6 +118,7 @@ export default function InsuranceCompanyContactsViewPage({
   const [insurerCatalogError, setInsurerCatalogError] = useState('')
   const [insurerCatalogLoading, setInsurerCatalogLoading] = useState(false)
   const [pinnedEditCardKeys, setPinnedEditCardKeys] = useState<Set<string>>(() => new Set())
+  const [selectedEditCardKey, setSelectedEditCardKey] = useState('')
   const copyNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const showCopyFeedback = useCallback((message: string) => {
@@ -256,6 +257,11 @@ export default function InsuranceCompanyContactsViewPage({
     return filterVisibleEditDrafts(cardDrafts, activeTab, keyword, pinnedEditCardKeys)
   }, [activeTab, cardDrafts, keyword, pinnedEditCardKeys])
 
+  const selectedEditDraft = visibleEditDrafts.find((draft) => draft.cardKey === selectedEditCardKey) ?? visibleEditDrafts[0] ?? null
+  useEffect(() => {
+    if (selectedEditDraft && selectedEditDraft.cardKey !== selectedEditCardKey) setSelectedEditCardKey(selectedEditDraft.cardKey)
+  }, [selectedEditDraft, selectedEditCardKey])
+
   useEffect(() => {
     if (!workspaceEdit) {
       return
@@ -275,6 +281,7 @@ export default function InsuranceCompanyContactsViewPage({
     setBaselineDrafts(cloneDrafts(initial))
     setCardDrafts(cloneDrafts(initial))
     setPinnedEditCardKeys(new Set())
+    setSelectedEditCardKey(initial[0]?.cardKey ?? '')
     setWorkspaceEdit(true)
     setErrorText('')
   }
@@ -291,6 +298,7 @@ export default function InsuranceCompanyContactsViewPage({
       (row) => resolveTabCategory(row.category, row.name) === activeTab,
     )
     const cardKey = newCardKey()
+    setSelectedEditCardKey(cardKey)
     setPinnedEditCardKeys((prev) => new Set(prev).add(cardKey))
     setCardDrafts((rows) => [
       ...rows,
@@ -528,8 +536,16 @@ export default function InsuranceCompanyContactsViewPage({
             )}
           </div>
         ) : workspaceEdit ? (
-          <div className="insurance-contacts-cards">
-            {visibleEditDrafts.map((draft) => (
+          <div className={isGaStaff ? 'insurance-contacts-editor-layout' : 'insurance-contacts-cards'}>
+            {isGaStaff ? <aside className="insurance-contacts-editor-list" aria-label="등록된 보험사">
+              <strong>등록된 보험사</strong>
+              <div className="insurance-contacts-editor-list__items">
+                {visibleEditDrafts.map((draft) => <FormButton key={draft.cardKey} htmlType="button" variant="secondary" className={draft.cardKey === selectedEditDraft?.cardKey ? 'is-selected' : ''} aria-current={draft.cardKey === selectedEditDraft?.cardKey ? 'true' : undefined} onClick={() => setSelectedEditCardKey(draft.cardKey)}>
+                  <span>{draft.companyName || draft.companyCode || '새 보험사'}</span>{draft.markedForDeletion ? <small>삭제 예정</small> : null}
+                </FormButton>)}
+              </div>
+            </aside> : null}
+            {(isGaStaff ? (selectedEditDraft ? [selectedEditDraft] : []) : visibleEditDrafts).map((draft) => (
               <CompanyContactEditableCard
                 key={draft.cardKey}
                 draft={draft}

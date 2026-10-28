@@ -264,8 +264,8 @@ export default function TenantModeLandingPage() {
                 </p>
                 <ul className="tenant-mode-hub__link-list">
                   <li>
-                    <Link to="/admin/delegates" className="platform-admin-page__inline-link">
-                      담당자(Delegator) 관리 후보 → /admin/delegates
+                    <Link to="/admin/ga" className="platform-admin-page__inline-link">
+                      담당자 관리 → GA 관리
                     </Link>
                   </li>
                   <li>

@@ -51,6 +51,7 @@ test('mapAdminUserListRow uses audit login when users.last_login_at is missing',
       referrer_display_name: null,
       referrer_ga_company_name: null,
       last_login_at: null,
+      last_login_user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/131.0 Safari/537.36',
       audit_last_login_at: '2026-06-28T08:13:00.000Z',
       subscription_status: 'active_paid',
       trial_ends_at: null,
@@ -61,6 +62,8 @@ test('mapAdminUserListRow uses audit login when users.last_login_at is missing',
   )
 
   assert.equal(row.last_login_at, '2026-06-28T08:13:00.000Z')
+  assert.equal(row.last_login_channel, 'PC_WEB')
+  assert.equal(row.last_login_device, 'Windows PC · Chrome')
   assert.equal(row.subscription_status, 'active_paid')
   assert.equal(row.subscription_effective_category, 'paid')
   assert.equal(row.subscription_status_label, '유료 이용 중')

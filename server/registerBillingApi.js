@@ -107,6 +107,7 @@ export function registerBillingApi(apiRouter, ctx) {
         message: '사용 또는 결제 이력이 있는 요금제는 삭제할 수 없습니다. 비활성화해 주세요.',
       },
       billing_plan_system_default: { status: 409, message: '시스템 기본 요금제는 삭제할 수 없습니다.' },
+      billing_plan_system_default_active: { status: 409, message: '보험 CRM 기본 요금제는 항상 활성 상태로 유지해야 합니다.' },
     })
     const mapped = table[code]
     if (mapped) {
@@ -285,9 +286,10 @@ export function registerBillingApi(apiRouter, ctx) {
   apiRouter.patch('/admin/billing/ga-plans/:gaId', requireAuth, requireSuperAdmin, async (req, res) => {
     try {
       const gaId = Number(req.params.gaId)
-      const planCode = String(req.body?.planCode ?? req.body?.plan_code ?? '').trim()
-      if (!Number.isFinite(gaId) || gaId <= 0 || !planCode) {
-        res.status(400).json({ message: 'GA와 요금제를 확인해 주세요.' })
+      const rawPlanCode = req.body?.planCode ?? req.body?.plan_code
+      const planCode = rawPlanCode == null ? '' : String(rawPlanCode).trim()
+      if (!Number.isFinite(gaId) || gaId <= 0) {
+        res.status(400).json({ message: 'GA를 확인해 주세요.' })
         return
       }
       const updated = await updateGaDefaultBillingPlan(pool, gaId, planCode)
