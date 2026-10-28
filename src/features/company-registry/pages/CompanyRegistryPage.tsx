@@ -517,7 +517,7 @@ export default function CompanyRegistryPage() {
   }
 
   return (
-    <main className={`page page--with-back company-registry-page registry-form-touch${opsShellClass}`}>
+    <main className={`page page--with-back company-registry-page registry-form-touch${opsShellClass}${isGaStaff ? ' company-registry-page--ga-staff' : ''}`}>
       <div className={isOps ? 'admin-page-shell__inner' : undefined}>
       {isGaStaff ? <GaStaffOpsNav /> : null}
       <nav className="contacts-public-auth admin-toolbar" aria-label="이동">
@@ -565,7 +565,8 @@ export default function CompanyRegistryPage() {
                   <li key={e.id}>
                     <FormButton
                       htmlType="button"
-                      className="company-registry-pick-list__btn"
+                      className={`company-registry-pick-list__btn${selectedType === tabCat && selectedCompanyCode === e.companyCode ? ' is-selected' : ''}`}
+                      aria-pressed={selectedType === tabCat && selectedCompanyCode === e.companyCode}
                       onClick={() => applyDirectoryEntry(e)}
                     >
                       <span className="company-registry-pick-list__badge">{label}</span>

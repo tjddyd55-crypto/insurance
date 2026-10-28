@@ -14,11 +14,12 @@ function plan(code: string, extra: Partial<BillingPlanAdminRow> = {}): BillingPl
 }
 
 describe('결제/구독 관리 탭', () => {
-  it('추천 할인 정책 탭 제거, 나머지 6개 탭 유지', () => {
+  it('GA 기본 요금 탭 제거, 나머지 5개 탭 유지', () => {
     expect(BILLING_ADMIN_TABS.map((t) => t.label)).toEqual([
-      '요금제 관리', 'GA 기본 요금', '사용자별 구독/예외', '결제 요청/청구 내역', '프로모션 코드', '결제 연동 설정',
+      '요금제 관리', '사용자별 구독/예외', '결제 요청/청구 내역', '프로모션 코드', '결제 연동 설정',
     ])
     expect(Object.keys(BILLING_ADMIN_TAB_LAYOUT)).not.toContain('referral')
+    expect(Object.keys(BILLING_ADMIN_TAB_LAYOUT)).not.toContain('ga-plans')
   })
 })
 
