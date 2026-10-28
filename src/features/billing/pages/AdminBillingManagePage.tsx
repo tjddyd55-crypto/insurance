@@ -17,16 +17,13 @@ import {
   fetchAdminBillingPlans,
   fetchAdminBillingSettings,
   fetchAdminBillingUsers,
-  fetchAdminGaBillingPlans,
   fetchAdminReferralBillingPolicy,
   setAdminBillingPlanStatus,
   updateAdminBillingPlan,
   updateAdminBillingSettings,
-  updateAdminGaBillingPlan,
   updateAdminUserBillingPlan,
   type BillingPlanAdminRow,
   type BillingUserAdminRow,
-  type GaBillingPlanAdminRow,
   type PaymentSettingsAdmin,
   type ReferralBillingPolicyAdmin,
 } from '../api/billingApi'
@@ -52,6 +49,14 @@ const LEGACY_TAB_REDIRECTS: Record<string, BillingAdminTabId> = {
 }
 
 export default function AdminBillingManagePage() {
+  const [searchParams] = useSearchParams()
+  if (searchParams.get('tab') === 'ga-plans') {
+    return <Navigate to="/admin/ga" replace />
+  }
+  return <AdminBillingManageContent />
+}
+
+function AdminBillingManageContent() {
   const { token, user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const tabParam = searchParams.get('tab')
@@ -67,12 +72,10 @@ export default function AdminBillingManagePage() {
   }, [legacyRedirect, setSearchParams])
 
   const [plans, setPlans] = useState<BillingPlanAdminRow[]>([])
-  const [gaPlans, setGaPlans] = useState<GaBillingPlanAdminRow[]>([])
   const [billingUsers, setBillingUsers] = useState<BillingUserAdminRow[]>([])
   const [referralPolicy, setReferralPolicy] = useState<ReferralBillingPolicyAdmin | null>(null)
   const [settings, setSettings] = useState<PaymentSettingsAdmin | null>(null)
 
-  const [gaDrafts, setGaDrafts] = useState<Record<number, string>>({})
   const [userDrafts, setUserDrafts] = useState<Record<string, string>>({})
 
   const [mode, setMode] = useState<'virtual' | 'live'>('virtual')
@@ -106,26 +109,19 @@ export default function AdminBillingManagePage() {
     if (!token?.trim() || user?.role !== 'SUPER_ADMIN') return
     setLoadError('')
     try {
-      const [planRes, gaRes, userRes, referralRes, settingsRes] = await Promise.all([
+      const [planRes, userRes, referralRes, settingsRes] = await Promise.all([
         fetchAdminBillingPlans(token),
-        fetchAdminGaBillingPlans(token),
         fetchAdminBillingUsers(token),
         fetchAdminReferralBillingPolicy(token),
         fetchAdminBillingSettings(token),
       ])
       setPlans(planRes.plans)
-      setGaPlans(gaRes.gaPlans)
       setBillingUsers(userRes.users)
       setReferralPolicy(referralRes)
       setSettings(settingsRes)
       setMode(normalizePaymentMode(settingsRes.mode))
       setProvider(normalizePaymentProvider(settingsRes.provider))
       setIsEnabled(Boolean(settingsRes.isEnabled))
-      setGaDrafts(
-        Object.fromEntries(
-          gaRes.gaPlans.map((row) => [row.gaId, row.defaultPlanCode ?? row.effectivePlanCode]),
-        ),
-      )
       setUserDrafts(
         Object.fromEntries(
           userRes.users.map((row) => [row.userId, row.userOverridePlanCode ?? '']),
@@ -142,13 +138,11 @@ export default function AdminBillingManagePage() {
 
   const selectedPlanCodes = useMemo(() => {
     const codes = [
-      ...Object.values(gaDrafts),
       ...Object.values(userDrafts),
-      ...gaPlans.map((row) => row.defaultPlanCode ?? row.effectivePlanCode),
       ...billingUsers.map((row) => row.userOverridePlanCode ?? row.effectivePlanCode),
     ]
     return codes.filter(Boolean)
-  }, [gaDrafts, userDrafts, gaPlans, billingUsers])
+  }, [userDrafts, billingUsers])
 
   const planOptions = useMemo(
     () => buildBillingPlanSelectOptions(plans, selectedPlanCodes),
@@ -260,24 +254,6 @@ export default function AdminBillingManagePage() {
       setDeletePlanTarget(null)
     } finally {
       setDeletePlanBusy(false)
-    }
-  }
-
-  const onSaveGaPlan = async (gaId: number) => {
-    if (!token?.trim() || busy) return
-    const planCode = gaDrafts[gaId]
-    if (!planCode) return
-    setBusy(true)
-    setActionError('')
-    setActionInfo('')
-    try {
-      await updateAdminGaBillingPlan(token, gaId, planCode)
-      setActionInfo('GA 기본 요금제가 저장되었습니다. 다음 invoice 생성부터 적용됩니다.')
-      await load()
-    } catch (e) {
-      setActionError(e instanceof Error ? e.message : 'GA 요금제 저장에 실패했습니다.')
-    } finally {
-      setBusy(false)
     }
   }
 
@@ -447,58 +423,6 @@ export default function AdminBillingManagePage() {
               ))}
             </ul>
           )}
-          </AdminDataCard>
-        ) : null}
-
-        {activeTab === 'ga-plans' ? (
-          <AdminDataCard title="GA 기본 요금">
-          <p className="status text-sm">
-            GA 단위 기본 요금제를 지정합니다. 소속 사용자는 예외가 없으면 이 요금제를 상속합니다. 저장 후 다음
-            invoice 생성부터 적용되며, 기존 청구서 금액은 변경되지 않습니다.
-          </p>
-          <p className="billing-page__invoice-sub billing-page__invoice-sub--muted">{PRICING_PRIORITY_NOTE}</p>
-          <ul className="billing-page__invoice-list">
-            {gaPlans.map((row) => (
-              <li key={row.gaId} className="billing-page__invoice-item">
-                <div className="billing-page__invoice-head">
-                  <strong>
-                    {row.gaName} ({row.gaCode})
-                  </strong>
-                  <span>사용자 {row.userCount}명</span>
-                </div>
-                <p className="billing-page__invoice-sub">
-                  현재 적용: {row.displayPriceWithVatNote}
-                  {row.usesInsuranceBasicFallback ? ' · 보험 CRM 기본 요금제 상속' : ''}
-                </p>
-                <p className="billing-page__invoice-sub billing-page__invoice-sub--muted">
-                  {formatPricingBreakdown({
-                    supplyAmount: row.supplyAmount,
-                    vatAmount: row.vatAmount,
-                    totalAmount: row.totalAmount,
-                  })}
-                </p>
-                <div className="billing-page__actions">
-                  <FieldWrapper label="기본 요금제">
-                    <FormSelect
-                      value={gaDrafts[row.gaId] ?? row.effectivePlanCode}
-                      options={planOptions}
-                      onChange={(e) =>
-                        setGaDrafts((prev) => ({ ...prev, [row.gaId]: e.target.value }))
-                      }
-                    />
-                  </FieldWrapper>
-                  <FormButton
-                    htmlType="button"
-                    variant="secondary"
-                    disabled={busy}
-                    onClick={() => void onSaveGaPlan(row.gaId)}
-                  >
-                    저장
-                  </FormButton>
-                </div>
-              </li>
-            ))}
-          </ul>
           </AdminDataCard>
         ) : null}
 
