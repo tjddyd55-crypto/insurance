@@ -122,6 +122,7 @@ import {
 } from './lib/boardWriterAccountService.js'
 import { mapBoardWriterRow } from './lib/boardWriterService.js'
 import { parseGaId } from './lib/parseGaId.js'
+import { ensureInsurerNewsletterBoard } from './lib/insurerNewsletterBoard.js'
 import { registerFeatureRequestsApi } from './apis/registerFeatureRequestsApi.js'
 import { registerInsuranceContactsApi } from './apis/registerInsuranceContactsApi.js'
 import {
@@ -4196,6 +4197,7 @@ apiRouter.post('/admin/ga', requireAuth, requireSuperAdmin, async (req, res) => 
     const createdGa = ins.rows[0]
     const createdGaId = parseGaId(createdGa?.id)
     if (createdGaId != null) {
+      await ensureInsurerNewsletterBoard(pool, createdGaId)
       const tenantEnsured = await ensureInsuranceTenantForLegacyGa(pool, {
         gaId: createdGaId,
         gaCode: code,
@@ -4605,6 +4607,7 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdminOrScopedGaAdmin, asy
         u.status,
         u.created_at,
         u.last_login_at,
+        u.last_login_user_agent,
         rr.referrer_user_id,
         ref_u.username AS referrer_username,
         ref_u.display_name AS referrer_display_name,
@@ -4924,6 +4927,11 @@ apiRouter.post('/admin/user', requireAuth, requireSuperAdmin, postAdminCreateDel
 
 apiRouter.get('/admin/delegates', requireAuth, requireSuperAdmin, async (req, res) => {
   try {
+    const requestedGaId = req.query.gaId == null ? null : parseGaId(req.query.gaId)
+    if (req.query.gaId != null && requestedGaId == null) {
+      res.status(400).json({ message: '잘못된 GA ID입니다.' })
+      return
+    }
     const r = await systemQuery(
       pool,
       `
@@ -4942,8 +4950,10 @@ apiRouter.get('/admin/delegates', requireAuth, requireSuperAdmin, async (req, re
       WHERE u.is_deleted = false
         AND g.is_deleted = false
         AND u.role IN ('GA_ADMIN', 'GA_STAFF')
+        AND ($1::int IS NULL OR u.ga_id = $1::int)
       ORDER BY g.name ASC, u.username ASC
       `,
+      [requestedGaId],
     )
     res.json(r.rows.map(mapGaDelegateAdminRow))
   } catch (error) {

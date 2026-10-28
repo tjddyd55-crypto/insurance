@@ -486,6 +486,7 @@ function UserManagementTable() {
           <span className="admin-user-table__last-login-compact">
             {formatAdminUserLastLogin(r.last_login_at, true)}
           </span>
+          <small className="admin-user-login-client">{r.last_login_channel ?? '미확인'} · {r.last_login_device ?? '미확인'}</small>
         </td>
         <td className="admin-table-cell--actions">
           {isSuper ? (
@@ -580,7 +581,7 @@ function UserManagementTable() {
         </div>
         <div className="admin-user-card__row">
           <span className="admin-user-card__label">최근 접속일</span>
-          <span className="admin-user-card__value">{formatAdminUserLastLogin(r.last_login_at, true)}</span>
+          <span className="admin-user-card__value">{formatAdminUserLastLogin(r.last_login_at, true)}<br />{r.last_login_channel ?? '미확인'} · {r.last_login_device ?? '미확인'}</span>
         </div>
         {isSuper ? (
         <div className="admin-user-card__actions">
@@ -1367,6 +1368,7 @@ function UserManagementTable() {
                               </strong>
                               <span>가입일 {formatAdminUserJoinDate(r.created_at)}</span>
                               <span>최근 접속 {formatAdminUserLastLogin(r.last_login_at, true)}</span>
+                              <span>{r.last_login_channel ?? '미확인'} · {r.last_login_device ?? '미확인'}</span>
                             </div>
                             <div className="admin-user-management__ga-group-row-actions">
                               <FormButton

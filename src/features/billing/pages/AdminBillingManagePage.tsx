@@ -27,7 +27,6 @@ import {
   type BillingPlanAdminRow,
   type BillingUserAdminRow,
   type GaBillingPlanAdminRow,
-  type PaymentMode,
   type PaymentSettingsAdmin,
   type ReferralBillingPolicyAdmin,
 } from '../api/billingApi'
@@ -44,7 +43,7 @@ import {
 } from '../billingConfig'
 
 const PRICING_PRIORITY_NOTE =
-  '요금 적용 우선순위: ① 사용자별 예외 요금제 → ② GA 기본 요금제 → ③ 전체 기본 요금제 → ④ 프로모션 코드 → ⑤ 추천 할인'
+  '요금 적용 우선순위: ① 사용자별 예외 요금제 → ② GA 기본 요금제 → ③ 보험 CRM 기본 요금제 → ④ 프로모션 코드 → ⑤ 추천 할인'
 
 const LEGACY_TAB_REDIRECTS: Record<string, BillingAdminTabId> = {
   'billing-promotions': 'promotions',
@@ -416,7 +415,7 @@ export default function AdminBillingManagePage() {
                     >
                       수정
                     </FormButton>
-                    {plan.isActive ? (
+                    {plan.dbCode === 'insurance_basic' ? <span className="status">항상 활성 · 시스템 기본</span> : plan.isActive ? (
                       <FormButton
                         htmlType="button"
                         variant="secondary"
@@ -435,14 +434,14 @@ export default function AdminBillingManagePage() {
                         활성화
                       </FormButton>
                     )}
-                    <FormButton
+                    {plan.dbCode !== 'insurance_basic' ? <FormButton
                       htmlType="button"
                       variant="secondary"
                       disabled={busy || deletePlanBusy}
                       onClick={() => setDeletePlanTarget(plan)}
                     >
                       삭제
-                    </FormButton>
+                    </FormButton> : null}
                   </div>
                 </li>
               ))}
@@ -469,7 +468,7 @@ export default function AdminBillingManagePage() {
                 </div>
                 <p className="billing-page__invoice-sub">
                   현재 적용: {row.displayPriceWithVatNote}
-                  {row.usesGeneralFallback ? ' · GENERAL 기본 상속' : ''}
+                  {row.usesInsuranceBasicFallback ? ' · 보험 CRM 기본 요금제 상속' : ''}
                 </p>
                 <p className="billing-page__invoice-sub billing-page__invoice-sub--muted">
                   {formatPricingBreakdown({
@@ -662,6 +661,7 @@ export default function AdminBillingManagePage() {
         open={planFormOpen}
         mode={planFormMode}
         initialPlan={editingPlan}
+        lockActive={editingPlan?.dbCode === 'insurance_basic'}
         busy={busy}
         error={planFormError}
         onClose={() => {

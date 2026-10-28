@@ -13,6 +13,18 @@ import {
 } from '../lib/pricingPolicy.js'
 
 const persistedBillingPlanRows = {
+  insurance_basic: {
+    code: 'insurance_basic',
+    name: '보험 CRM 기본 요금제',
+    amount: 8800,
+    supply_amount: 8000,
+    vat_rate: 0.1,
+    apply_vat: true,
+    allows_referral_discount: true,
+    referral_discount_start_count: 1,
+    referral_discount_unit_supply_amount: 1000,
+    is_active: true,
+  },
   monthly_basic: {
     code: 'monthly_basic',
     name: '월 이용료',
@@ -124,12 +136,13 @@ for (const [count, expected] of [
   })
 }
 
-test('calculateInvoicePricing — 저장 요금제가 없으면 신규/default 3,000원 fallback', async () => {
+test('calculateInvoicePricing — 저장된 insurance_basic 요금제가 신규/default fallback SSOT', async () => {
   const executor = createReferralMockExecutor(1)
   const pricing = await calculateInvoicePricing(executor, 'user-without-plan')
   assert.equal(pricing.planSource, 'system_default')
-  assert.equal(pricing.referralDiscountAmount, 3000)
-  assert.equal(pricing.finalAmount, 5800)
+  assert.equal(pricing.planCode, 'insurance_basic')
+  assert.equal(pricing.referralDiscountAmount, 1000)
+  assert.equal(pricing.finalAmount, 7800)
 })
 
 test('calculateInvoicePricing — 피추천인 첫 결제 2,000원 할인 제거', async () => {

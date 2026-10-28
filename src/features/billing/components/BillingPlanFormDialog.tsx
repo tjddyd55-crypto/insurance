@@ -34,6 +34,7 @@ type BillingPlanFormDialogProps = {
   open: boolean
   mode: 'create' | 'edit'
   initialPlan?: BillingPlanAdminRow | null
+  lockActive?: boolean
   busy: boolean
   error: string
   onClose: () => void
@@ -136,6 +137,7 @@ export function BillingPlanFormDialog({
   open,
   mode,
   initialPlan,
+  lockActive = false,
   busy,
   error,
   onClose,
@@ -402,13 +404,17 @@ export function BillingPlanFormDialog({
           </div>
 
           <FormSection title="상태 및 설명">
-            <CheckboxField
-              label="활성"
-              description="비활성화된 요금제는 신규 적용 대상에서 제외됩니다."
-              checked={values.isActive}
-              disabled={busy}
-              onChange={(isActive) => setValues((prev) => ({ ...prev, isActive }))}
-            />
+            {lockActive ? (
+              <p className="billing-plan-form-modal__hint" role="status">보험 CRM 기본 요금제는 항상 활성 상태입니다.</p>
+            ) : (
+              <CheckboxField
+                label="활성"
+                description="비활성화된 요금제는 신규 적용 대상에서 제외됩니다."
+                checked={values.isActive}
+                disabled={busy}
+                onChange={(isActive) => setValues((prev) => ({ ...prev, isActive }))}
+              />
+            )}
             <FieldWrapper label="설명">
               <FormTextarea
                 value={values.description}

@@ -3,6 +3,7 @@ import {
   resolveSubscriptionUntilIso,
   toIsoStringOrNull,
 } from './billingSubscriptionPresentation.js'
+import { classifyLoginClient } from './loginClientPresentation.js'
 
 /**
  * @param {string | null | undefined} raw
@@ -94,6 +95,7 @@ export function mapAdminUserListRow(row, toIso) {
   )
 
   const phoneRaw = row.phone_number != null ? String(row.phone_number).trim() : ''
+  const loginClient = classifyLoginClient(row.last_login_user_agent)
   return {
     id: String(row.id),
     ga_id: row.ga_id,
@@ -111,6 +113,8 @@ export function mapAdminUserListRow(row, toIso) {
     referrer_ga_company_name:
       row.referrer_ga_company_name != null ? String(row.referrer_ga_company_name) : null,
     last_login_at: lastLoginAt,
+    last_login_channel: loginClient.channel,
+    last_login_device: loginClient.device,
     subscription_status: subscriptionStatus,
     subscription_effective_category: subscriptionPresentation.effectiveCategory,
     subscription_entitled: subscriptionPresentation.entitled,
