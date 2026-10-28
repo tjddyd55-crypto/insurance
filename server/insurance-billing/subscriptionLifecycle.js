@@ -14,6 +14,7 @@ import {
   reserveBillingPromotionUsage,
 } from './billingPromotionRedemptionPolicy.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
+import { resolveBillingPlanForUser } from '../billing/planResolver.js'
 import { resolveTenantByGaId } from '../lib/crmPlatformMeta.js'
 import { assertNoActivePendingInsurancePayment } from './pendingPaymentPolicy.js'
 import { resolveNextPeriodEnd, addCalendarMonthsKst as addMonths } from './billingPeriodDate.js'
@@ -70,6 +71,7 @@ export async function bootstrapInsuranceBillingSubscriptionOnSignup(client, { us
     return existing.rows[0]
   }
   const tenantId = await resolveTenantIdForUser(client, userId, gaId)
+  const resolvedPlan = await resolveBillingPlanForUser(client, userId)
   const ins = await systemQuery(
     client,
     `
@@ -79,13 +81,13 @@ export async function bootstrapInsuranceBillingSubscriptionOnSignup(client, { us
     VALUES ($1, $2, $3, 'pending_payment', 'monthly', NOW(), NOW())
     RETURNING id, status, plan_code
     `,
-    [userId, tenantId, INSURANCE_BASIC_PLAN_CODE],
+    [userId, tenantId, resolvedPlan.planCode],
   )
   await recordBillingEvent(client, {
     tenantId,
     userId,
     eventType: 'subscription.pending_payment.created',
-    payload: { planCode: INSURANCE_BASIC_PLAN_CODE },
+    payload: { planCode: resolvedPlan.planCode },
   })
   return ins.rows[0]
 }

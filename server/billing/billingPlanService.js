@@ -28,7 +28,8 @@ export function parseReferralDiscountPerUser(raw) {
 import { assertValidBillingPlanCode } from './billingPlanCode.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 
-const SYSTEM_BILLING_PLAN_CODES = new Set(['monthly_basic', 'monthly_discount', 'insurance_basic'])
+const INSURANCE_BASIC_PLAN_CODE = 'insurance_basic'
+const SYSTEM_BILLING_PLAN_CODES = new Set([INSURANCE_BASIC_PLAN_CODE])
 
 const PLAN_ROW_SELECT = `
   code, name, amount, supply_amount, vat_rate, apply_vat, cycle, is_active,
@@ -180,6 +181,14 @@ export async function fetchBillingPlanDefinition(executor, planCodeOrDbCode, opt
     return buildPlanDefinitionFromDbRow(row)
   }
   return resolveBillingPlan(raw)
+}
+
+/** Resolve the canonical fallback strictly from its persisted administrator-managed row. */
+export async function fetchInsuranceBasicPlanDefinition(executor) {
+  const row = await fetchBillingPlanRowByCode(executor, INSURANCE_BASIC_PLAN_CODE, { allowInactive: true })
+  if (!row) throw new Error('insurance_basic_plan_missing')
+  if (row.is_active === false) throw new Error('inactive_billing_plan')
+  return buildPlanDefinitionFromDbRow(row)
 }
 
 /**
@@ -360,7 +369,8 @@ export async function updateBillingPlanAdmin(executor, code, body) {
       : Math.max(0, Math.round(Number(existing.referral_discount_unit_supply_amount ?? DEFAULT_REFERRAL_DISCOUNT_PER_USER)))
   const description =
     body.description != null ? String(body.description).trim() || null : existing.description ?? null
-  const isActive = body.isActive != null ? body.isActive !== false : existing.is_active !== false
+  const isInsuranceBasic = planCode === INSURANCE_BASIC_PLAN_CODE
+  const isActive = isInsuranceBasic || (body.isActive != null ? body.isActive !== false : existing.is_active !== false)
 
   await systemQuery(
     executor,
@@ -384,7 +394,7 @@ export async function updateBillingPlanAdmin(executor, code, body) {
     `,
     [
       planCode,
-      name,
+      isInsuranceBasic ? '보험 CRM 기본 요금제' : name,
       amounts.totalAmount,
       amounts.supplyAmount,
       amounts.vatRate,
@@ -412,6 +422,9 @@ export async function setBillingPlanActiveAdmin(executor, code, isActive) {
   const existing = await fetchBillingPlanRowByCode(executor, planCode, { allowInactive: true })
   if (!existing) {
     throw new Error('plan_not_found')
+  }
+  if (planCode === INSURANCE_BASIC_PLAN_CODE && !isActive) {
+    throw new Error('billing_plan_system_default_active')
   }
 
   const usage = await getBillingPlanUsageCounts(executor, planCode)
@@ -583,14 +596,14 @@ export async function listGaBillingPlansAdmin(executor) {
   const rows = []
   for (const row of r.rows) {
     const defaultPlanCode = row.default_plan_code ? String(row.default_plan_code) : null
-    const effectivePlanCode =
-      defaultPlanCode ??
-      (await getGeneralGaDefaultPlanCode(executor)) ??
-      BILLING_PLANS.STANDARD_MONTHLY.dbCode
-    const plan = await fetchBillingPlanDefinition(executor, effectivePlanCode, {
-      allowInactive: true,
-      requireActive: false,
-    })
+    const effectivePlanCode = defaultPlanCode ?? INSURANCE_BASIC_PLAN_CODE
+    const plan =
+      effectivePlanCode === INSURANCE_BASIC_PLAN_CODE
+        ? await fetchInsuranceBasicPlanDefinition(executor)
+        : await fetchBillingPlanDefinition(executor, effectivePlanCode, {
+            allowInactive: true,
+            requireActive: false,
+          })
     rows.push({
       gaId: Number(row.id),
       gaName: String(row.name ?? ''),
@@ -603,7 +616,7 @@ export async function listGaBillingPlansAdmin(executor) {
       totalAmount: plan.totalAmount,
       displayPriceWithVatNote: plan.displayPriceWithVatNote,
       userCount: Number(row.user_count ?? 0),
-      usesGeneralFallback: !defaultPlanCode,
+      usesInsuranceBasicFallback: !defaultPlanCode,
       planIsActive: plan.isActive !== false,
     })
   }
@@ -624,7 +637,13 @@ export async function updateGaDefaultBillingPlan(executor, gaId, planCode) {
   if (gaR.rowCount === 0) {
     throw new Error('ga_not_found')
   }
-  const plan = await fetchBillingPlanDefinition(executor, planCode, { requireActive: true })
+  const normalizedPlanCode = String(planCode ?? '').trim()
+  if (!normalizedPlanCode) {
+    await systemQuery(executor, 'DELETE FROM ga_billing_settings WHERE ga_id = $1', [gaId])
+    const base = await fetchInsuranceBasicPlanDefinition(executor)
+    return { gaId, defaultPlanCode: null, planLabel: base.label }
+  }
+  const plan = await fetchBillingPlanDefinition(executor, normalizedPlanCode, { requireActive: true })
   await systemQuery(
     executor,
     `

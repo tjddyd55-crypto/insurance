@@ -261,7 +261,7 @@ export interface GaBillingPlanAdminRow {
   totalAmount: number
   displayPriceWithVatNote: string
   userCount: number
-  usesGeneralFallback: boolean
+  usesInsuranceBasicFallback: boolean
 }
 
 export interface BillingUserAdminRow {
@@ -383,8 +383,8 @@ export async function fetchAdminGaBillingPlans(token: string): Promise<{ gaPlans
 export async function updateAdminGaBillingPlan(
   token: string,
   gaId: number,
-  planCode: string,
-): Promise<{ gaId: number; defaultPlanCode: string; planLabel: string }> {
+  planCode: string | null,
+): Promise<{ gaId: number; defaultPlanCode: string | null; planLabel: string }> {
   return apiRequest(`/api/admin/billing/ga-plans/${gaId}`, {
     method: 'PATCH',
     token,

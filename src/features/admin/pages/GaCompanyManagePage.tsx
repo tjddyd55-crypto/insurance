@@ -12,8 +12,16 @@ import {
 } from '../api/gaCustomerExcelAdminApi'
 import { listGaCompanies, patchGaCompany, type GaCompanyRow } from '../../auth/authApi'
 import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
+import GaDelegateManagementPage from './GaDelegateManagementPage'
+import {
+  fetchAdminBillingPlans,
+  fetchAdminGaBillingPlans,
+  updateAdminGaBillingPlan,
+  type BillingPlanAdminRow,
+  type GaBillingPlanAdminRow,
+} from '../../billing/api/billingApi'
 
-type TabKey = 'excel' | 'customerDb'
+type TabKey = 'billing' | 'delegates' | 'excel' | 'customerDb'
 
 const DB_FIELD_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: '(매칭 없음)' },
@@ -28,7 +36,12 @@ export default function GaCompanyManagePage() {
   const gaId = Number(gaIdParam)
   const location = useLocation()
   const { token, user } = useAuth()
-  const [tab, setTab] = useState<TabKey>('excel')
+  const [tab, setTab] = useState<TabKey>('delegates')
+  const [planRows, setPlanRows] = useState<BillingPlanAdminRow[]>([])
+  const [gaBilling, setGaBilling] = useState<GaBillingPlanAdminRow | null>(null)
+  const [planDraft, setPlanDraft] = useState('')
+  const [billingMessage, setBillingMessage] = useState('')
+  const [billingBusy, setBillingBusy] = useState(false)
   const [gaMeta, setGaMeta] = useState<{ name: string; code: string } | null>(null)
   const [settings, setSettings] = useState<GaCustomerExcelSettingsDto | null>(null)
   const [loadErr, setLoadErr] = useState('')
@@ -79,6 +92,36 @@ export default function GaCompanyManagePage() {
       setLoading(false)
     }
   }, [token, gaId])
+
+  const loadBilling = useCallback(async () => {
+    if (!token?.trim()) return
+    try {
+      const [plans, rows] = await Promise.all([fetchAdminBillingPlans(token), fetchAdminGaBillingPlans(token)])
+      const row = rows.gaPlans.find((item) => item.gaId === gaId) ?? null
+      setPlanRows(plans.plans.filter((plan) => plan.isActive || plan.dbCode === 'insurance_basic' || plan.dbCode === row?.defaultPlanCode))
+      setGaBilling(row)
+      setPlanDraft(row?.defaultPlanCode ?? '')
+    } catch (error) {
+      setBillingMessage(error instanceof Error ? error.message : 'GA 요금 정보를 불러오지 못했습니다.')
+    }
+  }, [token, gaId])
+
+  useEffect(() => { void loadBilling() }, [loadBilling])
+
+  const saveBilling = async () => {
+    if (!token?.trim() || billingBusy) return
+    setBillingBusy(true)
+    setBillingMessage('')
+    try {
+      await updateAdminGaBillingPlan(token, gaId, planDraft || null)
+      setBillingMessage('GA 기본 요금제가 저장되었습니다.')
+      await loadBilling()
+    } catch (error) {
+      setBillingMessage(error instanceof Error ? error.message : '저장에 실패했습니다.')
+    } finally {
+      setBillingBusy(false)
+    }
+  }
 
   useEffect(() => {
     void loadGaMeta()
@@ -265,6 +308,22 @@ export default function GaCompanyManagePage() {
         >
           <FormButton
             htmlType="button"
+            variant={tab === 'billing' ? 'primary' : 'secondary'}
+            className={tab === 'billing' ? 'button button--primary' : 'button button--secondary'}
+            onClick={() => setTab('billing')}
+          >
+            요금제
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            variant={tab === 'delegates' ? 'primary' : 'secondary'}
+            className={tab === 'delegates' ? 'button button--primary' : 'button button--secondary'}
+            onClick={() => setTab('delegates')}
+          >
+            담당자 관리
+          </FormButton>
+          <FormButton
+            htmlType="button"
             variant={tab === 'customerDb' ? 'primary' : 'secondary'}
             className={tab === 'customerDb' ? 'button button--primary' : 'button button--secondary'}
             onClick={(ev) => {
@@ -288,6 +347,38 @@ export default function GaCompanyManagePage() {
         </div>
 
         {loadErr ? <StatusMessage message={loadErr} tone="error" className="mb-2" /> : null}
+
+        {tab === 'billing' ? (
+          <section className="admin-data-card">
+            <h2 className="admin-data-card__title">GA 기본 요금제</h2>
+            <p>별도 지정하지 않으면 보험 CRM 기본 요금제를 상속합니다. 기존 invoice는 변경되지 않습니다.</p>
+            <p>
+              <strong>현재 적용:</strong> {gaBilling?.displayPriceWithVatNote ?? '불러오는 중…'}
+              {gaBilling?.usesInsuranceBasicFallback ? ' · 보험 CRM 기본 요금제 상속' : ''}
+            </p>
+            <div className="billing-page__actions">
+              <FieldWrapper label="기본 요금제">
+                <FormSelect
+                  value={planDraft}
+                  onChange={(event) => setPlanDraft(event.target.value)}
+                  options={[
+                    { value: '', label: '보험 CRM 기본 요금제 상속' },
+                    ...planRows.map((plan) => ({
+                      value: plan.dbCode,
+                      label: `${plan.label} · ${plan.displayPriceWithVatNote}`,
+                    })),
+                  ]}
+                />
+              </FieldWrapper>
+              <FormButton htmlType="button" variant="secondary" disabled={billingBusy} onClick={() => void saveBilling()}>
+                저장
+              </FormButton>
+            </div>
+            {billingMessage ? <p role="status">{billingMessage}</p> : null}
+          </section>
+        ) : null}
+
+        {tab === 'delegates' ? <GaDelegateManagementPage gaId={gaId} embedded /> : null}
 
         {tab === 'customerDb' ? (
           <p className="text-sm text-[var(--text-secondary)]" style={{ lineHeight: 1.6 }}>

@@ -20069,3 +20069,60 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 .auth-page .auth-form--register .register-signup-type__opt.button{height:auto;min-height:0;white-space:normal;justify-content:flex-start;line-height:1.35;font-weight:400}
 .auth-page .auth-form--register .register-signup-type__opt.button strong{font-weight:700;font-size:14px}
 .auth-page .auth-form--register .register-partner-ga-item.button{height:auto;min-height:30px;font-weight:500}
+.insurance-contacts-view--editing .insurance-contacts-editor-layout {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.32fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.insurance-contacts-view--editing .insurance-contacts-editor-list {
+  min-width: 0;
+  max-height: 68vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border, #d7dce2);
+  border-radius: 10px;
+}
+
+.insurance-contacts-view--editing .insurance-contacts-editor-list__items {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  gap: 6px;
+}
+
+.insurance-contacts-view--editing .insurance-contacts-editor-list__items button {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.insurance-contacts-view--editing .insurance-contacts-editor-list__items button.is-selected {
+  border-color: var(--primary, #2563eb);
+  background: color-mix(in srgb, var(--primary, #2563eb) 10%, transparent);
+  font-weight: 700;
+}
+
+.insurance-contacts-view--editing .insurance-contacts-editor-layout > .company-card {
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .insurance-contacts-view--editing .insurance-contacts-editor-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .insurance-contacts-view--editing .insurance-contacts-editor-list {
+    max-height: 230px;
+  }
+}

@@ -94,6 +94,12 @@ function createMockExecutor(state) {
 }
 
 const basePlans = {
+  insurance_basic: {
+    code: 'insurance_basic', name: '보험 CRM 기본 요금제', amount: 9900, supply_amount: 9000,
+    vat_rate: 0.1, apply_vat: true, cycle: 'monthly', is_active: true,
+    allows_referral_discount: true, referral_discount_start_count: 1,
+    referral_discount_unit_supply_amount: 1000, description: null,
+  },
   monthly_basic: {
     code: 'monthly_basic',
     name: '월 이용료',
@@ -165,13 +171,29 @@ test('resolveBillingPlanForUser — GA default DISCOUNT', async () => {
   assert.equal(resolved.plan.totalAmount, 5500)
 })
 
-test('resolveBillingPlanForUser — GENERAL fallback', async () => {
+test('resolveBillingPlanForUser — insurance_basic is final fallback', async () => {
   const state = baseState()
   state.generalPlan = 'monthly_discount'
   const executor = createMockExecutor(state)
   const resolved = await resolveBillingPlanForUser(executor, USER_GENERAL)
-  assert.equal(resolved.source, 'general_default')
-  assert.equal(resolved.plan.totalAmount, 5500)
+  assert.equal(resolved.source, 'system_default')
+  assert.equal(resolved.planCode, 'insurance_basic')
+  assert.equal(resolved.plan.totalAmount, 9900)
+})
+
+test('resolveBillingPlanForUser — missing user still reads insurance_basic from DB', async () => {
+  const resolved = await resolveBillingPlanForUser(createMockExecutor(baseState()), 'missing')
+  assert.equal(resolved.planCode, 'insurance_basic')
+  assert.equal(resolved.plan.totalAmount, 9900)
+})
+
+test('resolveBillingPlanForUser fails closed if canonical DB fallback is missing', async () => {
+  const state = baseState()
+  state.plans.insurance_basic = undefined
+  await assert.rejects(
+    resolveBillingPlanForUser(createMockExecutor(state), USER_A),
+    (error) => error?.message === 'insurance_basic_plan_missing',
+  )
 })
 
 test('resolveBillingPlanForUser — user override beats GA default', async () => {

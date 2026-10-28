@@ -76,7 +76,7 @@ function formatDelegateRole(role: GaDelegateRole): string {
   return role === 'GA_ADMIN' ? 'GA_ADMIN' : 'GA_STAFF'
 }
 
-export default function GaDelegateManagementPage() {
+export default function GaDelegateManagementPage({ gaId, embedded = false }: { gaId?: number; embedded?: boolean } = {}) {
   const { user, token } = useAuth()
   const { confirm, confirmDialog } = useConfirmDialog()
   const [rows, setRows] = useState<GaDelegateRow[]>([])
@@ -107,7 +107,7 @@ export default function GaDelegateManagementPage() {
     setLoadError('')
     setIsLoading(true)
     try {
-      const [list, gas] = await Promise.all([listGaDelegates(token), listGaCompanies(token)])
+      const [list, gas] = await Promise.all([listGaDelegates(token, gaId), gaId == null ? listGaCompanies(token) : Promise.resolve([])])
       setRows(list)
       setGaList(gas)
     } catch (e) {
@@ -115,27 +115,27 @@ export default function GaDelegateManagementPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [token, user?.role])
+  }, [token, user?.role, gaId])
 
   useEffect(() => {
     void load()
   }, [load])
 
   useEffect(() => {
-    if (!createOpen || gaList.length === 0) {
+    if (!createOpen || gaId != null || gaList.length === 0) {
       return
     }
     if (createGaId === '' && gaList.length === 1) {
       setCreateGaId(gaList[0].id)
     }
-  }, [createOpen, gaList, createGaId])
+  }, [createOpen, gaList, createGaId, gaId])
 
   const submitCreate = async (e: FormEvent) => {
     e.preventDefault()
     if (!token?.trim()) {
       return
     }
-    if (createGaId === '' || !Number.isInteger(Number(createGaId))) {
+    if ((gaId == null && createGaId === '') || !Number.isInteger(Number(gaId ?? createGaId))) {
       setCreateErr('GA를 선택하세요.')
       return
     }
@@ -143,7 +143,7 @@ export default function GaDelegateManagementPage() {
     setCreateBusy(true)
     try {
       const row = await createGaDelegate(token, {
-        gaId: Number(createGaId),
+        gaId: Number(gaId ?? createGaId),
         username: createUsername,
         password: createPassword,
         name: createName,
@@ -238,7 +238,7 @@ export default function GaDelegateManagementPage() {
     const pw = String(r.password ?? '').trim()
     return (
       <tr key={r.id}>
-        <td>{r.gaName}</td>
+      {!embedded ? <td>{r.gaName}</td> : null}
         <td style={{ fontVariantNumeric: 'tabular-nums' }}>{r.username}</td>
         <td>{formatDelegateRole(r.role)}</td>
         <td style={{ wordBreak: 'break-all' }}>{pw || '—'}</td>
@@ -274,10 +274,10 @@ export default function GaDelegateManagementPage() {
     const pw = String(r.password ?? '').trim()
     return (
       <article key={r.id} className="admin-ga-card">
-        <div className="admin-ga-card__row">
+        {!embedded ? <div className="admin-ga-card__row">
           <span className="admin-ga-card__label">GA 이름</span>
           <span className="admin-ga-card__value">{r.gaName}</span>
-        </div>
+        </div> : null}
         <div className="admin-ga-card__row">
           <span className="admin-ga-card__label">아이디</span>
           <span className="admin-ga-card__value">{r.username}</span>
@@ -332,10 +332,9 @@ export default function GaDelegateManagementPage() {
   }
 
   return (
-    <main className="page page--with-back admin-ga-management">
+    <main className={`page page--with-back admin-ga-management${embedded ? ' admin-ga-management--embedded' : ''}`}>
       <header className="page-header">
-        <h1>담당자 관리</h1>
-        <p>{loadError || '전체 GA의 GA_ADMIN · GA_STAFF 계정을 관리합니다.'}</p>
+        {!embedded ? <><h1>담당자 관리</h1><p>{loadError || '전체 GA의 GA_ADMIN · GA_STAFF 계정을 관리합니다.'}</p></> : <h2>담당자 관리</h2>}
       </header>
 
       <section
@@ -362,7 +361,7 @@ export default function GaDelegateManagementPage() {
           <table className="admin-data-table">
             <thead>
               <tr>
-                <th>GA 이름</th>
+                {!embedded ? <th>GA 이름</th> : null}
                 <th>아이디</th>
                 <th>역할</th>
                 <th>비밀번호</th>
@@ -374,7 +373,7 @@ export default function GaDelegateManagementPage() {
             <tbody>
               {rows.length === 0 && !isLoading ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
+              <td colSpan={embedded ? 6 : 7} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
                     등록된 담당자가 없습니다.
                   </td>
                 </tr>
@@ -413,7 +412,7 @@ export default function GaDelegateManagementPage() {
             onSubmit={(e) => void submitCreate(e)}
           >
             <StatusMessage message={createErr} tone="error" className="m-0" />
-            <FieldWrapper label="GA 선택" className="admin-modal-field">
+            {gaId == null ? <FieldWrapper label="GA 선택" className="admin-modal-field">
               <FormSelect
                 className="admin-form-input"
                 value={createGaId === '' ? '' : String(createGaId)}
@@ -425,7 +424,7 @@ export default function GaDelegateManagementPage() {
                   ...gaList.map((g) => ({ value: String(g.id), label: `${g.name} (${g.code})` })),
                 ]}
               />
-            </FieldWrapper>
+            </FieldWrapper> : null}
             <FieldWrapper label="역할" className="admin-modal-field">
               <FormSelect
                 className="admin-form-input"
