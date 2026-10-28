@@ -5705,10 +5705,15 @@ apiRouter.post('/company/full-save', requireAuth, requireGaTenantAdmin, async (r
           inserted = await safeQuery(client,
             `
             INSERT INTO insurance_company_master (
-              ga_id, category, name, customer_center, system_phone, incall_number, visit_info,
+              id, ga_id, category, name, company_code, customer_center, system_phone, incall_number, visit_info,
               updated_at, updated_by_username
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
+            SELECT next_id.id, $1, $2, $3,
+              'INS' || LPAD(next_id.id::text, 6, '0'),
+              $4, $5, $6, $7, NOW(), $8
+            FROM (
+              SELECT nextval(pg_get_serial_sequence('insurance_company_master', 'id'))::integer AS id
+            ) AS next_id
             RETURNING id
             `,
             [tenantGa, category, name, customerCenter, systemPhone, incallNumber, visitInfo, editor],
