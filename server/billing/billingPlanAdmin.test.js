@@ -333,10 +333,35 @@ test('deleteBillingPlanAdmin blocks every kind of usage and billing history', as
   }
 })
 
-test('deleteBillingPlanAdmin protects built-in plan codes', async () => {
+test('deleteBillingPlanAdmin protects only insurance_basic as system fallback', async () => {
   const state = { plans: {}, gaPlans: {}, users: {} }
   await assert.rejects(
-    deleteBillingPlanAdmin(createMockExecutor(state), 'monthly_basic'),
+    deleteBillingPlanAdmin(createMockExecutor(state), 'insurance_basic'),
     (error) => error?.message === 'billing_plan_system_default',
   )
+  state.plans.monthly_basic = {
+    code: 'monthly_basic', name: '월 이용료', amount: 8800, supply_amount: 8000,
+    vat_rate: 0.1, apply_vat: true, cycle: 'monthly', is_active: false,
+    allows_referral_discount: true, referral_discount_start_count: 1,
+    referral_discount_unit_supply_amount: 1000, description: null,
+  }
+  const removed = await deleteBillingPlanAdmin(createMockExecutor(state), 'monthly_basic')
+  assert.deepEqual(removed, { ok: true, planCode: 'monthly_basic' })
+})
+
+test('insurance_basic cannot be disabled by status API', async () => {
+  const state = {
+    plans: { insurance_basic: {
+      code: 'insurance_basic', name: 'old label', amount: 8800, supply_amount: 8000,
+      vat_rate: 0.1, apply_vat: true, cycle: 'monthly', is_active: true,
+      allows_referral_discount: true, referral_discount_start_count: 1,
+      referral_discount_unit_supply_amount: 1000, description: null,
+    } },
+    gaPlans: {}, users: {},
+  }
+  await assert.rejects(
+    setBillingPlanActiveAdmin(createMockExecutor(state), 'insurance_basic', false),
+    (error) => error?.message === 'billing_plan_system_default_active',
+  )
+  assert.equal(state.plans.insurance_basic.is_active, true)
 })

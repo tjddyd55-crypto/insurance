@@ -1,12 +1,13 @@
-import { BILLING_PLANS } from '../lib/pricingPolicy.js'
 import {
   fetchBillingPlanDefinition,
+  fetchInsuranceBasicPlanDefinition,
   getGaDefaultPlanCode,
-  getGeneralGaDefaultPlanCode,
 } from './billingPlanService.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 
-/** @typedef {'explicit' | 'user_override' | 'ga_default' | 'general_default' | 'system_default'} BillingPlanSource */
+/** @typedef {'explicit' | 'user_override' | 'ga_default' | 'system_default'} BillingPlanSource */
+
+const INSURANCE_BASIC_PLAN_CODE = 'insurance_basic'
 
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
@@ -44,7 +45,7 @@ export async function resolveBillingPlanForUser(executor, userId, options = {}) 
   )
   const userRow = userR.rows[0]
   if (!userRow) {
-    const plan = BILLING_PLANS.STANDARD_MONTHLY
+    const plan = await fetchInsuranceBasicPlanDefinition(executor)
     return {
       planCode: plan.dbCode,
       planKey: plan.key,
@@ -83,18 +84,7 @@ export async function resolveBillingPlanForUser(executor, userId, options = {}) 
     }
   }
 
-  const generalPlanCode = await getGeneralGaDefaultPlanCode(executor)
-  if (generalPlanCode) {
-    const plan = await fetchBillingPlanDefinition(executor, generalPlanCode, assignedPlanOptions)
-    return {
-      planCode: plan.dbCode,
-      planKey: plan.key,
-      plan,
-      source: 'general_default',
-    }
-  }
-
-  const plan = BILLING_PLANS.STANDARD_MONTHLY
+  const plan = await fetchInsuranceBasicPlanDefinition(executor)
   return {
     planCode: plan.dbCode,
     planKey: plan.key,

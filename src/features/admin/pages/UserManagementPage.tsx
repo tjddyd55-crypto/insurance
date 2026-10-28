@@ -492,13 +492,13 @@ function UserManagementTable() {
             {formatAdminUserRecentAccess(r, true)}
           </span>
         </td>
-        <td className="admin-user-table__channel">{formatAdminUserChannel(r.last_client_type)}</td>
+        <td className="admin-user-table__channel">{formatAdminUserChannel(r.last_client_type ?? r.last_login_channel)}</td>
         <td className="admin-user-table__device">
           <span
             className="admin-user-table__device-text"
-            title={formatAdminUserDevice(r.last_device_model, r.last_client_type)}
+            title={formatAdminUserDevice(r.last_device_model ?? r.last_login_device, r.last_client_type)}
           >
-            {formatAdminUserDevice(r.last_device_model, r.last_client_type)}
+            {formatAdminUserDevice(r.last_device_model ?? r.last_login_device, r.last_client_type)}
           </span>
         </td>
         <td className="admin-table-cell--actions">
@@ -599,7 +599,7 @@ function UserManagementTable() {
         <div className="admin-user-card__row">
           <span className="admin-user-card__label">최근 채널·기기</span>
           <span className="admin-user-card__value">
-            {formatAdminUserChannel(r.last_client_type)} · {formatAdminUserDevice(r.last_device_model, r.last_client_type)}
+            {formatAdminUserChannel(r.last_client_type ?? r.last_login_channel)} · {formatAdminUserDevice(r.last_device_model ?? r.last_login_device, r.last_client_type)}
           </span>
         </div>
         {isSuper ? (
@@ -1386,7 +1386,7 @@ function UserManagementTable() {
                               </strong>
                               <span>가입일 {formatAdminUserJoinDate(r.created_at)}</span>
                               <span>최근 접속 {formatAdminUserRecentAccess(r, true)}</span>
-                              <span>{formatAdminUserChannel(r.last_client_type)}</span>
+                              <span>{formatAdminUserChannel(r.last_client_type ?? r.last_login_channel)} · {formatAdminUserDevice(r.last_device_model ?? r.last_login_device, r.last_client_type)}</span>
                             </div>
                             <div className="admin-user-management__ga-group-row-actions">
                               <FormButton

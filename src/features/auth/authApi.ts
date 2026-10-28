@@ -680,6 +680,9 @@ export interface AdminUserRow {
   last_client_type?: string | null
   last_device_model?: string | null
   last_app_version?: string | null
+  /** Stored user-agent classification, available from the first authenticated request. */
+  last_login_channel?: string
+  last_login_device?: string
   subscription_status: string | null
   /** 서버 계산: free | paid | ended */
   subscription_effective_category?: 'free' | 'paid' | 'ended'
@@ -753,8 +756,9 @@ export interface GaDelegateRow {
   created_at: string
 }
 
-export async function listGaDelegates(token: string): Promise<GaDelegateRow[]> {
-  return apiRequest<GaDelegateRow[]>('/api/admin/delegates', { method: 'GET', token })
+export async function listGaDelegates(token: string, gaId?: number): Promise<GaDelegateRow[]> {
+  const query = gaId == null ? '' : `?gaId=${encodeURIComponent(String(gaId))}`
+  return apiRequest<GaDelegateRow[]>(`/api/admin/delegates${query}`, { method: 'GET', token })
 }
 
 export async function createGaDelegate(

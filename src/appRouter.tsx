@@ -6,7 +6,6 @@ import { ApplicationListPage } from './features/application/pages/ApplicationLis
 import ApplicationPage from './features/application/pages/ApplicationPage'
 import { ApplicationResultPage } from './features/application/pages/ApplicationResultPage'
 import { DirectAutoPage } from './features/application/pages/DirectAutoPage'
-import GaDelegateManagementPage from './features/admin/pages/GaDelegateManagementPage'
 import InsurerManagersPage from './features/insurer-managers/pages/InsurerManagersPage'
 import LossAdjustersPage from './features/loss-adjusters/pages/LossAdjustersPage'
 import GaManagementPage from './features/admin/pages/GaManagementPage'
@@ -589,8 +588,8 @@ export const appRouter = createBrowserRouter([
               { path: 'admin/ga-groups', element: <GaGroupManagementPage /> },
               { path: 'admin/ga/:gaId', element: <GaCompanyManagePage /> },
               { path: 'admin/create-ga', element: <Navigate to="/admin/ga" replace /> },
-              { path: 'admin/delegates', element: <GaDelegateManagementPage /> },
-              { path: 'admin/create-staff', element: <Navigate to="/admin/delegates" replace /> },
+              { path: 'admin/delegates', element: <Navigate to="/admin/ga" replace /> },
+              { path: 'admin/create-staff', element: <Navigate to="/admin/ga" replace /> },
               {
                 element: <GaAdminWorkspaceRoute />,
                 children: [

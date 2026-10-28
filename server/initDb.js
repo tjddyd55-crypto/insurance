@@ -5241,7 +5241,7 @@ async function ensureInsuranceBillingPhase1Schema(executor) {
       referral_discount_unit_supply_amount
     )
     VALUES (
-      'insurance_basic', '보험 CRM 베이직', 8800, 8000, 0.1, true, 'monthly', true,
+      'insurance_basic', '보험 CRM 기본 요금제', 8800, 8000, 0.1, true, 'monthly', true,
       -- yearly_* 는 레거시 컬럼(계산 미사용). 연간 금액은 monthly_total × 10 에서 파생.
       8000, 800, 8800, 80000, 8000, 88000, 'KRW',
       -- 추천 1명당 할인 기본값은 신규 행 초기화에만 사용(ON CONFLICT 에서 갱신하지 않음)
@@ -5249,6 +5249,8 @@ async function ensureInsuranceBillingPhase1Schema(executor) {
     )
     -- 재시작 시 관리자 설정 금액 덮어쓰기 금지: 비어 있는 컬럼만 채운다.
     ON CONFLICT (code) DO UPDATE SET
+      name = '보험 CRM 기본 요금제',
+      is_active = true,
       monthly_total = COALESCE(billing_plans.monthly_total, billing_plans.amount, EXCLUDED.monthly_total),
       monthly_price = COALESCE(billing_plans.monthly_price, billing_plans.supply_amount, EXCLUDED.monthly_price),
       monthly_vat = COALESCE(

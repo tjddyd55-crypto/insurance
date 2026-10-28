@@ -2,6 +2,7 @@ import { systemQuery } from '../utils/dbSafeQuery.js'
 import { ensureInsuranceTenantForLegacyGa } from './ensureInsuranceTenantForLegacyGa.js'
 import { findGaCompanyByNormalizedCode, normalizeGaCompanyCode } from './generalGa.js'
 import { parseGaId } from './parseGaId.js'
+import { ensureInsurerNewsletterBoard } from './insurerNewsletterBoard.js'
 
 const CODE_RE = /^[A-Z0-9_]{2,32}$/
 
@@ -48,6 +49,7 @@ export async function insertGaCompanyRecord(executor, p) {
   const createdGa = ins.rows[0]
   const createdGaId = parseGaId(createdGa?.id)
   if (createdGaId != null) {
+    await ensureInsurerNewsletterBoard(executor, createdGaId)
     const tenantEnsured = await ensureInsuranceTenantForLegacyGa(executor, {
       gaId: createdGaId,
       gaCode: code,
