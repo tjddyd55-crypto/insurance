@@ -3,7 +3,7 @@ import { CustomerCardPaymentPanels } from '../../components/CustomerCardPaymentP
 import type { CustomerCardPaymentState } from '../../hooks/useCustomerPremiumPaymentsState'
 import type { CardPaymentCustomerListItem } from '../../hooks/usePremiumPaymentsOverviewState'
 import { PremiumPaymentsCustomerSidebar, type InsurerViewProps } from './PremiumPaymentsCustomerSidebar'
-import { PremiumPaymentsInsurerDetail } from './PremiumPaymentsInsurerDetail'
+import { PremiumPaymentsInsurerDetail, type InsurerCustomerHeader } from './PremiumPaymentsInsurerDetail'
 
 type Props = {
   search: string
@@ -24,6 +24,8 @@ type Props = {
   onConfirmDeleteContract: (contractId: number) => Promise<void>
   onAfterDetailMutate?: () => void | Promise<void>
   insurerView?: InsurerViewProps
+  /** PC 보험사별 고객명 옆만 주민번호. 기본값은 연락처(모바일·고객별). */
+  insurerCustomerHeader?: InsurerCustomerHeader
 }
 
 function formatPhone(phone: string): string {
@@ -53,6 +55,7 @@ export function PremiumPaymentsOverviewBody({
   onConfirmDeleteContract,
   onAfterDetailMutate,
   insurerView,
+  insurerCustomerHeader = 'phone',
 }: Props) {
   const insurerMode = insurerView?.viewMode === 'insurer'
   return (
@@ -89,6 +92,7 @@ export function PremiumPaymentsOverviewBody({
         {insurerView && insurerMode ? (
           <PremiumPaymentsInsurerDetail
             insurerView={insurerView}
+            customerHeader={insurerCustomerHeader}
             onCopyPolicyNumber={(value) => void detailState?.copyPolicyNumber(value)}
           />
         ) : !selectedCustomer || !detailState ? (

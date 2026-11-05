@@ -7,7 +7,7 @@ export default function PremiumPaymentsOverviewPCView(props: PremiumPaymentsOver
       <header className="premium-payments-page__header">
         <h1>카드 수납</h1>
       </header>
-      <PremiumPaymentsOverviewBody {...props} />
+      <PremiumPaymentsOverviewBody {...props} insurerCustomerHeader="residentNumber" />
     </main>
   )
 }
