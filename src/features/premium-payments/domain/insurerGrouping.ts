@@ -50,7 +50,32 @@ export type InsurerCustomerGroup = {
   customerId: number
   customerName: string
   customerPhone: string
+  /** 개요 행의 customers.ssn. 없으면 ''. 전화번호로 채우지 않는다. */
+  customerSsn: string
   contracts: CardPaymentContractRow[]
+}
+
+function customerMatchesInsurerSearch(row: CardPaymentContractRow, name: string, q: string, qDigits: string): boolean {
+  if (!q) return true
+  const phone = (row.customerPhone ?? '').replace(/\D/g, '')
+  return name.toLowerCase().includes(q) || (qDigits.length > 0 && phone.includes(qDigits))
+}
+
+function addContractToCustomerGroup(map: Map<number, InsurerCustomerGroup>, row: CardPaymentContractRow, name: string): void {
+  const ssn = (row.customerSsn ?? '').trim()
+  const existing = map.get(row.customerId)
+  if (existing) {
+    existing.contracts.push(row)
+    if (!existing.customerSsn && ssn) existing.customerSsn = ssn
+    return
+  }
+  map.set(row.customerId, {
+    customerId: row.customerId,
+    customerName: name,
+    customerPhone: row.customerPhone ?? '',
+    customerSsn: ssn,
+    contracts: [row],
+  })
 }
 
 /** 선택 보험사 → 고객(가나다순, 이름 1회) → 계약건. 검색은 선택 보험사 안에서만 필터. */
@@ -66,13 +91,8 @@ export function groupContractsByCustomerForInsurer(
   for (const row of rows) {
     if (insurerGroupKeyOf(row) !== key) continue
     const name = row.customerName ?? `고객 #${row.customerId}`
-    if (q) {
-      const phone = (row.customerPhone ?? '').replace(/\D/g, '')
-      if (!name.toLowerCase().includes(q) && !(qDigits.length > 0 && phone.includes(qDigits))) continue
-    }
-    const g = map.get(row.customerId)
-    if (g) g.contracts.push(row)
-    else map.set(row.customerId, { customerId: row.customerId, customerName: name, customerPhone: row.customerPhone ?? '', contracts: [row] })
+    if (!customerMatchesInsurerSearch(row, name, q, qDigits)) continue
+    addContractToCustomerGroup(map, row, name)
   }
   return [...map.values()].sort(
     (a, b) => a.customerName.localeCompare(b.customerName, 'ko') || a.customerId - b.customerId,

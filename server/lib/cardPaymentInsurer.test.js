@@ -59,6 +59,23 @@ describe('resolveContractInsurer (no auto matching)', () => {
 })
 
 describe('contract public row insurer fields', () => {
+  it('maps overview resident number only when the caller supplies it', () => {
+    const base = {
+      id: 1,
+      ga_id: 1,
+      customer_id: 2,
+      insurance_company: 'KB손보',
+      status: 'PENDING',
+    }
+    const mapped = mapContractPublicRow(base, '2026-11', { customerSsn: ' 9001011234567 ' })
+    assert.equal(mapped.customerSsn, '9001011234567')
+    const empty = mapContractPublicRow(base, '2026-11', { customerSsn: null, customerPhone: '01000001111' })
+    assert.equal(empty.customerSsn, '')
+    assert.equal(empty.customerPhone, '01000001111')
+    assert.notEqual(empty.customerSsn, empty.customerPhone)
+    const customerScoped = mapContractPublicRow(base, '2026-11', { customerPhone: '01000001111' })
+    assert.equal(Object.hasOwn(customerScoped, 'customerSsn'), false)
+  })
   it('maps insurer id/name/category and keeps original text', () => {
     const row = mapContractPublicRow(
       { id: 1, ga_id: 1, customer_id: 2, insurance_company: 'KB손보', insurance_company_id: 3, insurer_site_name: 'KB손해보험', insurer_site_category: 'non_life', status: 'PENDING' },
@@ -87,6 +104,25 @@ describe('schema + query wiring', () => {
   it('overview joins insurer_sites once and supports insuranceCompanyId filter', () => {
     assert.match(svc, /LEFT JOIN insurer_sites isite ON isite\.id = ctr\.insurance_company_id/)
     assert.match(svc, /insuranceCompanyIdFilter === 'unassigned'/)
+  })
+  it('overview adds customers.ssn on the existing visibility join and does not query per customer', () => {
+    const start = svc.indexOf('export async function listCardPaymentContractsOverview')
+    assert.ok(start >= 0)
+    const overview = svc.slice(start)
+    assert.match(overview, /resolveCustomerVisibilitySqlForSelect\(req, actor\.userId, actor\.gaId\)/)
+    assert.match(overview, /if \(vis\.blocked\)/)
+    assert.match(overview, /INNER JOIN customers c ON c\.id = ctr\.customer_id AND c\.deleted_at IS NULL/)
+    assert.match(overview, /c\.ssn AS customer_ssn/)
+    assert.match(overview, /AND \(\$\{vis\.clause\}\)/)
+    assert.match(overview, /customerSsn: row\.customer_ssn/)
+    assert.equal((overview.match(/safeQuery\(/g) ?? []).length, 1)
+    assert.doesNotMatch(overview, /item\.customerSsn/)
+    assert.doesNotMatch(overview, /INSERT |UPDATE |DELETE /)
+    const customerList = svc.slice(
+      svc.indexOf('export async function listContractsForCustomer'),
+      svc.indexOf('export async function createContract'),
+    )
+    assert.doesNotMatch(customerList, /customer_ssn|customerSsn/)
   })
   it('Native text-only update keeps link only when text unchanged', () => {
     assert.match(svc, /WHEN insurance_company = \$2 THEN insurance_company_id/)
