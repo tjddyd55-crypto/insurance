@@ -1,11 +1,16 @@
 import { FormButton } from '../../../../components/form'
 import { CollectionTargetsTable } from '../../components/CollectionTargetsTable'
-import { INSURER_GROUP_OTHER } from '../../domain/insurerGrouping'
+import { formatInsurerCustomerResidentBesideName } from '../../domain/formatInsurerCustomerResidentNumber'
+import { INSURER_GROUP_OTHER, type InsurerCustomerGroup } from '../../domain/insurerGrouping'
 import type { InsurerViewProps } from './PremiumPaymentsCustomerSidebar'
+
+export type InsurerCustomerHeader = 'phone' | 'residentNumber'
 
 type Props = {
   insurerView: InsurerViewProps
   onCopyPolicyNumber: (value: string | null | undefined) => void
+  /** PC 보험사별만 residentNumber. 모바일은 phone. */
+  customerHeader?: InsurerCustomerHeader
 }
 
 function formatPhone(phone: string): string {
@@ -15,8 +20,17 @@ function formatPhone(phone: string): string {
   return phone || '연락처 없음'
 }
 
+function besideCustomerName(group: InsurerCustomerGroup, header: InsurerCustomerHeader): string {
+  if (header === 'residentNumber') return formatInsurerCustomerResidentBesideName(group.customerSsn)
+  return formatPhone(group.customerPhone)
+}
+
 /** 보험사별 보기 오른쪽: 선택 보험회사 → 고객(가나다, 1회) → 기존 카드 수납 테이블 */
-export function PremiumPaymentsInsurerDetail({ insurerView, onCopyPolicyNumber }: Props) {
+export function PremiumPaymentsInsurerDetail({
+  insurerView,
+  onCopyPolicyNumber,
+  customerHeader = 'phone',
+}: Props) {
   const insurer = insurerView.selectedInsurer
   if (!insurer) {
     return (
@@ -53,7 +67,13 @@ export function PremiumPaymentsInsurerDetail({ insurerView, onCopyPolicyNumber }
           <div className="premium-payments-section__header">
             <h3 className="premium-payments-insurer-customer__name" data-testid="card-insurer-customer-name">
               {group.customerName}
-              <span className="premium-payments-insurer-customer__phone"> {formatPhone(group.customerPhone)}</span>
+              <span
+                className="premium-payments-insurer-customer__phone"
+                data-testid={customerHeader === 'residentNumber' ? 'card-insurer-customer-rrn' : 'card-insurer-customer-phone'}
+              >
+                {' '}
+                {besideCustomerName(group, customerHeader)}
+              </span>
             </h3>
             <FormButton
               htmlType="button"
