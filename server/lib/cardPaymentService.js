@@ -4,6 +4,13 @@ import {
   resolveCustomerVisibilitySqlForSelect,
 } from './customerRowVisibilitySql.js'
 import { parseGaId } from './parseGaId.js'
+
+/** insurer_sites.category(life|non_life) → API 값 */
+function insurerSiteCategoryToApi(category) {
+  if (category === 'life') return 'LIFE'
+  if (category === 'non_life') return 'NON_LIFE'
+  return null
+}
 import {
   canEncryptPremiumPaymentCards,
   cardNumberLast4,
@@ -213,6 +220,10 @@ export function mapContractPublicRow(row, targetMonth, extra = {}) {
     ownerDisplayName: extra.ownerDisplayName != null ? trimStr(extra.ownerDisplayName) : undefined,
     paymentCardId: row.payment_card_id != null ? Number(row.payment_card_id) : null,
     insuranceCompany: trimStr(row.insurance_company),
+    insuranceCompanyId:
+      row.insurance_company_id == null || row.insurance_company_id === '' ? null : Number(row.insurance_company_id),
+    insurerName: row.insurer_site_name != null ? trimStr(row.insurer_site_name) : null,
+    insurerCategory: insurerSiteCategoryToApi(trimStr(row.insurer_site_category)),
     policyNumber: row.policy_number == null || trimStr(row.policy_number) === '' ? null : trimStr(row.policy_number),
     productName: row.product_name == null || trimStr(row.product_name) === '' ? null : trimStr(row.product_name),
     premiumAmount: Number.isFinite(premiumAmount) ? premiumAmount : null,
@@ -301,7 +312,17 @@ export function parsePaymentCardWriteBody(body, opts) {
 export function parseContractWriteBody(body) {
   const src = body && typeof body === 'object' ? body : {}
   const insuranceCompany = trimStr(src.insuranceCompany)
-  if (!insuranceCompany) {
+  // insuranceCompanyId: 키 없음 → 텍스트만(Native 호환), null → 기타(텍스트만), 숫자 → 카탈로그 지정
+  const hasInsuranceCompanyId = Object.prototype.hasOwnProperty.call(src, 'insuranceCompanyId')
+  let insuranceCompanyId = null
+  if (hasInsuranceCompanyId && src.insuranceCompanyId !== null && src.insuranceCompanyId !== '') {
+    const n = Number(src.insuranceCompanyId)
+    if (!Number.isInteger(n) || n < 1) {
+      return { error: '보험사 선택이 올바르지 않습니다.' }
+    }
+    insuranceCompanyId = n
+  }
+  if (!insuranceCompany && insuranceCompanyId == null) {
     return { error: '보험회사를 입력해 주세요.' }
   }
 
@@ -340,6 +361,8 @@ export function parseContractWriteBody(body) {
   return {
     value: {
       insuranceCompany,
+      insuranceCompanyId,
+      hasInsuranceCompanyId,
       policyNumber: policyNumberRaw || null,
       productName: productNameRaw || null,
       premiumAmount,
@@ -349,6 +372,33 @@ export function parseContractWriteBody(body) {
       status,
     },
   }
+}
+
+/**
+ * 보험사 ID 를 insurer_sites(전역 카탈로그) 기준으로 확정한다. 자동 매칭은 하지 않는다.
+ * - ID 지정: 카탈로그 이름으로 insurance_company 를 채운다.
+ * - ID null(기타) 또는 키 없음(Native 텍스트 전용): 텍스트만 저장.
+ * @param {import('pg').Pool} pool
+ * @param {{ insuranceCompany: string; insuranceCompanyId: number | null; hasInsuranceCompanyId: boolean }} value
+ */
+export async function resolveContractInsurer(pool, value) {
+  if (value.insuranceCompanyId != null) {
+    // insurer_sites 는 GA 비종속 전역 카탈로그
+    const r = await safeQuery(pool, 'SELECT id, name, category FROM insurer_sites WHERE id = $1', [value.insuranceCompanyId], {
+      allowUnscoped: true,
+    })
+    const site = r.rows[0]
+    if (!site) {
+      return { error: '선택한 보험사를 찾을 수 없습니다.' }
+    }
+    return { insuranceCompany: trimStr(site.name), insuranceCompanyId: Number(site.id), site, explicit: true }
+  }
+  return { insuranceCompany: value.insuranceCompany, insuranceCompanyId: null, site: null, explicit: value.hasInsuranceCompanyId }
+}
+
+/** @param {Record<string, unknown>} row @param {{ name?: unknown; category?: unknown } | null} site */
+function withInsurerSite(row, site) {
+  return { ...row, insurer_site_name: site ? site.name : null, insurer_site_category: site ? site.category : null }
 }
 
 /**
@@ -612,8 +662,11 @@ export async function listContractsForCustomer(pool, req, customerId, targetMont
            card.card_number_last4 AS card_last4,
            card.card_number_ciphertext AS card_ciphertext,
            card.card_expiry_month AS card_expiry_month,
-           card.card_expiry_year AS card_expiry_year
+           card.card_expiry_year AS card_expiry_year,
+           isite.name AS insurer_site_name,
+           isite.category AS insurer_site_category
     FROM customer_card_payment_contracts c
+    LEFT JOIN insurer_sites isite ON isite.id = c.insurance_company_id
     LEFT JOIN customer_card_payment_completions comp
       ON comp.contract_id = c.id AND comp.target_month = $3
     LEFT JOIN customer_payment_cards card
@@ -704,17 +757,21 @@ export async function createContract(pool, req, customerId, body) {
   if (!cardOk) {
     return { error: { status: 400, message: '다른 고객의 카드는 연결할 수 없습니다.' } }
   }
+  const insurer = await resolveContractInsurer(pool, value)
+  if ('error' in insurer) {
+    return { error: { status: 400, message: insurer.error } }
+  }
   const r = await safeQuery(
     pool,
     `
     INSERT INTO customer_card_payment_contracts (
       ga_id, owner_user_id, customer_id, payment_card_id,
       insurance_company, policy_number, product_name, premium_amount,
-      payment_day, memo, status, created_by, updated_by
+      payment_day, memo, status, created_by, updated_by, insurance_company_id
     ) VALUES (
       $1, $2, $3, $4,
       $5, $6, $7, $8,
-      $9, $10, $11, $12, $12
+      $9, $10, $11, $12, $12, $13
     )
     RETURNING *
     `,
@@ -723,7 +780,7 @@ export async function createContract(pool, req, customerId, body) {
       meta.ownerUserId,
       customerId,
       value.paymentCardId,
-      value.insuranceCompany,
+      insurer.insuranceCompany,
       value.policyNumber,
       value.productName,
       value.premiumAmount,
@@ -731,11 +788,12 @@ export async function createContract(pool, req, customerId, body) {
       value.memo,
       value.status,
       actor.userId,
+      insurer.insuranceCompanyId,
     ],
   )
   const month = currentTargetMonthKst()
   return {
-    contract: mapContractPublicRow(r.rows[0], month, {
+    contract: mapContractPublicRow(withInsurerSite(r.rows[0], insurer.site), month, {
       customerName: meta.customerName,
       customerPhone: meta.customerPhone,
     }),
@@ -767,12 +825,21 @@ export async function updateContract(pool, req, customerId, contractId, body) {
   if (!cardOk) {
     return { error: { status: 400, message: '다른 고객의 카드는 연결할 수 없습니다.' } }
   }
+  const insurer = await resolveContractInsurer(pool, value)
+  if ('error' in insurer) {
+    return { error: { status: 400, message: insurer.error } }
+  }
   const r = await safeQuery(
     pool,
     `
     UPDATE customer_card_payment_contracts
     SET payment_card_id = $1,
         insurance_company = $2,
+        insurance_company_id = CASE
+          WHEN $14::boolean THEN $13::int
+          WHEN insurance_company = $2 THEN insurance_company_id
+          ELSE NULL
+        END,
         policy_number = $3,
         product_name = $4,
         premium_amount = $5,
@@ -786,7 +853,7 @@ export async function updateContract(pool, req, customerId, contractId, body) {
     `,
     [
       value.paymentCardId,
-      value.insuranceCompany,
+      insurer.insuranceCompany,
       value.policyNumber,
       value.productName,
       value.premiumAmount,
@@ -797,13 +864,15 @@ export async function updateContract(pool, req, customerId, contractId, body) {
       contractId,
       customerId,
       actor.gaId,
+      insurer.insuranceCompanyId,
+      insurer.explicit,
     ],
   )
   if (!r.rows[0]) {
     return { error: { status: 404, message: '수납 대상을 찾을 수 없습니다.' } }
   }
   const month = currentTargetMonthKst()
-  return { contract: mapContractPublicRow(r.rows[0], month) }
+  return { contract: mapContractPublicRow(withInsurerSite(r.rows[0], insurer.site), month) }
 }
 
 /**
@@ -1002,6 +1071,7 @@ export async function listCardPaymentContractsOverview(pool, req, query) {
   const statusFilter = trimStr(query.status).toUpperCase()
   const search = trimStr(query.search).toLowerCase()
   const insuranceCompany = trimStr(query.insuranceCompany)
+  const insuranceCompanyIdFilter = trimStr(query.insuranceCompanyId)
   const paymentDayFilter = trimStr(query.paymentDay)
   const ownerUserId = trimStr(query.ownerUserId)
   const limit = Math.min(Math.max(Number(query.limit) || 500, 1), 1000)
@@ -1017,6 +1087,15 @@ export async function listCardPaymentContractsOverview(pool, req, query) {
   if (insuranceCompany) {
     params.push(`%${insuranceCompany}%`)
     extraWhere += ` AND ctr.insurance_company ILIKE $${params.length}`
+  }
+  if (insuranceCompanyIdFilter === 'unassigned') {
+    extraWhere += ' AND ctr.insurance_company_id IS NULL'
+  } else if (insuranceCompanyIdFilter) {
+    const idNum = Number(insuranceCompanyIdFilter)
+    if (Number.isInteger(idNum) && idNum > 0) {
+      params.push(idNum)
+      extraWhere += ` AND ctr.insurance_company_id = $${params.length}`
+    }
   }
   if (ownerUserId) {
     params.push(ownerUserId)
@@ -1064,9 +1143,12 @@ export async function listCardPaymentContractsOverview(pool, req, query) {
            card.card_number_last4 AS card_last4,
            card.card_number_ciphertext AS card_ciphertext,
            card.card_expiry_month AS card_expiry_month,
-           card.card_expiry_year AS card_expiry_year
+           card.card_expiry_year AS card_expiry_year,
+           isite.name AS insurer_site_name,
+           isite.category AS insurer_site_category
     FROM customer_card_payment_contracts ctr
     INNER JOIN customers c ON c.id = ctr.customer_id AND c.deleted_at IS NULL
+    LEFT JOIN insurer_sites isite ON isite.id = ctr.insurance_company_id
     LEFT JOIN users u ON u.id = ctr.owner_user_id
     LEFT JOIN customer_card_payment_completions comp
       ON comp.contract_id = ctr.id AND comp.target_month = ${monthPh}

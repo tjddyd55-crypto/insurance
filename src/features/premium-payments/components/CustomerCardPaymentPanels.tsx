@@ -54,6 +54,7 @@ export function CustomerCardPaymentPanels({
     copyCardNumber,
     copyCardExpiry,
     cardOptions,
+    insurerSites,
   } = state
 
   if (notFound) {
@@ -132,6 +133,7 @@ export function CustomerCardPaymentPanels({
           value={contractForm}
           onChange={setContractForm}
           cardOptions={cardOptions}
+          insurerSites={insurerSites}
         />
       </CardPaymentFormDialog>
     </div>
