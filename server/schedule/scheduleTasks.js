@@ -101,6 +101,7 @@ export function normalizeOnefcTodo(todo) {
     updatedAt: optionalText(todo.updatedAt),
     customerId,
     customerName: String(todo.customerName ?? ''),
+    weeklyFocusWeekStart: todo.weeklyFocusWeekStart ? String(todo.weeklyFocusWeekStart).slice(0, 10) : null,
     readOnly: true,
   }
 }
@@ -114,9 +115,18 @@ export function normalizeOnefcTodo(todo) {
 export function selectScheduleTasks(tasks, range) {
   return tasks.filter((task) => {
     if (!task.dueDate) return true
+    // 주간 할 일로 직접 지정된 할 일: 지정 주(월~일)가 화면 기간과 겹치면 포함.
+    const focus = /** @type {any} */ (task).weeklyFocusWeekStart
+    if (focus && focus <= range.toYmd && addDaysYmdLocal(focus, 6) >= range.fromYmd) return true
     if (task.dueDate >= range.fromYmd && task.dueDate <= range.toYmd) return true
     return task.status === 'open' && task.dueDate < range.todayYmd
   })
+}
+
+/** @param {string} ymd @param {number} days */
+function addDaysYmdLocal(ymd, days) {
+  const [y, m, d] = String(ymd).split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10)
 }
 
 /**
