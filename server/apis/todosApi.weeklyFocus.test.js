@@ -20,7 +20,7 @@ function baseRow(extra = {}) {
 }
 
 function setup(row) {
-  const state = { row: { ...row }, updates: [], selects: [] }
+  const state = { row: { ...row }, updates: [], selects: [], inserts: [] }
   const pool = {
     async query(sql, params = []) {
       const text = String(sql)
@@ -37,6 +37,10 @@ function setup(row) {
           else state.row[col] = params[Number(rhs.match(/^\$(\d+)/)[1]) - 1]
         }
         return { rows: [], rowCount: 1 }
+      }
+      if (/^\s*INSERT INTO todos/i.test(text)) {
+        state.inserts.push({ text, params })
+        return { rows: [{ ...state.row, due_date: params[6], due_time: params[7], weekly_focus_week_start: params[14] }], rowCount: 1 }
       }
       if (/FROM todos t/i.test(text)) {
         state.selects.push({ text, params })
@@ -60,6 +64,7 @@ function setup(row) {
     state,
     patch: (body) => call('patch /todos/:todoId', { params: { todoId: '1' }, body }),
     list: (query) => call('get /todos', { query }),
+    create: (body) => call('post /todos', { body }),
   }
 }
 
@@ -107,14 +112,15 @@ test('모든 응답에 weeklyFocusWeekStart(string|null)', async () => {
   assert.equal(r.body[0].weeklyFocusWeekStart, null)
 })
 
-test('GET weekStart: 그 주 예정일 OR 직접 지정, 기본은 미완료만', async () => {
+test('GET weekStart: 그 주로 지정한 할 일만(예정일 자동 포함 없음), 기본은 미완료만', async () => {
   const api = setup(baseRow())
   const r = await api.list({ weekStart: '2026-11-02' })
   assert.equal(r.statusCode, 200)
   const { text, params } = api.state.selects.at(-1)
   assert.match(text, /weekly_focus_week_start = \$\d+::date/)
+  assert.doesNotMatch(text, /t\.due_date >= \$\d+::date AND t\.due_date <= \$\d+::date\)? OR t\.weekly_focus/)
   assert.match(text, /t\.status = 'pending'/)
-  assert.ok(params.includes('2026-11-02') && params.includes('2026-11-08'))
+  assert.ok(params.includes('2026-11-02') && !params.includes('2026-11-08'))
   const r2 = await api.list({ weekStart: '2026-11-02', includeCompleted: '1' })
   assert.equal(r2.statusCode, 200)
   assert.doesNotMatch(api.state.selects.at(-1).text, /t\.status = 'pending'/)
@@ -128,4 +134,19 @@ test('일정: 직접 지정 할 일은 기간 밖 예정일이어도 그 주 화
   const range = { fromYmd: '2026-11-02', toYmd: '2026-11-08', todayYmd: '2026-10-28' }
   assert.equal(selectScheduleTasks([t], range).length, 1)
   assert.equal(selectScheduleTasks([t], { ...range, fromYmd: '2026-11-09', toYmd: '2026-11-15' }).length, 0)
+})
+
+test('POST weeklyFocusWeekStart: 주간 입력 → 날짜 없음 + 그 주 지정, 월요일 아님 400', async () => {
+  const api = setup(baseRow())
+  const r = await api.create({ title: '[QA] 주간 입력', weeklyFocusWeekStart: '2026-11-09' })
+  assert.equal(r.statusCode, 201)
+  const ins = api.state.inserts.at(-1)
+  assert.equal(ins.params[6], null) // due_date
+  assert.equal(ins.params[7], null) // due_time
+  assert.equal(ins.params[14], '2026-11-09')
+  const plain = await api.create({ title: '[QA] 일반 입력', dueDate: '2026-11-05' })
+  assert.equal(plain.statusCode, 201)
+  assert.equal(api.state.inserts.at(-1).params[14], null) // 일반 입력은 주간 자동 포함 없음
+  const bad = await api.create({ title: 'x', weeklyFocusWeekStart: '2026-11-04' })
+  assert.equal(bad.statusCode, 400)
 })

@@ -133,7 +133,12 @@ export function useTodosWorkspaceState() {
     weekStart,
     enabled: !isMobile,
     onError: setError,
-    onSaved: (saved) => setTodos((prev) => prev.map((t) => (t.id === saved.id ? saved : t))),
+    onSaved: (saved) =>
+      setTodos((prev) => {
+        if (prev.some((t) => t.id === saved.id)) return prev.map((t) => (t.id === saved.id ? saved : t))
+        void load() // 주간 입력으로 새로 생긴 할 일: 전체 할 일 다시 불러오기
+        return prev
+      }),
   })
   const loadWeekly = weekly.reload
   const weeklyTodos = weekly.todos
@@ -143,6 +148,7 @@ export function useTodosWorkspaceState() {
   /** 드롭·'이번 주로': 보고 있는 주로 직접 지정 */
   const addToWeek = useCallback((row: TodoDto) => setFocus(row, weekStart), [setFocus, weekStart])
   const removeFromWeek = useCallback((row: TodoDto) => setFocus(row, null), [setFocus])
+  const createWeekly = weekly.create
   const moveToWeek = useCallback((row: TodoDto, target: string) => setFocus(row, target), [setFocus])
 
   useEffect(() => {
@@ -250,6 +256,7 @@ export function useTodosWorkspaceState() {
     currentWeekStart,
     setWeekStart,
     moveToWeek,
+    createWeekly,
     weeklyTodos,
     weeklyLoading,
     weeklyBusyId,

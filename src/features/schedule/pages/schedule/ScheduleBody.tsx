@@ -124,6 +124,7 @@ export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?
       onOpen={(row) => onOpenTask(scheduleTaskOfTodo(row, props.tasks))}
       onMoveWeek={(row, target) => void weekly.setFocus(row, target)}
       onRemove={(row) => void weekly.setFocus(row, null)}
+      onCreate={(title) => weekly.create(title)}
     />
   ) : undefined
 

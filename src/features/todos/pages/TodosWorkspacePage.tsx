@@ -37,6 +37,7 @@ export default function TodosWorkspacePage() {
     currentWeekStart: vm.currentWeekStart,
     setWeekStart: vm.setWeekStart,
     moveToWeek: (row, week) => void vm.moveToWeek(row, week),
+    createWeekly: (title) => vm.createWeekly(title),
     weeklyTodos: vm.weeklyTodos,
     weeklyLoading: vm.weeklyLoading,
     weeklyBusyId: vm.weeklyBusyId,

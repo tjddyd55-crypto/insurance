@@ -20,16 +20,14 @@ export function formatWeekRangeLabel(weekStart: string): string {
   return `${md(weekStart)} ~ ${md(end)}`
 }
 
-/** 그 주로 직접 지정(수동)인지. 아니면 그 주 예정일로 자동 포함. */
-export function isManualWeeklyFocus(todo: Pick<TodoDto, 'weeklyFocusWeekStart'>, weekStart: string): boolean {
+/** 그 주 주간 할 일인지(서버 GET weekStart 조건과 동일: 그 주로 지정한 것만, 예정일 자동 포함 없음). */
+export function belongsToWeek(todo: Pick<TodoDto, 'weeklyFocusWeekStart'>, weekStart: string): boolean {
   return todo.weeklyFocusWeekStart === weekStart
 }
 
-/** 그 주 예정일이거나 직접 지정된 할 일인지(서버 GET weekStart 조건과 동일). */
-export function belongsToWeek(todo: Pick<TodoDto, 'dueDate' | 'weeklyFocusWeekStart'>, weekStart: string): boolean {
-  if (todo.weeklyFocusWeekStart === weekStart) return true
-  const due = todo.dueDate?.slice(0, 10)
-  return Boolean(due) && due! >= weekStart && due! <= addDaysYmd(weekStart, 6)
+/** 주간 패널 정렬: 미완료 먼저, 완료는 뒤(각각 서버 순서 유지) */
+export function sortWeeklyTodos<T extends Pick<TodoDto, 'status'>>(rows: T[]): T[] {
+  return [...rows.filter((r) => r.status !== 'completed'), ...rows.filter((r) => r.status === 'completed')]
 }
 
 /** 드래그 데이터 타입 */
@@ -42,25 +40,7 @@ export function shiftWeekStart(weekStart: string, weeks: number): string {
   return addDaysYmd(mondayOfYmd(weekStart), weeks * 7)
 }
 
-/** 예정일이 그 주(월~일)에 있어서 자동 포함되는지 */
-export function isDueInWeek(todo: Pick<TodoDto, 'dueDate'>, weekStart: string): boolean {
-  const due = todo.dueDate?.slice(0, 10)
-  return Boolean(due) && due! >= weekStart && due! <= addDaysYmd(weekStart, 6)
-}
-
-/**
- * 주간 할 일 이전/다음 주 이동 정책(데이터 복제 없음, due_date 는 바꾸지 않음):
- * - 직접 지정(weekly_focus_week_start 가 이 주) → 지정 주를 ±1주로 실제 이동.
- * - 예정일 기준 자동 포함 → 다른 주를 직접 지정으로 추가. 예정일 주에는 날짜 기준으로 계속 보인다.
- * 반환: 새 weekly_focus_week_start 와 버튼 문구.
- */
-export function weeklyMovePlan(
-  todo: Pick<TodoDto, 'dueDate' | 'weeklyFocusWeekStart'>,
-  weekStart: string,
-  direction: -1 | 1,
-): { target: string; label: string; staysInThisWeek: boolean } {
-  const target = shiftWeekStart(weekStart, direction)
-  const staysInThisWeek = isDueInWeek(todo, weekStart)
-  const word = direction < 0 ? '이전 주' : '다음 주'
-  return { target, staysInThisWeek, label: staysInThisWeek ? `${word}에도 보기` : `${word}로` }
+/** 이전/다음 주로 이동: 지정 주만 ±1주(due_date 불변, 복제 없음) */
+export function weeklyMoveTarget(weekStart: string, direction: -1 | 1): { target: string; label: string } {
+  return { target: shiftWeekStart(weekStart, direction), label: direction < 0 ? '이전 주로' : '다음 주로' }
 }

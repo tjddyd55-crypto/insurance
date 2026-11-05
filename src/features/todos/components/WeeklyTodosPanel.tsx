@@ -1,14 +1,12 @@
 /* eslint-disable no-restricted-syntax -- 주간 할 일 행의 체크·제목·이동·빼기는 목록 항목 컨트롤이라 native 요소를 쓴다(ScheduleBoards 와 같은 방식). */
-import { useState, type DragEvent } from 'react'
+import { useState, type DragEvent, type FormEvent } from 'react'
 import type { TodoDto } from '../domain/todoTypes'
 import {
   formatWeekRangeLabel,
-  isDueInWeek,
-  isManualWeeklyFocus,
   shiftWeekStart,
   WEEKLY_BACK_DRAG_MIME,
   WEEKLY_DRAG_MIME,
-  weeklyMovePlan,
+  weeklyMoveTarget,
 } from '../domain/weeklyFocus'
 import { formatTodoDueDateDisplay } from '../utils/formatTodoDueDateDisplay'
 import { todoDisplayContent } from '../utils/todoCopy'
@@ -31,12 +29,15 @@ type Props = {
   /** 직접 지정 주 변경(이전/다음 주) */
   onMoveWeek?: (row: TodoDto, targetWeekStart: string) => void
   onRemove?: (row: TodoDto) => void
+  /** 주간 입력(날짜 없이 이 주로). 없으면 입력 줄 숨김 */
+  onCreate?: (title: string) => Promise<unknown> | void
   className?: string
 }
 
 /**
  * 주간 할 일 패널 — 할 일 화면(/todos)과 일정 주간 보기(/schedule/week) 공용.
- * 그 주 예정일(날짜 기준, 자동) + 그 주로 직접 지정(직접 추가). 카드 모양은 둘 다 같다.
+ * 그 주로 지정(weekly_focus_week_start)한 할 일만 보인다. 일반 할 일 입력은 자동으로 들어오지 않는다.
+ * 완료해도 남는다(체크 + 취소선), 미완료 뒤로 정렬. 모든 항목 모양 동일.
  */
 export function WeeklyTodosPanel({
   weekStart,
@@ -50,9 +51,24 @@ export function WeeklyTodosPanel({
   onDropTodoId,
   onMoveWeek,
   onRemove,
+  onCreate,
   className = '',
 }: Props) {
   const [dragOver, setDragOver] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [creating, setCreating] = useState(false)
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    const text = draft.trim()
+    if (!text || !onCreate || creating) return
+    setCreating(true)
+    try {
+      await onCreate(text)
+      setDraft('')
+    } finally {
+      setCreating(false)
+    }
+  }
   const droppable = Boolean(onDropTodoId)
   const isCurrent = weekStart === currentWeekStart
 
@@ -124,6 +140,24 @@ export function WeeklyTodosPanel({
           </button>
         ) : null}
       </header>
+      {onCreate ? (
+        <form className="weekly-todos__new" data-testid="weekly-todos-new" onSubmit={(e) => void submit(e)}>
+          <input
+            type="text"
+            className="weekly-todos__new-input"
+            data-testid="weekly-todos-new-input"
+            placeholder={`${formatWeekRangeLabel(weekStart)} 주간에 할 일 적기`}
+            aria-label="주간 할 일 입력"
+            value={draft}
+            maxLength={500}
+            disabled={creating}
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <button type="submit" className="weekly-todos__new-add" data-testid="weekly-todos-new-add" disabled={creating || !draft.trim()}>
+            추가
+          </button>
+        </form>
+      ) : null}
       <div className="weekly-todos__scroll">
         {dragOver ? <div className="weekly-todos__hint">{formatWeekRangeLabel(weekStart)} 주간 할 일에 추가</div> : null}
         {loading && todos.length === 0 ? (
@@ -131,15 +165,13 @@ export function WeeklyTodosPanel({
         ) : todos.length === 0 ? (
           <div className="weekly-todos__empty" data-testid="weekly-todos-empty">
             <p>이 주에 지정된 할 일이 없습니다.</p>
-            {isCurrent ? <p className="weekly-todos__empty-sub">전체 할 일에서 이번 주로 추가할 수 있습니다.</p> : null}
+            {isCurrent ? <p className="weekly-todos__empty-sub">위에 적거나 전체 할 일에서 이번 주로 추가할 수 있습니다.</p> : null}
           </div>
         ) : (
           <ul className="weekly-todos__list">
             {todos.map((row) => {
-              const manual = isManualWeeklyFocus(row, weekStart)
-              const byDate = isDueInWeek(row, weekStart)
-              const prev = weeklyMovePlan(row, weekStart, -1)
-              const next = weeklyMovePlan(row, weekStart, 1)
+              const prev = weeklyMoveTarget(weekStart, -1)
+              const next = weeklyMoveTarget(weekStart, 1)
               const busy = busyId === row.id
               const pending = row.status === 'pending'
               return (
@@ -148,8 +180,8 @@ export function WeeklyTodosPanel({
                   className={`weekly-todos__item${row.status === 'completed' ? ' weekly-todos__item--done' : ''}`}
                   data-testid="weekly-todo-item"
                   data-todo-id={row.id}
-                  data-kind={manual ? 'manual' : 'date'}
-                  draggable={manual && Boolean(onRemove)}
+                  data-status={row.status}
+                  draggable={Boolean(onRemove)}
                   onDragStart={(event) => {
                     event.dataTransfer.setData(WEEKLY_BACK_DRAG_MIME, row.id)
                     event.dataTransfer.effectAllowed = 'move'
@@ -170,17 +202,12 @@ export function WeeklyTodosPanel({
                     <div className="weekly-todos__meta">
                       <span>{row.dueDate ? formatTodoDueDateDisplay(row.dueDate) : '날짜 없음'}</span>
                       {row.customerName?.trim() ? <span>· {row.customerName}</span> : null}
-                      <span
-                        className="weekly-todos__kind"
-                        title={manual ? '이 주로 직접 추가한 할 일' : '예정일이 이 주라서 자동으로 보이는 할 일'}
-                      >
-                        {manual ? '직접 추가' : byDate ? '날짜 기준' : ''}
-                      </span>
+                      {row.status === 'completed' ? <span className="weekly-todos__done-mark">완료</span> : null}
                     </div>
                   </div>
-                  {pending && (onMoveWeek || (manual && onRemove)) ? (
+                  {onMoveWeek || onRemove ? (
                     <div className="weekly-todos__actions">
-                      {onMoveWeek ? (
+                      {onMoveWeek && pending ? (
                         <>
                           <button
                             type="button"
@@ -206,7 +233,7 @@ export function WeeklyTodosPanel({
                           </button>
                         </>
                       ) : null}
-                      {manual && onRemove ? (
+                      {onRemove ? (
                         <button
                           type="button"
                           className="weekly-todos__remove"

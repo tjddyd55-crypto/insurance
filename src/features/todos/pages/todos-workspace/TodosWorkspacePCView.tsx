@@ -44,8 +44,6 @@ export default function TodosWorkspacePCView({
   error,
   quickFilter,
   setQuickFilter,
-  relatedFilter,
-  setRelatedFilter,
   sourceFilter,
   setSourceFilter,
   viewMode,
@@ -62,6 +60,7 @@ export default function TodosWorkspacePCView({
   currentWeekStart,
   setWeekStart,
   moveToWeek,
+  createWeekly,
   weeklyTodos = [],
   weeklyLoading = false,
   weeklyBusyId = null,
@@ -89,14 +88,10 @@ export default function TodosWorkspacePCView({
   }
   const renderListBody = (withTitle: boolean) => (
     <>
-      <section className="mb-4 space-y-2 rounded-xl border border-border bg-card p-3" data-testid="todos-all-filters">
-        {withTitle ? (
-          <div className="todos-page__all-head">
-            <h2 className="todos-page__all-title">전체 할 일</h2>
-          </div>
-        ) : null}
-        <div className="text-xs font-semibold text-secondary">기간·상태</div>
-        <div className="flex flex-wrap gap-2">
+      {/* 전체 할 일 머리: 한 줄(왼쪽 제목, 오른쪽 기간·상태 필터 + 출처). '연결 있음/없음' 필터는 없음 */}
+      <section className="todos-page__all-head rounded-xl border border-border bg-card" data-testid="todos-all-filters">
+        {withTitle ? <h2 className="todos-page__all-title">전체 할 일</h2> : null}
+        <div className="todos-page__all-filters" data-testid="todos-status-filters">
           {(
             [
               ['all', '전체'],
@@ -117,29 +112,10 @@ export default function TodosWorkspacePCView({
               {label}
             </button>
           ))}
-        </div>
-        <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-border">
-          <span className="text-xs font-semibold text-secondary shrink-0">연결</span>
-          {(
-            [
-              ['any', '전체'],
-              ['yes', '연결 있음'],
-              ['no', '연결 없음'],
-            ] as const
-          ).map(([k, label]) => (
-            <button
-              key={k}
-              type="button"
-              className={filterChipClass(relatedFilter === k)}
-              onClick={() => setRelatedFilter(k)}
-            >
-              {label}
-            </button>
-          ))}
-          <label className="todos-page__source-filter ml-auto flex items-center min-w-[11rem]">
+          <label className="todos-page__source-filter flex items-center">
             <select
               aria-label="할 일 출처 필터"
-              className={`w-full rounded-lg border text-xs py-1.5 px-2 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
+              className={`rounded-lg border text-xs py-1 px-2 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
                 sourceFilter === 'all'
                   ? 'border-border bg-card text-primary'
                   : 'border-brand bg-brand text-on-brand shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_35%,transparent)]'
@@ -161,7 +137,7 @@ export default function TodosWorkspacePCView({
       ) : todos.length === 0 ? (
         <p className="text-muted">표시할 할 일이 없습니다.</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <div className="todos-page__all-list overflow-x-auto rounded-xl border border-border" data-testid="todos-all-list">
           <table className="todos-page--pc__table min-w-full text-sm border-collapse">
             <thead>
               <tr className="bg-soft text-left text-secondary">
@@ -310,6 +286,7 @@ export default function TodosWorkspacePCView({
               if (row) addToWeek?.(row)
             }}
             onRemove={removeFromWeek}
+            onCreate={createWeekly}
           />
           <div
             className={`todos-page__split-main${backDropOver ? ' todos-page__split-main--drop' : ''}`}

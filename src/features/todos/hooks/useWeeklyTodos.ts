@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { completeTodo, listTodos, patchTodo, reopenTodo } from '../api/todosApi'
+import { completeTodo, createTodo, listTodos, patchTodo, reopenTodo } from '../api/todosApi'
 import type { TodoDto } from '../domain/todoTypes'
-import { mondayOfYmd } from '../domain/weeklyFocus'
+import { mondayOfYmd, sortWeeklyTodos } from '../domain/weeklyFocus'
 import { formatSeoulYmd } from '../utils/formatSeoulYmd'
 
 /** 오늘(Asia/Seoul)이 속한 주의 월요일 */
@@ -22,7 +22,8 @@ type Options = {
 
 /**
  * 주간 할 일 공통 데이터(할 일 화면 · 일정 주간 보기 공용).
- * 같은 API(GET /api/todos?weekStart=)라서 같은 주는 두 화면에서 같은 항목이 보인다.
+ * 같은 API(GET /api/todos?weekStart=&includeCompleted=1)라서 같은 주는 두 화면에서 같은 항목이 보인다.
+ * 그 주로 지정한 할 일만(예정일 자동 포함 없음). 완료해도 목록에 남고(완료 표시) 미완료 뒤로 정렬.
  */
 export function useWeeklyTodos({ token, weekStart, enabled, refreshKey, onError, onSaved }: Options) {
   const [state, setState] = useState<{ week: string; todos: TodoDto[] }>({ week: '', todos: [] })
@@ -42,7 +43,7 @@ export function useWeeklyTodos({ token, weekStart, enabled, refreshKey, onError,
     }
     setLoading(true)
     try {
-      const rows = await listTodos(token, { weekStart })
+      const rows = sortWeeklyTodos(await listTodos(token, { weekStart, includeCompleted: '1' }))
       if (n === seq.current) setState({ week: weekStart, todos: rows })
     } catch (e) {
       if (n === seq.current) {
@@ -84,6 +85,27 @@ export function useWeeklyTodos({ token, weekStart, enabled, refreshKey, onError,
     [run, token],
   )
 
+  /** 주간 입력: 날짜 없이(due_date·due_time null) 보고 있는 주로 지정된 새 할 일 */
+  const create = useCallback(
+    async (title: string) => {
+      const text = title.trim()
+      if (!text || !token?.trim() || !weekStart) return null
+      setBusyId('__new__')
+      try {
+        const saved = await createTodo(token, { title: text, sourceType: 'manual', dueDate: null, dueTime: null, weeklyFocusWeekStart: weekStart })
+        cb.current.onSaved?.(saved)
+        await reload()
+        return saved
+      } catch (e) {
+        cb.current.onError?.(e instanceof Error ? e.message : '주간 할 일 추가에 실패했습니다.')
+        return null
+      } finally {
+        setBusyId(null)
+      }
+    },
+    [reload, token, weekStart],
+  )
+
   const toggleDone = useCallback(
     (row: TodoDto) =>
       row.status === 'completed' || row.status === 'pending'
@@ -99,6 +121,7 @@ export function useWeeklyTodos({ token, weekStart, enabled, refreshKey, onError,
     busyId,
     reload,
     setFocus,
+    create,
     toggleDone,
   }
 }

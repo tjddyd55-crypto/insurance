@@ -72,7 +72,6 @@
 }
 .weekly-todos__name:hover { text-decoration: underline; }
 .weekly-todos__meta { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.125rem; font-size: 0.75rem; color: var(--text-muted, #6b7280); }
-.weekly-todos__kind { margin-left: auto; font-size: 0.6875rem; opacity: 0.8; }
 .weekly-todos__actions { flex: 0 0 auto; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.25rem; max-width: 7.5rem; }
 .weekly-todos__move {
   width: 1.5rem; height: 1.5rem; display: inline-flex; align-items: center; justify-content: center;
@@ -93,14 +92,39 @@
 }
 /* 오른쪽 전체 할 일 머리: 왼쪽 패널 머리와 같은 높이·기준선 */
 .todos-page__all-head {
-  display: flex; align-items: center; gap: 0.5rem;
+  display: flex; flex-wrap: nowrap; align-items: center; gap: 0.5rem;
   min-height: 2.25rem;
-  padding-bottom: 0.5rem;
+  padding: 0.375rem 0.75rem;
   margin-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border, #e5e7eb);
 }
-.todos-page__all-title { margin: 0; font-size: 1rem; font-weight: 600; }
+.todos-page__all-title { margin: 0; font-size: 1rem; font-weight: 600; white-space: nowrap; flex: 0 0 auto; }
+.todos-page__all-filters {
+  margin-left: auto; display: flex; flex-wrap: nowrap; align-items: center; gap: 0.25rem;
+  min-width: 0; overflow-x: auto; white-space: nowrap;
+}
+/* 오른쪽 열: 머리 한 줄, 나머지 높이는 목록(내부 스크롤) */
+.todos-page__split .todos-page__split-main {
+  display: flex; flex-direction: column;
+  max-height: calc(100dvh - 8rem);
+  position: sticky; top: 0.75rem;
+}
+.todos-page__split .todos-page__all-head { flex: 0 0 auto; }
+.todos-page__split .todos-page__all-list { flex: 1 1 auto; min-height: 0; overflow: auto; }
 @media (max-width: 900px) {
   .todos-page__split { grid-template-columns: minmax(0, 1fr) !important; }
   .todos-page__split .weekly-todos { position: static; max-height: 60vh; }
+  .todos-page__split .todos-page__split-main { position: static; max-height: none; }
 }
+/* 주간 입력 줄(날짜 없이 이 주로) */
+.weekly-todos__new { flex: 0 0 auto; display: flex; gap: 0.375rem; padding: 0.5rem 0 0.25rem; }
+.weekly-todos__new-input {
+  flex: 1 1 auto; min-width: 0; font-size: 0.8125rem; padding: 0.375rem 0.5rem;
+  border: 1px solid var(--border, #e5e7eb); border-radius: 0.375rem; background: var(--bg-card, #fff); color: inherit;
+}
+.weekly-todos__new-add {
+  flex: 0 0 auto; font-size: 0.8125rem; font-weight: 600; padding: 0.375rem 0.75rem; border-radius: 0.375rem;
+  border: 1px solid var(--brand, #2563eb); background: var(--brand, #2563eb); color: var(--text-on-brand, #fff); cursor: pointer;
+}
+.weekly-todos__new-add:disabled { opacity: 0.5; cursor: default; }
+.weekly-todos__item--done { opacity: 0.7; }
+.weekly-todos__done-mark { font-size: 0.6875rem; font-weight: 600; color: var(--text-muted, #6b7280); }
