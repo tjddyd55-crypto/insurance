@@ -15,6 +15,7 @@ export function customerCarRecordToFormItem(r: CustomerCarRecord): CustomerCarFo
     carNumber: r.carNumber ?? '',
     carModel: r.carModel ?? '',
     carYear: r.carYear ?? '',
+    insuranceCompany: r.insuranceCompany ?? '',
     renewalDate: r.renewalDate ? String(r.renewalDate).slice(0, 10) : '',
     carType: r.carType ?? '',
     memo: r.memo ?? '',
@@ -33,6 +34,7 @@ function formItemToInput(car: CustomerCarFormItem, isPrimary: boolean): Customer
     carNumber: trim(car.carNumber),
     carModel: trim(car.carModel),
     carYear: trim(car.carYear),
+    insuranceCompany: trim(car.insuranceCompany),
     renewalDate: renewal,
     memo: trim(car.memo),
     isPrimary,
@@ -46,6 +48,7 @@ function recordEqualsForm(rec: CustomerCarRecord, car: CustomerCarFormItem, isPr
     trim(rec.carNumber) === trim(car.carNumber) &&
     trim(rec.carModel) === trim(car.carModel) &&
     trim(rec.carYear) === trim(car.carYear) &&
+    trim(rec.insuranceCompany) === trim(car.insuranceCompany) &&
     rDate === trim(car.renewalDate) &&
     trim(rec.memo) === trim(car.memo) &&
     rec.isPrimary === isPrimary
