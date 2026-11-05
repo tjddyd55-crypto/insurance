@@ -2,7 +2,7 @@ import { FormButton } from '../../../../components/form'
 import { CustomerCardPaymentPanels } from '../../components/CustomerCardPaymentPanels'
 import type { CustomerCardPaymentState } from '../../hooks/useCustomerPremiumPaymentsState'
 import type { CardPaymentCustomerListItem } from '../../hooks/usePremiumPaymentsOverviewState'
-import { PremiumPaymentsCustomerSidebar } from './PremiumPaymentsCustomerSidebar'
+import { PremiumPaymentsCustomerSidebar, type InsurerViewProps } from './PremiumPaymentsCustomerSidebar'
 
 type Props = {
   search: string
@@ -22,6 +22,7 @@ type Props = {
   onConfirmDeleteCard: (cardId: number) => Promise<void>
   onConfirmDeleteContract: (contractId: number) => Promise<void>
   onAfterDetailMutate?: () => void | Promise<void>
+  insurerView?: InsurerViewProps
 }
 
 function formatPhone(phone: string): string {
@@ -50,6 +51,7 @@ export function PremiumPaymentsOverviewBody({
   onConfirmDeleteCard,
   onConfirmDeleteContract,
   onAfterDetailMutate,
+  insurerView,
 }: Props) {
   return (
     <div className="premium-payments-workspace">
@@ -63,6 +65,7 @@ export function PremiumPaymentsOverviewBody({
           selectedCustomerId={selectedCustomerId}
           onSearchChange={onSearchChange}
           onSelectCustomer={onSelectCustomer}
+          insurerView={insurerView}
         />
       </div>
 
@@ -142,6 +145,7 @@ export function PremiumPaymentsOverviewBody({
                 onSelectCustomer(customerId)
                 onCloseMobilePicker()
               }}
+              insurerView={insurerView}
             />
           </div>
         </div>

@@ -30,13 +30,13 @@ export default function PremiumPaymentsOverviewPage() {
   const selectedCustomerId = useMemo(() => {
     if (
       selectedFromUrl != null &&
-      listState.filteredCustomers.some((c) => c.customerId === selectedFromUrl)
+      listState.visibleCustomers.some((c) => c.customerId === selectedFromUrl)
     ) {
       return selectedFromUrl
     }
     // URL 없거나 검색으로 제외되면 목록 첫 고객
-    return listState.filteredCustomers[0]?.customerId ?? null
-  }, [listState.filteredCustomers, selectedFromUrl])
+    return listState.visibleCustomers[0]?.customerId ?? null
+  }, [listState.visibleCustomers, selectedFromUrl])
 
   const selectedCustomer = useMemo(
     () => listState.customers.find((c) => c.customerId === selectedCustomerId) ?? null,
@@ -107,6 +107,14 @@ export default function PremiumPaymentsOverviewPage() {
       await listState.reload()
     },
     onAfterDetailMutate: () => listState.reload(),
+    insurerView: {
+      viewMode: listState.viewMode,
+      onViewModeChange: listState.setViewMode,
+      insurerOptions: listState.insurerOptions,
+      selectedInsurerKey: listState.selectedInsurerKey,
+      onSelectInsurer: listState.setSelectedInsurerKey,
+      insurerCustomerGroups: listState.insurerCustomerGroups,
+    },
   }
 
   return (

@@ -674,3 +674,51 @@
 .premium-payments-page--pc .premium-payments-card-table-wrap {
   overflow-x: visible;
 }
+
+/* 고객별/보험사별 보기 토글 + 보험사별 중첩 목록 */
+.premium-payments-view-toggle {
+  display: inline-flex;
+  gap: 4px;
+  margin: 6px 0;
+  padding: 2px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+}
+
+.premium-payments-view-toggle__btn {
+  border: 0;
+  background: transparent;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.premium-payments-view-toggle__btn--active {
+  background: var(--primary-color, #2563eb);
+  color: #fff;
+}
+
+.premium-payments-workspace__insurer-select {
+  margin-bottom: 6px;
+}
+
+.premium-payments-insurer-contracts {
+  list-style: none;
+  margin: 2px 0 8px;
+  padding: 0 0 0 14px;
+  border-left: 2px solid var(--border-color, #e2e8f0);
+}
+
+.premium-payments-insurer-contracts__item {
+  display: flex;
+  flex-direction: column;
+  padding: 3px 0;
+  font-size: 0.82rem;
+}
+
+.premium-payments-insurer-contracts__meta {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}

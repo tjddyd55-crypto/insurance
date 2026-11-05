@@ -22,6 +22,10 @@ export type CardPaymentContractRow = {
   ownerDisplayName?: string
   paymentCardId: number | null
   insuranceCompany: string
+  /** insurer_sites.id (전역 보험사 카탈로그). null = 기타/미지정 */
+  insuranceCompanyId?: number | null
+  insurerName?: string | null
+  insurerCategory?: 'LIFE' | 'NON_LIFE' | null
   policyNumber: string | null
   productName: string | null
   premiumAmount: number | null
@@ -55,6 +59,8 @@ export type PaymentCardWritePayload = {
 
 export type ContractWritePayload = {
   insuranceCompany: string
+  /** 숫자 = 카탈로그 보험사, null = 기타(텍스트만). 생략 시 서버가 텍스트를 자동 매칭 */
+  insuranceCompanyId?: number | null
   policyNumber?: string | null
   productName?: string | null
   premiumAmount?: number | null
@@ -235,8 +241,10 @@ export async function listCardPaymentContractsOverview(
     status?: string
     search?: string
     insuranceCompany?: string
+    insuranceCompanyId?: number | 'unassigned'
     paymentDay?: string
     ownerUserId?: string
+    limit?: number
   } = {},
 ): Promise<{
   targetMonth: string
@@ -248,8 +256,10 @@ export async function listCardPaymentContractsOverview(
   if (opts.status) params.set('status', opts.status)
   if (opts.search) params.set('search', opts.search)
   if (opts.insuranceCompany) params.set('insuranceCompany', opts.insuranceCompany)
+  if (opts.insuranceCompanyId != null) params.set('insuranceCompanyId', String(opts.insuranceCompanyId))
   if (opts.paymentDay) params.set('paymentDay', opts.paymentDay)
   if (opts.ownerUserId) params.set('ownerUserId', opts.ownerUserId)
+  if (opts.limit) params.set('limit', String(opts.limit))
   const q = params.toString()
   return apiRequest(`/api/card-payment-contracts${q ? `?${q}` : ''}`, { token })
 }

@@ -15,6 +15,7 @@ import {
   type PaymentCardRow,
   type PaymentCardWritePayload,
 } from '../api/premiumPaymentsApi'
+import { fetchActiveInsurerSites, type InsurerSite } from '../../insurer-sites/api/insurerSitesApi'
 
 export type CardFormState = {
   label: string
@@ -24,7 +25,14 @@ export type CardFormState = {
   cardExpiryYear: string
 }
 
+/** 보험 구분: 손해/생명(카탈로그) 또는 기타(직접 입력) */
+export type ContractInsurerCategory = '' | 'NON_LIFE' | 'LIFE' | 'OTHER'
+
 export type ContractFormState = {
+  insurerCategory: ContractInsurerCategory
+  /** insurer_sites.id 문자열 ('' = 미선택) */
+  insuranceCompanyId: string
+  /** 기타 선택 시 직접 입력 텍스트 (기존 미매칭 값 포함) */
   insuranceCompany: string
   policyNumber: string
   productName: string
@@ -45,6 +53,8 @@ const emptyCardForm = (ownerName = ''): CardFormState => ({
 })
 
 const emptyContractForm = (): ContractFormState => ({
+  insurerCategory: '',
+  insuranceCompanyId: '',
   insuranceCompany: '',
   policyNumber: '',
   productName: '',
@@ -88,6 +98,22 @@ export function useCustomerPremiumPaymentsState(
   const [editingContract, setEditingContract] = useState<CardPaymentContractRow | null>(null)
   const [contractForm, setContractForm] = useState<ContractFormState>(emptyContractForm())
   const loadSeqRef = useRef(0)
+  const [insurerSites, setInsurerSites] = useState<InsurerSite[]>([])
+
+  useEffect(() => {
+    if (!token?.trim()) return
+    let cancelled = false
+    fetchActiveInsurerSites(token)
+      .then((res) => {
+        if (!cancelled) setInsurerSites((res.items ?? []).filter((s) => s.isActive))
+      })
+      .catch(() => {
+        if (!cancelled) setInsurerSites([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token])
 
   const loadAll = useCallback(async () => {
     if (!token?.trim() || !validId) {
@@ -272,8 +298,17 @@ export function useCustomerPremiumPaymentsState(
 
   const openEditContract = useCallback((row: CardPaymentContractRow) => {
     setEditingContract(row)
+    const linked = row.insuranceCompanyId != null && row.insuranceCompanyId > 0
     setContractForm({
-      insuranceCompany: row.insuranceCompany,
+      insurerCategory: linked
+        ? row.insurerCategory === 'LIFE'
+          ? 'LIFE'
+          : 'NON_LIFE'
+        : row.insuranceCompany?.trim()
+          ? 'OTHER'
+          : '',
+      insuranceCompanyId: linked ? String(row.insuranceCompanyId) : '',
+      insuranceCompany: linked ? '' : row.insuranceCompany,
       policyNumber: row.policyNumber ?? '',
       productName: row.productName ?? '',
       premiumAmount: row.premiumAmount == null ? '' : String(row.premiumAmount),
@@ -297,8 +332,20 @@ export function useCustomerPremiumPaymentsState(
       if (!token?.trim() || !validId || busy) {
         return false
       }
+      const isOther = contractForm.insurerCategory === 'OTHER'
+      const siteId = isOther ? null : Number(contractForm.insuranceCompanyId)
+      const site = siteId ? insurerSites.find((s) => s.id === siteId) : undefined
+      if (!isOther && !siteId) {
+        setError('보험사를 선택해 주세요.')
+        return false
+      }
+      if (isOther && !contractForm.insuranceCompany.trim()) {
+        setError('보험회사명을 입력해 주세요.')
+        return false
+      }
       const payload: ContractWritePayload = {
-        insuranceCompany: contractForm.insuranceCompany.trim(),
+        insuranceCompanyId: isOther ? null : siteId,
+        insuranceCompany: isOther ? contractForm.insuranceCompany.trim() : (site?.name ?? ''),
         policyNumber: contractForm.policyNumber.trim() || null,
         productName: contractForm.productName.trim() || null,
         memo: contractForm.memo.trim(),
@@ -327,7 +374,7 @@ export function useCustomerPremiumPaymentsState(
         setBusy(false)
       }
     },
-    [busy, closeContractForm, contractForm, customerId, editingContract, loadAll, token, validId],
+    [busy, closeContractForm, contractForm, customerId, editingContract, insurerSites, loadAll, token, validId],
   )
 
   const removeContract = useCallback(
@@ -390,6 +437,7 @@ export function useCustomerPremiumPaymentsState(
     copyCardNumber,
     copyCardExpiry,
     cardOptions,
+    insurerSites,
     reload: loadAll,
   }
 }

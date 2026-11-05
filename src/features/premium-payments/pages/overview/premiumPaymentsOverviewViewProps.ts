@@ -1,4 +1,5 @@
 import type { CustomerCardPaymentState } from '../../hooks/useCustomerPremiumPaymentsState'
+import type { InsurerViewProps } from './PremiumPaymentsCustomerSidebar'
 import type { CardPaymentCustomerListItem } from '../../hooks/usePremiumPaymentsOverviewState'
 
 export type PremiumPaymentsOverviewViewProps = {
@@ -19,4 +20,5 @@ export type PremiumPaymentsOverviewViewProps = {
   onConfirmDeleteCard: (cardId: number) => Promise<void>
   onConfirmDeleteContract: (contractId: number) => Promise<void>
   onAfterDetailMutate?: () => void | Promise<void>
+  insurerView?: InsurerViewProps
 }
