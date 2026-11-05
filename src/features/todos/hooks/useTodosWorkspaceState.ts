@@ -5,8 +5,8 @@ import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
 import type { TodoCreatePrefill } from '../components/TodoEditorDialog'
 import type { TodoDto } from '../domain/todoTypes'
-import { completeTodo, listTodos, patchTodo, reopenTodo } from '../api/todosApi'
-import { mondayOfYmd } from '../domain/weeklyFocus'
+import { completeTodo, listTodos, reopenTodo } from '../api/todosApi'
+import { currentSeoulWeekStart, useWeeklyTodos } from './useWeeklyTodos'
 import { getCalendarMonthRange, shiftCalendarMonth } from '../domain/todoCalendar'
 import {
   readTodosViewMode,
@@ -44,10 +44,9 @@ export function useTodosWorkspaceState() {
   const [error, setError] = useState('')
   const [todos, setTodos] = useState<TodoDto[]>([])
   const [calendarTodos, setCalendarTodos] = useState<TodoDto[]>([])
-  const weekStart = useMemo(() => mondayOfYmd(formatSeoulYmd(new Date())), [])
-  const [weeklyTodos, setWeeklyTodos] = useState<TodoDto[]>([])
-  const [weeklyLoading, setWeeklyLoading] = useState(false)
-  const [weeklyBusyId, setWeeklyBusyId] = useState<string | null>(null)
+  const currentWeekStart = useMemo(() => currentSeoulWeekStart(), [])
+  /** 왼쪽 주간 할 일이 보고 있는 주. 오른쪽 전체 목록과는 무관 */
+  const [weekStart, setWeekStart] = useState(currentWeekStart)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editorSession, setEditorSession] = useState(0)
   const [editingTodo, setEditingTodo] = useState<TodoDto | null>(null)
@@ -124,50 +123,33 @@ export function useTodosWorkspaceState() {
     }
   }, [calendarParams, token])
 
-  /** 주간 할 일(이번 주, 월~일): 그 주 예정일 + 직접 지정. 완료는 기본 숨김. */
-  const loadWeekly = useCallback(async () => {
-    if (!token?.trim()) {
-      setWeeklyTodos([])
-      return
-    }
-    setWeeklyLoading(true)
-    try {
-      setWeeklyTodos(await listTodos(token, { weekStart }))
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '주간 할 일을 불러오지 못했습니다.')
-      setWeeklyTodos([])
-    } finally {
-      setWeeklyLoading(false)
-    }
-  }, [token, weekStart])
-
   useEffect(() => {
     void load()
   }, [load])
 
-  useEffect(() => {
-    if (!isMobile) void loadWeekly()
-  }, [isMobile, loadWeekly])
-
-  const setWeeklyFocus = useCallback(
-    async (row: TodoDto, next: string | null) => {
-      if (!token?.trim()) return
-      setError('')
-      setWeeklyBusyId(row.id)
-      try {
-        const saved = await patchTodo(token, row.id, { weeklyFocusWeekStart: next })
-        setTodos((prev) => prev.map((t) => (t.id === saved.id ? saved : t)))
-        await loadWeekly()
-      } catch (e) {
-        setError(e instanceof Error ? e.message : '주간 할 일 변경에 실패했습니다.')
-      } finally {
-        setWeeklyBusyId(null)
-      }
-    },
-    [loadWeekly, token],
-  )
-  const addToWeek = useCallback((row: TodoDto) => setWeeklyFocus(row, weekStart), [setWeeklyFocus, weekStart])
-  const removeFromWeek = useCallback((row: TodoDto) => setWeeklyFocus(row, null), [setWeeklyFocus])
+  // 주간 할 일: 공통 훅(일정 주간 보기와 같은 데이터·정책)
+  const weekly = useWeeklyTodos({
+    token,
+    weekStart,
+    enabled: !isMobile,
+    onError: setError,
+    onSaved: (saved) =>
+      setTodos((prev) => {
+        if (prev.some((t) => t.id === saved.id)) return prev.map((t) => (t.id === saved.id ? saved : t))
+        void load() // 주간 입력으로 새로 생긴 할 일: 전체 할 일 다시 불러오기
+        return prev
+      }),
+  })
+  const loadWeekly = weekly.reload
+  const weeklyTodos = weekly.todos
+  const weeklyLoading = weekly.loading
+  const weeklyBusyId = weekly.busyId
+  const setFocus = weekly.setFocus
+  /** 드롭·'이번 주로': 보고 있는 주로 직접 지정 */
+  const addToWeek = useCallback((row: TodoDto) => setFocus(row, weekStart), [setFocus, weekStart])
+  const removeFromWeek = useCallback((row: TodoDto) => setFocus(row, null), [setFocus])
+  const createWeekly = weekly.create
+  const moveToWeek = useCallback((row: TodoDto, target: string) => setFocus(row, target), [setFocus])
 
   useEffect(() => {
     if (viewMode === 'calendar') void loadCalendar()
@@ -271,6 +253,10 @@ export function useTodosWorkspaceState() {
       if (!isMobile) await loadWeekly()
     },
     weekStart,
+    currentWeekStart,
+    setWeekStart,
+    moveToWeek,
+    createWeekly,
     weeklyTodos,
     weeklyLoading,
     weeklyBusyId,

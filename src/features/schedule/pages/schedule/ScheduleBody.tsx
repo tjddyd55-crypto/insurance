@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ScheduleChrome from '../../components/ScheduleChrome'
 import ScheduleCustomerModal from '../../components/ScheduleCustomerModal'
 import { useScheduleGoogleWrite } from '../../components/ScheduleGoogleWrite'
@@ -16,6 +16,36 @@ import {
 import type { ScheduleViewProps } from '../../hooks/useScheduleState'
 import ScheduleTodoEditor from '../../components/ScheduleTodoEditor'
 import ScheduleHolidaySetting, { useScheduleHolidayMode } from '../../components/ScheduleHolidaySetting'
+import { weekDays } from '../../domain/scheduleRange'
+import { WeeklyTodosPanel } from '../../../todos/components/WeeklyTodosPanel'
+import { currentSeoulWeekStart, useWeeklyTodos } from '../../../todos/hooks/useWeeklyTodos'
+import { mondayOfYmd } from '../../../todos/domain/weeklyFocus'
+import type { TodoDto } from '../../../todos/domain/todoTypes'
+
+/** 주간 할 일 행 → 일정 화면의 ONE FC 할 일 상세(같은 편집 모달)용 최소 ScheduleTask */
+function scheduleTaskOfTodo(row: TodoDto, tasks: ScheduleTask[]): ScheduleTask {
+  const found = tasks.find((task) => task.source === 'onefc_todo' && task.sourceId === row.id)
+  if (found) return found
+  return {
+    id: `onefc:${row.id}`,
+    source: 'onefc_todo',
+    sourceId: row.id,
+    taskListId: null,
+    taskListName: '',
+    title: row.title,
+    notes: row.description ?? '',
+    dueDate: row.dueDate,
+    dueTime: row.dueTime,
+    status: row.status === 'completed' ? 'completed' : 'open',
+    completedAt: row.completedAt,
+    parentId: null,
+    updatedAt: row.updatedAt,
+    customerId: null,
+    customerName: row.customerName ?? '',
+    weeklyFocusWeekStart: row.weeklyFocusWeekStart ?? null,
+    readOnly: false,
+  }
+}
 
 /** 달력 기간(월간 anchor 의 달)에 오늘이 들어 있는가 */
 function sameMonth(a: string, b: string): boolean {
@@ -60,6 +90,44 @@ export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?
     if (target) setCustomerTarget(target)
     else baseOpenTask(task)
   }, [baseOpenTask, pc, setCustomerTarget])
+  // PC 주간 보기: 왼쪽 주간 할 일 = 할 일 화면과 같은 컴포넌트·같은 API. 일정표 주와 항상 같은 주.
+  const weeklyOn = pc && view === 'week'
+  const viewWeekStart = useMemo(() => (weeklyOn ? weekDays(anchor)[0] : ''), [anchor, weeklyOn])
+  const currentWeekStart = useMemo(() => currentSeoulWeekStart(), [])
+  const { onReload, onShift, onToday } = props
+  const weekly = useWeeklyTodos({
+    token: props.token,
+    weekStart: viewWeekStart,
+    enabled: weeklyOn,
+    refreshKey: props.tasks,
+    onSaved: () => onReload(),
+  })
+  const onChangeWeek = useCallback((target: string) => {
+    const monday = mondayOfYmd(target)
+    if (monday === mondayOfYmd(today)) {
+      onToday()
+      return
+    }
+    const deltaWeeks = Math.round((Date.parse(`${monday}T00:00:00Z`) - Date.parse(`${viewWeekStart}T00:00:00Z`)) / (7 * 86400000))
+    if (deltaWeeks !== 0) onShift(deltaWeeks)
+  }, [onShift, onToday, today, viewWeekStart])
+  const weeklyPanel = weeklyOn ? (
+    <WeeklyTodosPanel
+      className="schedule-page__weekly-panel"
+      weekStart={viewWeekStart}
+      currentWeekStart={currentWeekStart}
+      todos={weekly.todos}
+      loading={weekly.loading}
+      busyId={weekly.busyId}
+      onChangeWeek={onChangeWeek}
+      onToggleDone={(row) => void weekly.toggleDone(row)}
+      onOpen={(row) => onOpenTask(scheduleTaskOfTodo(row, props.tasks))}
+      onMoveWeek={(row, target) => void weekly.setFocus(row, target)}
+      onRemove={(row) => void weekly.setFocus(row, null)}
+      onCreate={(title) => weekly.create(title)}
+    />
+  ) : undefined
+
   return (
     <>
       <ScheduleChrome
@@ -103,6 +171,7 @@ export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?
           onOpenTask={onOpenTask}
           holidayMode={decorMode}
           pcCell={pc}
+          weeklyPanel={weeklyPanel}
         />
       ) : null}
       {props.view === 'day' ? (

@@ -12,7 +12,7 @@ export type ListTodosParams = {
   sourceType?: string
   /** 기존 고객 연결(relatedEntityType='customer' + relatedEntityId) 기준 필터 */
   customerId?: string
-  /** 주간 할 일: 그 주 월요일(YYYY-MM-DD). 예정일이 그 주이거나 직접 지정된 할 일 */
+  /** 주간 할 일: 그 주 월요일(YYYY-MM-DD). 그 주로 지정(weekly_focus_week_start)한 할 일만 */
   weekStart?: string
   includeCompleted?: string
 }
@@ -48,6 +48,8 @@ export type CreateTodoBody = {
   priority?: string
   relatedEntityType?: string | null
   relatedEntityId?: string | null
+  /** 주간 입력: 그 주 월요일. 일반 할 일 입력은 보내지 않는다 */
+  weeklyFocusWeekStart?: string | null
 }
 
 export async function createTodo(token: string, body: CreateTodoBody): Promise<TodoDto> {

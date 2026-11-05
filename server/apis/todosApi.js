@@ -54,13 +54,6 @@ export function parseWeekStartYmd(raw) {
   return v
 }
 
-/** @param {string} ymd */
-function addDaysYmd(ymd, days) {
-  const [y, m, d] = ymd.split('-').map(Number)
-  const dt = new Date(Date.UTC(y, m - 1, d + days))
-  return dt.toISOString().slice(0, 10)
-}
-
 /**
  * @param {import('pg').QueryResultRow} row
  */
@@ -385,17 +378,15 @@ export function registerTodosApi(apiRouter, ctx) {
           res.status(400).json({ message: 'weekStart 는 월요일 날짜(YYYY-MM-DD)여야 합니다.' })
           return
         }
-        // 주간 할 일: 그 주(월~일) 예정일 OR 그 주로 직접 지정. 취소 제외, 완료는 includeCompleted=1 일 때만.
+        // 주간 할 일: 그 주로 지정(weekly_focus_week_start)한 할 일만. 예정일 자동 포함 없음. 취소 제외, 완료는 includeCompleted=1 일 때만.
         conditions.push(`t.status <> 'canceled'`)
         const includeCompletedRaw = String(req.query.includeCompleted ?? '').trim().toLowerCase()
         if (!(includeCompletedRaw === '1' || includeCompletedRaw === 'true') && !statusQ && bucket !== 'open') {
           conditions.push(`t.status = 'pending'`)
         }
-        conditions.push(
-          `((t.due_date >= $${p}::date AND t.due_date <= $${p + 1}::date) OR t.weekly_focus_week_start = $${p}::date)`,
-        )
-        params.push(weekStart, addDaysYmd(weekStart, 6))
-        p += 2
+        conditions.push(`t.weekly_focus_week_start = $${p}::date`)
+        params.push(weekStart)
+        p += 1
       }
 
       const rows = await selectVisibleTodos(pool, conditions, params)
@@ -475,6 +466,17 @@ export function registerTodosApi(apiRouter, ctx) {
       if (metaObj != null && typeof metaObj === 'object') metaJson = JSON.stringify(metaObj)
       else if (typeof metaObj === 'string' && metaObj.trim()) metaJson = metaObj
 
+      // 주간 입력(선택): 그 주 월요일. 없으면 주간 할 일에 넣지 않는다(일반 할 일 입력은 자동 포함 없음).
+      const focusRaw = body.weeklyFocusWeekStart
+      let weeklyFocus = null
+      if (!(focusRaw == null || focusRaw === '')) {
+        weeklyFocus = parseWeekStartYmd(focusRaw)
+        if (!weeklyFocus) {
+          res.status(400).json({ message: '주간 시작일은 월요일 날짜(YYYY-MM-DD)여야 합니다.' })
+          return
+        }
+      }
+
       const tenantDbId = resolveTenantDbId(req)
 
       const ins = await safeQuery(
@@ -485,12 +487,14 @@ export function registerTodosApi(apiRouter, ctx) {
           title, description, due_date, due_time,
           status, priority, source_type, source_id,
           related_entity_type, related_entity_id, metadata,
+          weekly_focus_week_start,
           created_at, updated_at
         ) VALUES (
           $1,$2,$3,$4,
           $5,$6,$7,$8::time,
           'pending',$9,$10,$11::text,
           $12,$13,$14::jsonb,
+          $15::date,
           NOW(),NOW()
         )
         RETURNING *
@@ -510,6 +514,7 @@ export function registerTodosApi(apiRouter, ctx) {
           relType,
           relId,
           metaJson,
+          weeklyFocus,
         ],
       )
       const enriched = await enrichCustomerName(pool, gaId, ins.rows[0])

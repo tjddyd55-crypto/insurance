@@ -792,62 +792,55 @@
   padding-top: 8px;
 }
 
-/* 주간 할 일 패널(PC 주간 보기 상단, ONE FC 할 일만) */
-.schedule-page__weekly-todos {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
-  min-width: 720px;
-}
-.schedule-page__weekly-todos-head {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-.schedule-page__weekly-todos-range {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-.schedule-page__weekly-todos-empty {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: var(--text-secondary);
-}
-.schedule-page__weekly-todos-list {
+/* ── PC 주간 보기: 왼쪽 주간 할 일(약 30%) · 오른쪽 월~일 일정표(약 70%). 위아래 시작선·높이·모서리 동일. ── */
+.schedule-page__week-split {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 6px;
+  grid-template-columns: minmax(280px, 30%) minmax(0, 1fr);
+  gap: 12px;
+  margin-top: var(--space-3);
+  align-items: stretch;
 }
-.schedule-page__weekly-todo {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  text-align: left;
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
+.schedule-page__week-split > .schedule-page__week {
+  margin-top: 0;
   min-width: 0;
 }
-.schedule-page__weekly-todo--manual {
-  border-left-color: var(--primary);
+.schedule-page__week-split > .weekly-todos {
+  margin: 0;
+  min-height: 0;
+  min-width: 0;
 }
-.schedule-page__weekly-todo:hover {
-  background: var(--bg-soft, rgba(0, 0, 0, 0.03));
+/* 좁아진 일정표: 요일 칸 최소 폭을 줄여 가로 스크롤을 늦춘다 */
+.schedule-page__week-split .schedule-page__week-grid {
+  min-width: 560px;
 }
-.schedule-page__weekly-todo-title {
-  font-size: 0.8125rem;
-  line-height: 1.35;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.schedule-page__week-split .schedule-page__week-head,
+.schedule-page__week-split .schedule-page__all-day,
+.schedule-page__week-split .schedule-page__hour-row {
+  grid-template-columns: 48px repeat(7, minmax(68px, 1fr));
 }
-.schedule-page__weekly-todo-meta {
+.schedule-page__week-split .schedule-page__all-day .schedule-page__block {
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  padding: 2px 4px;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 769px) {
+  .schedule-page--compact .schedule-page__week-split {
+    flex: 1 1 0;
+    min-height: 0;
+    margin-top: 8px;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .schedule-page--compact .schedule-page__week-split > .schedule-page__week {
+    margin-top: 0;
+    height: 100%;
+  }
+  .schedule-page--compact .schedule-page__week-split > .weekly-todos {
+    height: 100%;
+    max-height: none;
+  }
+}
+@media (max-width: 900px) {
+  .schedule-page__week-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

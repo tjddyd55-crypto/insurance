@@ -65,6 +65,7 @@ export function PremiumPaymentsCustomerSidebar({
                 ['insurer', '보험사별'],
               ] as const
             ).map(([mode, label]) => (
+              /* eslint-disable-next-line no-restricted-syntax -- 보기 전환 탭(role=tab): 기존 BEM 토글 스타일 유지용 네이티브 button */
               <button
                 key={mode}
                 type="button"
@@ -127,6 +128,7 @@ export function PremiumPaymentsCustomerSidebar({
               const active = selectedCustomerId === group.customerId
               return (
                 <li key={group.customerId} data-testid="card-insurer-customer-group">
+                  {/* eslint-disable-next-line no-restricted-syntax -- 보험사별 고객 목록 항목(role=option): 기존 BEM 스타일 유지용 네이티브 button */}
                   <button
                     type="button"
                     role="option"
