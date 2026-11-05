@@ -9,6 +9,7 @@ export type CustomerCarsEditorProps = {
   cars: CustomerCarFormItem[]
   onChange: (next: CustomerCarFormItem[]) => void
   disabled?: boolean
+  showInsuranceCompany?: boolean
 }
 
 function withSinglePrimary(cars: CustomerCarFormItem[]): CustomerCarFormItem[] {
@@ -39,7 +40,12 @@ function ensurePrimary(cars: CustomerCarFormItem[]): CustomerCarFormItem[] {
   return cars.map((c, i) => (i === 0 ? { ...c, isPrimary: true } : { ...c, isPrimary: false }))
 }
 
-export function CustomerCarsEditor({ cars, onChange, disabled }: CustomerCarsEditorProps) {
+export function CustomerCarsEditor({
+  cars,
+  onChange,
+  disabled,
+  showInsuranceCompany = true,
+}: CustomerCarsEditorProps) {
   const list = useMemo(
     () => ensurePrimary(cars.length ? cars : [createEmptyCustomerCar()]),
     [cars],
@@ -101,6 +107,7 @@ export function CustomerCarsEditor({ cars, onChange, disabled }: CustomerCarsEdi
             car={car}
             canRemove={list.length > 1}
             disabled={disabled}
+            showInsuranceCompany={showInsuranceCompany}
             onChange={(next) => updateAt(i, next)}
             onRemove={() => removeAt(i)}
           />

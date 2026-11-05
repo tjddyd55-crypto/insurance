@@ -748,6 +748,8 @@ export function CustomerFormFields({
 
         onChange={(next) => onFormChange({ ...form, cars: next })}
 
+        showInsuranceCompany={!isPublicRegistration}
+
       />
 
       {!isPublicRegistration ? (
