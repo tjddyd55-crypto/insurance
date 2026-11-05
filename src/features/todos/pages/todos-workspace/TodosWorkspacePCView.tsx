@@ -287,6 +287,7 @@ export default function TodosWorkspacePCView({
             }}
             onRemove={removeFromWeek}
             onCreate={createWeekly}
+            scheduleWeekHref={`/schedule/week?date=${weekStart}`}
           />
           <div
             className={`todos-page__split-main${backDropOver ? ' todos-page__split-main--drop' : ''}`}

@@ -47,6 +47,8 @@ describe('PC 할 일: 주간 할 일 2단', () => {
     expect(left).toContain('data-testid="weekly-todos-new-input"')
     expect(left).toContain('data-testid="weekly-todos-new-add"')
     expect(left).toContain('data-testid="weekly-todo-move-next"')
+    expect(left).toContain('href="/schedule/week?date=2026-11-02"')
+    expect(left).toContain('주간 일정으로 이동')
     expect(left).not.toContain('data-testid="weekly-todos-this-week"')
     const right = html.slice(html.indexOf('todos-all-column'))
     expect(right).toContain('전체 할 일')

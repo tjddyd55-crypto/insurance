@@ -1,5 +1,6 @@
 /* eslint-disable no-restricted-syntax -- 주간 할 일 행의 체크·제목·이동·빼기는 목록 항목 컨트롤이라 native 요소를 쓴다(ScheduleBoards 와 같은 방식). */
 import { useState, type DragEvent, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import type { TodoDto } from '../domain/todoTypes'
 import {
   formatWeekRangeLabel,
@@ -31,6 +32,8 @@ type Props = {
   onRemove?: (row: TodoDto) => void
   /** 주간 입력(날짜 없이 이 주로). 없으면 입력 줄 숨김 */
   onCreate?: (title: string) => Promise<unknown> | void
+  /** 보고 있는 주의 일정 주간 보기 링크(할 일 화면만). 없으면 숨김 */
+  scheduleWeekHref?: string
   className?: string
 }
 
@@ -52,6 +55,7 @@ export function WeeklyTodosPanel({
   onMoveWeek,
   onRemove,
   onCreate,
+  scheduleWeekHref,
   className = '',
 }: Props) {
   const [dragOver, setDragOver] = useState(false)
@@ -116,6 +120,16 @@ export function WeeklyTodosPanel({
           <span className="weekly-todos__range" data-testid="weekly-todos-range">
             {formatWeekRangeLabel(weekStart)}
           </span>
+          {scheduleWeekHref ? (
+            <Link
+              to={scheduleWeekHref}
+              className="weekly-todos__to-schedule"
+              data-testid="weekly-todos-to-schedule"
+              title={`${formatWeekRangeLabel(weekStart)} 주간 일정 보기`}
+            >
+              주간 일정으로 이동 ›
+            </Link>
+          ) : null}
         </div>
         {onChangeWeek && !isCurrent ? (
           <button

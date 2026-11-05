@@ -88,7 +88,7 @@
 .todos-page__split .weekly-todos {
   position: sticky;
   top: 0.75rem;
-  max-height: calc(100dvh - 8rem);
+  max-height: calc(100dvh - 11.5rem);
 }
 /* 오른쪽 전체 할 일 머리: 왼쪽 패널 머리와 같은 높이·기준선 */
 .todos-page__all-head {
@@ -105,7 +105,7 @@
 /* 오른쪽 열: 머리 한 줄, 나머지 높이는 목록(내부 스크롤) */
 .todos-page__split .todos-page__split-main {
   display: flex; flex-direction: column;
-  max-height: calc(100dvh - 8rem);
+  max-height: calc(100dvh - 11.5rem); /* 머리 위 여백(약 172px)까지 빼서 목록이 화면 안에서 끝남 */
   position: sticky; top: 0.75rem;
 }
 .todos-page__split .todos-page__all-head { flex: 0 0 auto; }
@@ -128,3 +128,7 @@
 .weekly-todos__new-add:disabled { opacity: 0.5; cursor: default; }
 .weekly-todos__item--done { opacity: 0.7; }
 .weekly-todos__done-mark { font-size: 0.6875rem; font-weight: 600; color: var(--text-muted, #6b7280); }
+.weekly-todos__to-schedule {
+  font-size: 0.75rem; font-weight: 600; color: var(--brand, #2563eb); text-decoration: none; white-space: nowrap;
+}
+.weekly-todos__to-schedule:hover { text-decoration: underline; }
