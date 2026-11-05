@@ -221,3 +221,59 @@
     font-size: 0.625rem;
   }
 }
+
+/* ── 주간 할 일 (PC) ─────────────────────────── */
+.todos-page__split {
+  display: grid;
+  grid-template-columns: minmax(18rem, 33%) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+.todos-page__split-main { min-width: 0; }
+.todos-page__split-main--drop { outline: 2px dashed var(--brand, #2563eb); outline-offset: 4px; border-radius: 0.75rem; }
+.weekly-todos {
+  border: 1px solid var(--border, #e5e7eb);
+  background: var(--card, #fff);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  transition: background-color 120ms, border-color 120ms;
+}
+.todos-page__split .weekly-todos { position: sticky; top: 0.75rem; }
+.weekly-todos--drop {
+  border-color: var(--brand, #2563eb);
+  background: color-mix(in srgb, var(--brand, #2563eb) 8%, var(--card, #fff));
+}
+.weekly-todos__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+.weekly-todos__title { margin: 0; font-size: 1rem; font-weight: 600; }
+.weekly-todos__desc { margin: 0.125rem 0 0; font-size: 0.75rem; color: var(--text-muted, #6b7280); }
+.weekly-todos__range { font-size: 0.75rem; font-weight: 600; white-space: nowrap; color: var(--text-secondary, #374151); }
+.weekly-todos__hint {
+  margin-top: 0.5rem; padding: 0.375rem; text-align: center; font-size: 0.75rem; font-weight: 600;
+  border: 1px dashed var(--brand, #2563eb); border-radius: 0.5rem; color: var(--brand, #2563eb);
+}
+.weekly-todos__empty { margin: 0.75rem 0 0.25rem; font-size: 0.8125rem; color: var(--text-muted, #6b7280); }
+.weekly-todos__list { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.375rem; }
+.weekly-todos--wide .weekly-todos__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); }
+.weekly-todos__item {
+  display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.5rem;
+  border: 1px solid var(--border, #e5e7eb); border-left-width: 3px; border-radius: 0.5rem;
+}
+.weekly-todos__item--manual { border-left-color: var(--brand, #2563eb); }
+.weekly-todos__item[draggable='true'] { cursor: grab; }
+.weekly-todos__item--done .weekly-todos__name { text-decoration: line-through; color: var(--text-muted, #6b7280); }
+.weekly-todos__check { margin-top: 0.2rem; }
+.weekly-todos__body { flex: 1; min-width: 0; }
+.weekly-todos__name {
+  display: block; width: 100%; text-align: left; background: transparent; border: none; padding: 0;
+  font-size: 0.875rem; line-height: 1.35; cursor: pointer; color: inherit; overflow-wrap: anywhere;
+}
+.weekly-todos__name:hover { text-decoration: underline; }
+.weekly-todos__meta { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.125rem; font-size: 0.75rem; color: var(--text-muted, #6b7280); }
+.weekly-todos__kind { margin-left: auto; font-size: 0.6875rem; opacity: 0.8; }
+.weekly-todos__remove, .todos-page__to-week {
+  flex-shrink: 0; font-size: 0.6875rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem;
+  border: 1px solid var(--border, #e5e7eb); background: transparent; cursor: pointer; white-space: nowrap; color: inherit;
+}
+.weekly-todos__remove:hover, .todos-page__to-week:hover { background: var(--soft, #f3f4f6); }
+.todos-page--pc__table tr.todos-page__row--dragging { opacity: 0.45; }
+.todos-page--pc__table tr[draggable='true'] { cursor: grab; }

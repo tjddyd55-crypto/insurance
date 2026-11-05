@@ -3924,6 +3924,13 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_todos_ga_updated
     ON todos (ga_id, updated_at DESC)
   `)
+  // 주간 할 일(직접 지정) 키: 그 주 월요일. additive·nullable·default 없음 → 기존 행 변화 없음.
+  await pool.query(`ALTER TABLE todos ADD COLUMN IF NOT EXISTS weekly_focus_week_start DATE`)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_todos_ga_weekly_focus
+    ON todos (ga_id, weekly_focus_week_start)
+    WHERE weekly_focus_week_start IS NOT NULL
+  `)
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ta_call_settings (

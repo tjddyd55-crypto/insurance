@@ -20,6 +20,11 @@ import {
 } from '../domain/scheduleEventTime'
 
 const WEEKDAY_SUN_FIRST = ['일', '월', '화', '수', '목', '금', '토']
+/** YYYY-MM-DD → 요일 한 글자 */
+function weekdayLabel(ymd: string): string {
+  const [y, m, d] = ymd.split('-').map(Number)
+  return WEEKDAY_SUN_FIRST[new Date(Date.UTC(y, m - 1, d)).getUTCDay()] ?? ''
+}
 const HOURS = Array.from({ length: 24 }, (_, index) => index)
 const MONTH_CELL_LIMIT = 3
 
@@ -212,12 +217,49 @@ export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpen
   const days = weekDays(anchor)
   const sorted = sortScheduleEvents(events)
   const sortedTasks = sortScheduleTasks(tasks)
+  const weekStart = days[0]
+  const weekEnd = days[6]
+  // 주간 할 일 패널: ONE FC 할 일만, 그 주 예정일 또는 직접 지정. 완료는 숨김.
+  const weeklyTasks = sortedTasks.filter((task) =>
+    task.source === 'onefc_todo'
+    && task.status === 'open'
+    && (task.weeklyFocusWeekStart === weekStart || (Boolean(task.dueDate) && task.dueDate! >= weekStart && task.dueDate! <= weekEnd)))
   return (
     <div className="schedule-page__week" aria-label="주간 일정">
+      {pcCell ? (
+        <section className="schedule-page__weekly-todos" aria-label="주간 할 일" data-testid="schedule-weekly-todos">
+          <div className="schedule-page__weekly-todos-head">
+            <strong>주간 할 일</strong>
+            <span className="schedule-page__weekly-todos-range">
+              {`${weekStart.slice(5).replace('-', '.')} ~ ${weekEnd.slice(5).replace('-', '.')}`}
+            </span>
+          </div>
+          {weeklyTasks.length === 0 ? (
+            <p className="schedule-page__weekly-todos-empty">이번 주 할 일이 없습니다.</p>
+          ) : (
+            <div className="schedule-page__weekly-todos-list">
+              {weeklyTasks.map((task) => (
+                <button
+                  key={task.id}
+                  type="button"
+                  className={`schedule-page__weekly-todo${task.weeklyFocusWeekStart === weekStart ? ' schedule-page__weekly-todo--manual' : ''}`}
+                  onClick={() => onOpenTask(task)}
+                >
+                  <span className="schedule-page__weekly-todo-title">○ {task.title}</span>
+                  <span className="schedule-page__weekly-todo-meta">
+                    {task.dueDate ? `${task.dueDate.slice(5).replace('-', '.')} (${weekdayLabel(task.dueDate)})` : '날짜 없음'}
+                    {task.customerName ? ` · ${task.customerName}` : ''}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
       <div className="schedule-page__week-grid">
         <div className="schedule-page__week-head">
           <span />
-          {days.map((date, index) => (
+          {days.map((date) => (
             <strong
               key={date}
               className={[
@@ -226,7 +268,7 @@ export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpen
                 holidayMode && scheduleDayTone(date, holidayMode) ? `schedule-page__week-day--${scheduleDayTone(date, holidayMode)}` : '',
               ].filter(Boolean).join(' ')}
             >
-              {WEEKDAY_SUN_FIRST[index]} {Number(date.slice(8))}
+              {weekdayLabel(date)} {Number(date.slice(8))}
               {holidayMode && koreanHolidayName(date, holidayMode) ? <span className="schedule-page__holiday-name"> {koreanHolidayName(date, holidayMode)}</span> : null}
             </strong>
           ))}
