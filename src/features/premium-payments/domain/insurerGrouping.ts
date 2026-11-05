@@ -78,3 +78,10 @@ export function groupContractsByCustomerForInsurer(
     (a, b) => a.customerName.localeCompare(b.customerName, 'ko') || a.customerId - b.customerId,
   )
 }
+
+/** 보험사별 보기 왼쪽 검색 — 보험사명(라벨)만 대상 */
+export function filterInsurerOptions(options: InsurerGroupOption[], search: string): InsurerGroupOption[] {
+  const q = search.trim().toLowerCase().replace(/\s+/g, '')
+  if (!q) return options
+  return options.filter((o) => o.label.toLowerCase().replace(/\s+/g, '').includes(q))
+}

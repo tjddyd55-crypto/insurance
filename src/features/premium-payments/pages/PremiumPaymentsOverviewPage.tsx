@@ -110,10 +110,20 @@ export default function PremiumPaymentsOverviewPage() {
     insurerView: {
       viewMode: listState.viewMode,
       onViewModeChange: listState.setViewMode,
-      insurerOptions: listState.insurerOptions,
+      insurerOptions: listState.filteredInsurerOptions,
+      insurerTotalCount: listState.insurerOptions.length,
       selectedInsurerKey: listState.selectedInsurerKey,
+      selectedInsurer: listState.selectedInsurer,
       onSelectInsurer: listState.setSelectedInsurerKey,
+      insurerSearch: listState.insurerSearch,
+      onInsurerSearchChange: listState.setInsurerSearch,
       insurerCustomerGroups: listState.insurerCustomerGroups,
+      onOpenCustomerCards: (customerId) => {
+        // 보험사별 → 고객별(기존 수정 폼)로 전환, 해당 고객 선택 + 검색 해제
+        listState.setSearch('')
+        selectCustomer(customerId)
+        listState.setViewMode('customer')
+      },
     },
   }
 

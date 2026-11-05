@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CardPaymentContractRow } from '../api/premiumPaymentsApi'
-import { buildInsurerGroupOptions, groupContractsByCustomerForInsurer, insurerGroupKeyOf } from './insurerGrouping'
+import { buildInsurerGroupOptions, filterInsurerOptions, groupContractsByCustomerForInsurer, insurerGroupKeyOf } from './insurerGrouping'
 
 function row(p: Partial<CardPaymentContractRow>): CardPaymentContractRow {
   return { id: 0, customerId: 0, insuranceCompany: '', insuranceCompanyId: null, insurerName: null, insurerCategory: null, ...p } as CardPaymentContractRow
@@ -33,5 +33,12 @@ describe('insurerGrouping', () => {
   it('search filters within selected insurer only', () => {
     expect(groupContractsByCustomerForInsurer(rows, 'site:2', '홍').map((c) => c.customerId)).toEqual([10])
     expect(groupContractsByCustomerForInsurer(rows, 'site:2', '라마바')).toEqual([])
+  })
+  it('insurer search filters insurer labels only (not customers)', () => {
+    const opts = buildInsurerGroupOptions([...rows, row({ id: 7, customerId: 14, customerName: '무보험' })])
+    expect(opts.map((o) => o.label)).toEqual(['삼성화재', '현대해상', '가생명', '기타', '미지정'])
+    expect(filterInsurerOptions(opts, '삼성').map((o) => o.label)).toEqual(['삼성화재'])
+    expect(filterInsurerOptions(opts, '홍길동')).toEqual([])
+    expect(filterInsurerOptions(opts, ' ').length).toBe(5)
   })
 })
