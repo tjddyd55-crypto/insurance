@@ -26,4 +26,11 @@ export type TodosWorkspaceViewProps = {
   openEdit: (row: TodoDto) => void
   toggleDone: (row: TodoDto) => void
   onRelatedNavigate: (row: TodoDto) => boolean
+  /** 주간 할 일(PC). 이번 주 월요일 YYYY-MM-DD */
+  weekStart?: string
+  weeklyTodos?: TodoDto[]
+  weeklyLoading?: boolean
+  weeklyBusyId?: string | null
+  addToWeek?: (row: TodoDto) => void
+  removeFromWeek?: (row: TodoDto) => void
 }

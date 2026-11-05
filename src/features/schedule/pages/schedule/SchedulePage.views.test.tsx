@@ -218,11 +218,11 @@ describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
     expect(html).toContain('09:00–10:00')
   })
 
-  it('주간: 일~토 머리글(일요일 시작), 종일 영역, 09시 시간 block', () => {
+  it('주간: 월~일 머리글(월요일 시작, Asia/Seoul), 종일 영역, 09시 시간 block', () => {
     const html = render(props({ view: 'week' }))
-    expect(html).toContain('2026.09.27 – 10.03')
+    expect(html).toContain('2026.09.28 – 10.04')
     const heads = [...html.matchAll(/schedule-page__week-day[^"]*">([^<]+)</g)].map((match) => match[1])
-    expect(heads).toEqual(['일 27', '월 28', '화 29', '수 30', '목 1', '금 2', '토 3'])
+    expect(heads).toEqual(['월 28', '화 29', '수 30', '목 1', '금 2', '토 3', '일 4'])
     expect(html).toContain('종일')
     expect(html).toMatch(/09:00<\/span>.*schedule-page__block--google/s)
     expect(html).toContain('워크숍')
@@ -340,6 +340,30 @@ describe('일정 관리: 할 일 (Google Tasks · ONE FC 할 일, 읽기 전용)
     const hours = html.slice(html.indexOf('schedule-page__hours'))
     expect(hours).not.toContain('서류 제출')
     expect(hours).not.toContain('schedule-page__block--task')
+  })
+
+  it('주간(PC): 상단 주간 할 일 패널은 ONE FC 할 일만, 그 주 예정일 + 직접 지정, 완료 숨김', () => {
+    const weekTasks = [
+      ...TASKS,
+      task('o3', 'onefc_todo', '다음달 예정이지만 이번 주 집중', '2026-11-20', { weeklyFocusWeekStart: '2026-09-28' }),
+      task('o4', 'onefc_todo', '완료된 주간 할 일', '2026-10-01', { status: 'completed' }),
+    ]
+    const html = render(props({ view: 'week', tasks: weekTasks }))
+    const start = html.indexOf('schedule-weekly-todos')
+    expect(start).toBeGreaterThan(-1)
+    const panel = html.slice(start, html.indexOf('schedule-page__week-grid'))
+    expect(panel).toContain('09.28 ~ 10.04')
+    expect(panel).toContain('고객 전화')
+    expect(panel).toContain('다음달 예정이지만 이번 주 집중')
+    expect(panel).toContain('schedule-page__weekly-todo--manual')
+    expect(panel).not.toContain('서류 제출') // Google Tasks 제외
+    expect(panel).not.toContain('날짜 없는 내 할 일') // 직접 지정 안 된 날짜 없음은 제외
+    expect(panel).not.toContain('완료된 주간 할 일')
+    // 다음 주로 이동하면 그 주 기준으로 바뀐다
+    const next = render(props({ view: 'week', anchor: '2026-10-09', tasks: weekTasks }))
+    const nextPanel = next.slice(next.indexOf('schedule-weekly-todos'), next.indexOf('schedule-page__week-grid'))
+    expect(nextPanel).toContain('10.05 ~ 10.11')
+    expect(nextPanel).not.toContain('다음달 예정이지만 이번 주 집중')
   })
 
   it('일간: 할 일 묶음이 시간 일정과 따로 위에', () => {

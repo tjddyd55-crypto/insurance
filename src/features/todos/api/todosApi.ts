@@ -12,6 +12,9 @@ export type ListTodosParams = {
   sourceType?: string
   /** 기존 고객 연결(relatedEntityType='customer' + relatedEntityId) 기준 필터 */
   customerId?: string
+  /** 주간 할 일: 그 주 월요일(YYYY-MM-DD). 예정일이 그 주이거나 직접 지정된 할 일 */
+  weekStart?: string
+  includeCompleted?: string
 }
 
 function buildTodosQuery(ps: ListTodosParams): string {
@@ -25,6 +28,8 @@ function buildTodosQuery(ps: ListTodosParams): string {
   if (ps.hasRelated) q.set('hasRelated', ps.hasRelated)
   if (ps.sourceType) q.set('sourceType', ps.sourceType)
   if (ps.customerId) q.set('customerId', ps.customerId)
+  if (ps.weekStart) q.set('weekStart', ps.weekStart)
+  if (ps.includeCompleted) q.set('includeCompleted', ps.includeCompleted)
   const s = q.toString()
   return s ? `?${s}` : ''
 }
@@ -62,6 +67,7 @@ export type PatchTodoBody = {
   relatedEntityType?: string | null
   relatedEntityId?: string | null
   status?: string
+  weeklyFocusWeekStart?: string | null
 }
 
 export async function patchTodo(token: string, todoId: string, body: PatchTodoBody): Promise<TodoDto> {

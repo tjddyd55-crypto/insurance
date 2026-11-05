@@ -60,6 +60,8 @@ export type ScheduleTask = {
   updatedAt: string | null
   customerId: number | null
   customerName: string
+  /** ONE FC 할 일: 주간 할 일로 직접 지정한 주의 월요일(YYYY-MM-DD). Google Tasks 는 없음 */
+  weeklyFocusWeekStart?: string | null
   readOnly: boolean
 }
 
