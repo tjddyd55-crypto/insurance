@@ -190,7 +190,7 @@ export function mapPaymentCardPublicRow(row, opts = {}) {
 /**
  * @param {Record<string, unknown>} row
  * @param {string} targetMonth
- * @param {{ card?: Record<string, unknown> | null; customerName?: string; customerPhone?: string; ownerDisplayName?: string }} [extra]
+ * @param {{ card?: Record<string, unknown> | null; customerName?: string; customerPhone?: string; customerSsn?: string | null; ownerDisplayName?: string }} [extra]
  */
 export function mapContractPublicRow(row, targetMonth, extra = {}) {
   const baseStatus = trimStr(row.status) === 'PAUSED' ? 'PAUSED' : 'PENDING'
@@ -217,6 +217,8 @@ export function mapContractPublicRow(row, targetMonth, extra = {}) {
     customerId: Number(row.customer_id),
     customerName: extra.customerName != null ? trimStr(extra.customerName) : undefined,
     customerPhone: extra.customerPhone != null ? trimStr(extra.customerPhone) : undefined,
+    // 개요 조회만 전달. 미전달 엔드포인트 응답에는 키를 넣지 않는다.
+    ...(extra.customerSsn !== undefined ? { customerSsn: trimStr(extra.customerSsn) } : {}),
     ownerDisplayName: extra.ownerDisplayName != null ? trimStr(extra.ownerDisplayName) : undefined,
     paymentCardId: row.payment_card_id != null ? Number(row.payment_card_id) : null,
     insuranceCompany: trimStr(row.insurance_company),
@@ -1136,6 +1138,7 @@ export async function listCardPaymentContractsOverview(pool, req, query) {
            comp.completed_at AS month_completed_at,
            c.name AS customer_name,
            c.phone AS customer_phone,
+           c.ssn AS customer_ssn,
            u.name AS owner_display_name,
            card.id AS card_row_id,
            card.label AS card_label,
@@ -1209,6 +1212,7 @@ export async function listCardPaymentContractsOverview(pool, req, query) {
       card,
       customerName: row.customer_name,
       customerPhone: row.customer_phone,
+      customerSsn: row.customer_ssn,
       ownerDisplayName: row.owner_display_name,
     })
   })

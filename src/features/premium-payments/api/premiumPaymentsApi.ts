@@ -19,6 +19,8 @@ export type CardPaymentContractRow = {
   customerId: number
   customerName?: string
   customerPhone?: string
+  /** 개요 조회만. 동일 가시성 필터를 통과한 customers.ssn. 없으면 ''. */
+  customerSsn?: string
   ownerDisplayName?: string
   paymentCardId: number | null
   insuranceCompany: string

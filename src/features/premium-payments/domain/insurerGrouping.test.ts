@@ -34,6 +34,48 @@ describe('insurerGrouping', () => {
     expect(groupContractsByCustomerForInsurer(rows, 'site:2', '홍').map((c) => c.customerId)).toEqual([10])
     expect(groupContractsByCustomerForInsurer(rows, 'site:2', '라마바')).toEqual([])
   })
+  it('keeps the overview resident number on the customer group and does not copy the phone', () => {
+    const grouped = groupContractsByCustomerForInsurer(
+      [
+        row({
+          id: 1,
+          customerId: 10,
+          customerName: '홍길동',
+          customerPhone: '01000001111',
+          customerSsn: '9001011234567',
+          insuranceCompany: '삼성화재',
+          insuranceCompanyId: 2,
+          insurerName: '삼성화재',
+          insurerCategory: 'NON_LIFE',
+        }),
+        row({
+          id: 2,
+          customerId: 10,
+          customerName: '홍길동',
+          customerPhone: '01000001111',
+          customerSsn: '',
+          insuranceCompany: '삼성화재',
+          insuranceCompanyId: 2,
+          insurerName: '삼성화재',
+          insurerCategory: 'NON_LIFE',
+        }),
+        row({
+          id: 3,
+          customerId: 11,
+          customerName: '가나다',
+          customerPhone: '01000002222',
+          insuranceCompany: '삼성화재',
+          insuranceCompanyId: 2,
+          insurerName: '삼성화재',
+          insurerCategory: 'NON_LIFE',
+        }),
+      ],
+      'site:2',
+    )
+    expect(grouped.find((g) => g.customerId === 10)?.customerSsn).toBe('9001011234567')
+    expect(grouped.find((g) => g.customerId === 11)?.customerSsn).toBe('')
+    expect(grouped.every((g) => g.customerSsn !== g.customerPhone)).toBe(true)
+  })
   it('insurer search filters insurer labels only (not customers)', () => {
     const opts = buildInsurerGroupOptions([...rows, row({ id: 7, customerId: 14, customerName: '무보험' })])
     expect(opts.map((o) => o.label)).toEqual(['삼성화재', '현대해상', '가생명', '기타', '미지정'])
