@@ -42,6 +42,15 @@ type Props = {
  * 그 주로 지정(weekly_focus_week_start)한 할 일만 보인다. 일반 할 일 입력은 자동으로 들어오지 않는다.
  * 완료해도 남는다(체크 + 취소선), 미완료 뒤로 정렬. 모든 항목 모양 동일.
  */
+/** 텍스트 ‹ › 글리프는 글꼴 기준선 때문에 아래로 ~3px 치우침 → SVG로 정확히 가운데 */
+function Chevron({ dir }: { dir: 'left' | 'right' }) {
+  return (
+    <svg className="weekly-todos__chevron" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path d={dir === 'left' ? 'M10 3 5 8l5 5' : 'M6 3l5 5-5 5'} fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function WeeklyTodosPanel({
   weekStart,
   currentWeekStart,
@@ -112,7 +121,7 @@ export function WeeklyTodosPanel({
             data-testid="weekly-todos-prev"
             onClick={() => onChangeWeek(shiftWeekStart(weekStart, -1))}
           >
-            ‹
+            <Chevron dir="left" />
           </button>
         ) : null}
         <div className="weekly-todos__heading">
@@ -150,7 +159,7 @@ export function WeeklyTodosPanel({
             data-testid="weekly-todos-next"
             onClick={() => onChangeWeek(shiftWeekStart(weekStart, 1))}
           >
-            ›
+            <Chevron dir="right" />
           </button>
         ) : null}
       </header>
@@ -232,7 +241,7 @@ export function WeeklyTodosPanel({
                             disabled={busy}
                             onClick={() => onMoveWeek(row, prev.target)}
                           >
-                            ‹
+                            <Chevron dir="left" />
                           </button>
                           <button
                             type="button"
@@ -243,7 +252,7 @@ export function WeeklyTodosPanel({
                             disabled={busy}
                             onClick={() => onMoveWeek(row, next.target)}
                           >
-                            ›
+                            <Chevron dir="right" />
                           </button>
                         </>
                       ) : null}
