@@ -28,6 +28,16 @@ function normalizeRenewalDateOrNull(raw) {
 }
 
 /**
+ * 보험회사(자유 입력) — 공백 제거, 빈 값은 NULL.
+ * @param {unknown} raw
+ * @returns {string | null}
+ */
+export function normalizeInsuranceCompanyOrNull(raw) {
+  const s = trimStr(raw)
+  return s ? s : null
+}
+
+/**
  * @param {import('pg').PoolClient} client
  * @param {number} customerId
  */
@@ -82,7 +92,7 @@ async function syncCustomerPrimaryCarFields(client, customerId) {
 /**
  * @param {Record<string, unknown>} row
  */
-function mapCarRow(row) {
+export function mapCarRow(row) {
   const renewal = row.renewal_date
   let renewalDate = ''
   if (renewal instanceof Date) {
@@ -97,6 +107,7 @@ function mapCarRow(row) {
     carNumber: trimStr(row.car_number),
     carModel: trimStr(row.car_model),
     carYear: trimStr(row.car_year),
+    insuranceCompany: trimStr(row.insurance_company),
     renewalDate,
     memo: trimStr(row.memo),
     isPrimary: row.is_primary === true,
@@ -188,6 +199,7 @@ export function registerCustomerCarsApi(apiRouter, { pool, requireAuth, handleDb
     const carModel = trimStr(body.carModel)
     const carYear = trimStr(body.carYear)
     const memo = trimStr(body.memo)
+    const insuranceCompany = normalizeInsuranceCompanyOrNull(body.insuranceCompany)
     const renewalRaw = body.renewalDate
     const renewalDate = normalizeRenewalDateOrNull(renewalRaw)
     if (trimStr(renewalRaw) && renewalDate === null) {
@@ -230,9 +242,9 @@ export function registerCustomerCarsApi(apiRouter, { pool, requireAuth, handleDb
         INSERT INTO customer_cars (
           customer_id, user_id, ga_id,
           car_type, car_number, car_model, car_year, renewal_date, memo,
-          is_primary, sort_order
+          is_primary, sort_order, insurance_company
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING *
         `,
         [
@@ -247,6 +259,7 @@ export function registerCustomerCarsApi(apiRouter, { pool, requireAuth, handleDb
           memo,
           isPrimary,
           sortOrder,
+          insuranceCompany,
         ],
       )
       const carRowId = ins.rows[0].id
@@ -332,6 +345,8 @@ export function registerCustomerCarsApi(apiRouter, { pool, requireAuth, handleDb
       let carModel = trimStr(row.car_model)
       let carYear = trimStr(row.car_year)
       let memo = trimStr(row.memo)
+      /** 필드가 없는 레거시 payload(Native 등)는 기존 값 유지 */
+      let insuranceCompany = row.insurance_company ?? null
       let renewalDate = row.renewal_date
       let isPrimary = row.is_primary === true
 
@@ -349,6 +364,9 @@ export function registerCustomerCarsApi(apiRouter, { pool, requireAuth, handleDb
       }
       if (Object.prototype.hasOwnProperty.call(body, 'memo')) {
         memo = trimStr(body.memo)
+      }
+      if (Object.prototype.hasOwnProperty.call(body, 'insuranceCompany')) {
+        insuranceCompany = normalizeInsuranceCompanyOrNull(body.insuranceCompany)
       }
       if (Object.prototype.hasOwnProperty.call(body, 'renewalDate')) {
         const n = normalizeRenewalDateOrNull(body.renewalDate)
@@ -379,11 +397,12 @@ export function registerCustomerCarsApi(apiRouter, { pool, requireAuth, handleDb
             renewal_date = $5,
             memo = $6,
             is_primary = $7,
+            insurance_company = $12,
             updated_at = NOW()
         WHERE id = $8 AND customer_id = $9 AND user_id = $10 AND ga_id = $11
         RETURNING *
         `,
-        [carType, carNumber, carModel, carYear, renewalDate, memo, isPrimary, carId, customerId, userId, gaId],
+        [carType, carNumber, carModel, carYear, renewalDate, memo, isPrimary, carId, customerId, userId, gaId, insuranceCompany],
       )
 
       const stillRows = await client.query(
