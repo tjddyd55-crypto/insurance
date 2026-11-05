@@ -1,0 +1,106 @@
+/* 주간 할 일 패널 — 할 일 화면 · 일정 주간 보기 공용 (WeeklyTodosPanel) */
+.weekly-todos {
+  --weekly-head-h: 2.25rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--border, #e5e7eb);
+  background: var(--bg-card, var(--card, #fff));
+  border-radius: var(--radius-md, 0.75rem);
+  padding: 0.75rem;
+  transition: background-color 120ms, border-color 120ms;
+}
+.weekly-todos--drop {
+  border-color: var(--brand, #2563eb);
+  background: color-mix(in srgb, var(--brand, #2563eb) 8%, var(--card, #fff));
+}
+/* 머리(제목·주 범위·이전/다음)는 고정, 아래 목록만 스크롤 */
+.weekly-todos__head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: var(--weekly-head-h);
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+.weekly-todos__heading { display: flex; align-items: baseline; gap: 0.5rem; flex: 1 1 auto; min-width: 0; }
+.weekly-todos__title { margin: 0; font-size: 1rem; font-weight: 600; white-space: nowrap; }
+.weekly-todos__range { font-size: 0.8125rem; font-weight: 600; white-space: nowrap; color: var(--text-secondary, #374151); }
+.weekly-todos__nav {
+  flex: 0 0 auto;
+  width: 1.75rem; height: 1.75rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.125rem; line-height: 1;
+  border: 1px solid var(--border, #e5e7eb); border-radius: 0.375rem;
+  background: transparent; color: inherit; cursor: pointer;
+}
+.weekly-todos__this-week {
+  flex: 0 0 auto;
+  height: 1.75rem; padding: 0 0.5rem;
+  font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+  border: 1px solid var(--brand, #2563eb); border-radius: 0.375rem;
+  background: transparent; color: var(--brand, #2563eb); cursor: pointer;
+}
+.weekly-todos__nav:hover, .weekly-todos__this-week:hover, .weekly-todos__move:hover, .weekly-todos__remove:hover {
+  background: var(--soft, #f3f4f6);
+}
+.weekly-todos__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-top: 0.5rem; }
+.weekly-todos__hint {
+  margin-bottom: 0.5rem; padding: 0.375rem; text-align: center; font-size: 0.75rem; font-weight: 600;
+  border: 1px dashed var(--brand, #2563eb); border-radius: 0.5rem; color: var(--brand, #2563eb);
+}
+.weekly-todos__empty { margin: 0.25rem 0; font-size: 0.8125rem; color: var(--text-muted, #6b7280); }
+.weekly-todos__empty p { margin: 0; }
+.weekly-todos__empty-sub { margin-top: 0.25rem !important; font-size: 0.75rem; }
+.weekly-todos__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.375rem; }
+/* 모든 미완료 카드 같은 모양(자동/직접 구분은 작은 글자로만) */
+.weekly-todos__item {
+  display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.5rem;
+  border: 1px solid var(--border, #e5e7eb); border-left: 3px solid var(--brand, #2563eb); border-radius: 0.5rem;
+}
+.weekly-todos__item--done { border-left-color: var(--border, #e5e7eb); }
+.weekly-todos__item[draggable='true'] { cursor: grab; }
+.weekly-todos__item--done .weekly-todos__name { text-decoration: line-through; color: var(--text-muted, #6b7280); }
+.weekly-todos__check { margin-top: 0.2rem; }
+.weekly-todos__body { flex: 1; min-width: 0; }
+.weekly-todos__name {
+  display: block; width: 100%; text-align: left; background: transparent; border: none; padding: 0;
+  font-size: 0.875rem; line-height: 1.35; cursor: pointer; color: inherit; overflow-wrap: anywhere;
+}
+.weekly-todos__name:hover { text-decoration: underline; }
+.weekly-todos__meta { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.125rem; font-size: 0.75rem; color: var(--text-muted, #6b7280); }
+.weekly-todos__kind { margin-left: auto; font-size: 0.6875rem; opacity: 0.8; }
+.weekly-todos__actions { flex: 0 0 auto; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.25rem; max-width: 7.5rem; }
+.weekly-todos__move {
+  width: 1.5rem; height: 1.5rem; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.9375rem; line-height: 1; border: 1px solid var(--border, #e5e7eb); border-radius: 0.375rem;
+  background: transparent; cursor: pointer; color: inherit;
+}
+.weekly-todos__remove {
+  flex-shrink: 0; font-size: 0.6875rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem;
+  border: 1px solid var(--border, #e5e7eb); background: transparent; cursor: pointer; white-space: nowrap; color: inherit;
+}
+.weekly-todos button:disabled { opacity: 0.5; cursor: default; }
+
+/* 할 일 화면: 왼쪽 패널은 화면 높이 안에서 고정, 목록만 스크롤 */
+.todos-page__split .weekly-todos {
+  position: sticky;
+  top: 0.75rem;
+  max-height: calc(100dvh - 8rem);
+}
+/* 오른쪽 전체 할 일 머리: 왼쪽 패널 머리와 같은 높이·기준선 */
+.todos-page__all-head {
+  display: flex; align-items: center; gap: 0.5rem;
+  min-height: 2.25rem;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+.todos-page__all-title { margin: 0; font-size: 1rem; font-weight: 600; }
+@media (max-width: 900px) {
+  .todos-page__split { grid-template-columns: minmax(0, 1fr) !important; }
+  .todos-page__split .weekly-todos { position: static; max-height: 60vh; }
+}

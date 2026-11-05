@@ -218,49 +218,16 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
   )
 }
 
-export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpenTask, holidayMode, pcCell = false }: Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'onOpenEvent' | 'onOpenTask'> & { holidayMode?: ScheduleHolidayMode; pcCell?: boolean }) {
+/**
+ * 주간 보기. PC 는 weeklyPanel(공용 WeeklyTodosPanel)을 왼쪽 약 30%, 월~일 일정표를 오른쪽 약 70%로 둔다.
+ * 위쪽 가로 주간 할 일 영역은 두지 않는다.
+ */
+export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpenTask, holidayMode, pcCell = false, weeklyPanel }: Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'onOpenEvent' | 'onOpenTask'> & { holidayMode?: ScheduleHolidayMode; pcCell?: boolean; weeklyPanel?: ReactNode }) {
   const days = weekDays(anchor)
   const sorted = sortScheduleEvents(events)
   const sortedTasks = sortScheduleTasks(tasks)
-  const weekStart = days[0]
-  const weekEnd = days[6]
-  // 주간 할 일 패널: ONE FC 할 일만, 그 주 예정일 또는 직접 지정. 완료는 숨김.
-  const weeklyTasks = sortedTasks.filter((task) =>
-    task.source === 'onefc_todo'
-    && task.status === 'open'
-    && (task.weeklyFocusWeekStart === weekStart || (Boolean(task.dueDate) && task.dueDate! >= weekStart && task.dueDate! <= weekEnd)))
-  return (
-    <div className="schedule-page__week" aria-label="주간 일정">
-      {pcCell ? (
-        <section className="schedule-page__weekly-todos" aria-label="주간 할 일" data-testid="schedule-weekly-todos">
-          <div className="schedule-page__weekly-todos-head">
-            <strong>주간 할 일</strong>
-            <span className="schedule-page__weekly-todos-range">
-              {`${weekStart.slice(5).replace('-', '.')} ~ ${weekEnd.slice(5).replace('-', '.')}`}
-            </span>
-          </div>
-          {weeklyTasks.length === 0 ? (
-            <p className="schedule-page__weekly-todos-empty">이번 주 할 일이 없습니다.</p>
-          ) : (
-            <div className="schedule-page__weekly-todos-list">
-              {weeklyTasks.map((task) => (
-                <button
-                  key={task.id}
-                  type="button"
-                  className={`schedule-page__weekly-todo${task.weeklyFocusWeekStart === weekStart ? ' schedule-page__weekly-todo--manual' : ''}`}
-                  onClick={() => onOpenTask(task)}
-                >
-                  <span className="schedule-page__weekly-todo-title">○ {task.title}</span>
-                  <span className="schedule-page__weekly-todo-meta">
-                    {task.dueDate ? `${task.dueDate.slice(5).replace('-', '.')} (${weekdayLabel(task.dueDate)})` : '날짜 없음'}
-                    {task.customerName ? ` · ${task.customerName}` : ''}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-      ) : null}
+  const board = (
+    <div className="schedule-page__week" aria-label="주간 일정" data-testid="schedule-week-board">
       <div className="schedule-page__week-grid">
         <div className="schedule-page__week-head">
           <span />
@@ -318,6 +285,13 @@ export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpen
           ))}
         </div>
       </div>
+    </div>
+  )
+  if (!weeklyPanel) return board
+  return (
+    <div className="schedule-page__week-split" data-testid="schedule-week-split">
+      {weeklyPanel}
+      {board}
     </div>
   )
 }

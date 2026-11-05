@@ -342,28 +342,27 @@ describe('일정 관리: 할 일 (Google Tasks · ONE FC 할 일, 읽기 전용)
     expect(hours).not.toContain('schedule-page__block--task')
   })
 
-  it('주간(PC): 상단 주간 할 일 패널은 ONE FC 할 일만, 그 주 예정일 + 직접 지정, 완료 숨김', () => {
-    const weekTasks = [
-      ...TASKS,
-      task('o3', 'onefc_todo', '다음달 예정이지만 이번 주 집중', '2026-11-20', { weeklyFocusWeekStart: '2026-09-28' }),
-      task('o4', 'onefc_todo', '완료된 주간 할 일', '2026-10-01', { status: 'completed' }),
-    ]
-    const html = render(props({ view: 'week', tasks: weekTasks }))
-    const start = html.indexOf('schedule-weekly-todos')
-    expect(start).toBeGreaterThan(-1)
-    const panel = html.slice(start, html.indexOf('schedule-page__week-grid'))
-    expect(panel).toContain('09.28 ~ 10.04')
-    expect(panel).toContain('고객 전화')
-    expect(panel).toContain('다음달 예정이지만 이번 주 집중')
-    expect(panel).toContain('schedule-page__weekly-todo--manual')
-    expect(panel).not.toContain('서류 제출') // Google Tasks 제외
-    expect(panel).not.toContain('날짜 없는 내 할 일') // 직접 지정 안 된 날짜 없음은 제외
-    expect(panel).not.toContain('완료된 주간 할 일')
-    // 다음 주로 이동하면 그 주 기준으로 바뀐다
-    const next = render(props({ view: 'week', anchor: '2026-10-09', tasks: weekTasks }))
-    const nextPanel = next.slice(next.indexOf('schedule-weekly-todos'), next.indexOf('schedule-page__week-grid'))
-    expect(nextPanel).toContain('10.05 ~ 10.11')
-    expect(nextPanel).not.toContain('다음달 예정이지만 이번 주 집중')
+  it('주간(PC): 위쪽 가로 패널 없이 왼쪽 공용 주간 할 일(30%) · 오른쪽 일정표, 일정표 주와 같은 주', () => {
+    const html = render(props({ view: 'week' }))
+    expect(html).not.toContain('schedule-weekly-todos')
+    const split = html.indexOf('schedule-page__week-split')
+    expect(split).toBeGreaterThan(-1)
+    const panel = html.indexOf('data-testid="weekly-todos-panel"')
+    const board = html.indexOf('data-testid="schedule-week-board"')
+    expect(panel).toBeGreaterThan(split)
+    expect(board).toBeGreaterThan(panel) // 왼쪽 패널, 오른쪽 일정표
+    expect(html).toContain('data-week-start="2026-09-28"')
+    expect(html.slice(panel, board)).toContain('09.28 ~ 10.04')
+    expect(html).toContain('data-testid="weekly-todos-prev"')
+    expect(html).toContain('data-testid="weekly-todos-next"')
+    const next = render(props({ view: 'week', anchor: '2026-10-09' }))
+    expect(next).toContain('data-week-start="2026-10-05"')
+    expect(next).toContain('10.05 ~ 10.11')
+  })
+
+  it('주간(모바일): 주간 할 일 패널 없음', () => {
+    const html = renderToStaticMarkup(<MemoryRouter><ScheduleMobileView {...props({ view: 'week' })} /></MemoryRouter>)
+    expect(html).not.toContain('weekly-todos-panel')
   })
 
   it('일간: 할 일 묶음이 시간 일정과 따로 위에', () => {

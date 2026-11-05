@@ -23,6 +23,7 @@ function props(over: Partial<TodosWorkspaceViewProps> = {}): TodosWorkspaceViewP
     viewMode: 'list', setViewMode: noop, calendarMonth: '2026-11', showPreviousMonth: noop, showNextMonth: noop, showCurrentMonth: noop,
     openCreateBlank: noop, openEdit: noop, toggleDone: noop, onRelatedNavigate: () => false,
     weekStart: '2026-11-02', weeklyTodos: [all[0], all[2]], weeklyLoading: false, weeklyBusyId: null, addToWeek: noop, removeFromWeek: noop,
+    currentWeekStart: '2026-11-02', setWeekStart: noop, moveToWeek: noop,
     ...over,
   }
 }
@@ -34,17 +35,37 @@ describe('PC 할 일: 주간 할 일 2단', () => {
     expect(html).toContain('todos-page__split')
     const left = html.slice(html.indexOf('weekly-todos-panel'), html.indexOf('todos-all-column'))
     expect(left).toContain('주간 할 일')
-    expect(left).toContain('이번 주에 집중할 할 일을 모아봅니다.')
     expect(left).toContain('11.02 ~ 11.08')
     expect(left).toContain('이번 주 예정 할 일')
     expect(left).toContain('날짜 없음')
     expect((left.match(/주간에서 빼기/g) ?? []).length).toBe(1) // 수동만
-    expect(left).toContain('weekly-todos__item--manual')
+    expect(left).not.toContain('--manual') // 초록 막대 의미 제거, 카드 스타일 통일
+    expect(left).toContain('직접 추가')
+    expect(left).toContain('날짜 기준')
+    expect(left).toContain('data-testid="weekly-todo-move-next"')
+    expect(left).not.toContain('data-testid="weekly-todos-this-week"') // 이번 주 보는 중
     const right = html.slice(html.indexOf('todos-all-column'))
     expect(right).toContain('전체 할 일')
     expect((right.match(/이번 주로/g) ?? []).length).toBe(1) // '다른 할 일' 만
     expect(right).toContain('draggable="true"')
     expect(right).toContain('기한 지남')
+  })
+
+  it('지난 주 보기: 이번 주 버튼, 빈 안내, 오른쪽은 이 주로', () => {
+    const html = render(props({ weekStart: '2026-10-26', currentWeekStart: '2026-11-02', weeklyTodos: [] }))
+    const left = html.slice(html.indexOf('weekly-todos-panel'), html.indexOf('todos-all-column'))
+    expect(left).toContain('10.26 ~ 11.01')
+    expect(left).toContain('data-testid="weekly-todos-this-week"')
+    expect(left).toContain('이 주에 지정된 할 일이 없습니다.')
+    expect(left).not.toContain('전체 할 일에서 이번 주로 추가할 수 있습니다.')
+    const right = html.slice(html.indexOf('todos-all-column'))
+    expect(right).toContain('이 주로')
+  })
+
+  it('이번 주 빈 상태 안내', () => {
+    const html = render(props({ currentWeekStart: '2026-11-02', weeklyTodos: [] }))
+    expect(html).toContain('이 주에 지정된 할 일이 없습니다.')
+    expect(html).toContain('전체 할 일에서 이번 주로 추가할 수 있습니다.')
   })
 
   it('주간 기능 props 없으면 기존 단일 목록 그대로', () => {

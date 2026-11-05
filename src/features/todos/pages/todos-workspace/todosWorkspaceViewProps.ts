@@ -26,8 +26,14 @@ export type TodosWorkspaceViewProps = {
   openEdit: (row: TodoDto) => void
   toggleDone: (row: TodoDto) => void
   onRelatedNavigate: (row: TodoDto) => boolean
-  /** 주간 할 일(PC). 이번 주 월요일 YYYY-MM-DD */
+  /** 왼쪽 주간 할 일이 보고 있는 주(월요일) */
   weekStart?: string
+  /** 오늘이 속한 주(월요일) */
+  currentWeekStart?: string
+  /** 왼쪽 주간 할 일 주 이동 */
+  setWeekStart?: (weekStart: string) => void
+  /** 직접 지정 주 변경(이전/다음 주). due_date 는 그대로 */
+  moveToWeek?: (row: TodoDto, weekStart: string) => void
   weeklyTodos?: TodoDto[]
   weeklyLoading?: boolean
   weeklyBusyId?: string | null

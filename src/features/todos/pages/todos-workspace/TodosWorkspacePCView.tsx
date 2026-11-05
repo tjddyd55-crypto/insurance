@@ -1,7 +1,7 @@
 import { useState, type DragEvent } from 'react'
 import { FormButton } from '../../../../components/form'
 import { WeeklyTodosPanel } from '../../components/WeeklyTodosPanel'
-import { belongsToWeek, WEEKLY_BACK_DRAG_MIME, WEEKLY_DRAG_MIME } from '../../domain/weeklyFocus'
+import { belongsToWeek, formatWeekRangeLabel, WEEKLY_BACK_DRAG_MIME, WEEKLY_DRAG_MIME } from '../../domain/weeklyFocus'
 import { ScheduleCalendarView } from '../../components/ScheduleCalendarView'
 import { ScheduleViewModeSwitcher } from '../../components/ScheduleViewModeSwitcher'
 import {
@@ -59,6 +59,9 @@ export default function TodosWorkspacePCView({
   toggleDone,
   onRelatedNavigate,
   weekStart,
+  currentWeekStart,
+  setWeekStart,
+  moveToWeek,
   weeklyTodos = [],
   weeklyLoading = false,
   weeklyBusyId = null,
@@ -68,6 +71,7 @@ export default function TodosWorkspacePCView({
   const weeklyEnabled = Boolean(weekStart && addToWeek && removeFromWeek)
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [backDropOver, setBackDropOver] = useState(false)
+  const viewingCurrentWeek = !currentWeekStart || weekStart === currentWeekStart
   const weeklyIds = new Set(weeklyTodos.map((t) => t.id))
   const findTodo = (id: string) => todos.find((t) => t.id === id) ?? weeklyTodos.find((t) => t.id === id)
   const onMainDragOver = (event: DragEvent) => {
@@ -83,9 +87,14 @@ export default function TodosWorkspacePCView({
     const row = findTodo(id)
     if (row) removeFromWeek?.(row)
   }
-  const listBody = (
+  const renderListBody = (withTitle: boolean) => (
     <>
-      <section className="mb-4 space-y-2 rounded-xl border border-border bg-card p-3">
+      <section className="mb-4 space-y-2 rounded-xl border border-border bg-card p-3" data-testid="todos-all-filters">
+        {withTitle ? (
+          <div className="todos-page__all-head">
+            <h2 className="todos-page__all-title">전체 할 일</h2>
+          </div>
+        ) : null}
         <div className="text-xs font-semibold text-secondary">기간·상태</div>
         <div className="flex flex-wrap gap-2">
           {(
@@ -228,16 +237,17 @@ export default function TodosWorkspacePCView({
                   {weeklyEnabled ? (
                     <td className="p-2 align-middle">
                       {row.status !== 'pending' ? null : weeklyIds.has(row.id) || belongsToWeek(row, weekStart!) ? (
-                        <span className="text-xs text-muted whitespace-nowrap">이번 주</span>
+                        <span className="text-xs text-muted whitespace-nowrap">{viewingCurrentWeek ? '이번 주' : '이 주'}</span>
                       ) : (
                         // eslint-disable-next-line no-restricted-syntax -- 표 행 안의 작은 보조 동작(기존 표 버튼과 동일)
                         <button
                           type="button"
                           className="todos-page__to-week"
                           disabled={weeklyBusyId === row.id}
+                          title={`${formatWeekRangeLabel(weekStart!)} 주간 할 일에 추가`}
                           onClick={() => addToWeek?.(row)}
                         >
-                          이번 주로
+                          {viewingCurrentWeek ? '이번 주로' : '이 주로'}
                         </button>
                       )}
                     </td>
@@ -287,6 +297,9 @@ export default function TodosWorkspacePCView({
         <div className="todos-page__split">
           <WeeklyTodosPanel
             weekStart={weekStart!}
+            currentWeekStart={currentWeekStart ?? weekStart!}
+            onChangeWeek={setWeekStart}
+            onMoveWeek={moveToWeek}
             todos={weeklyTodos}
             loading={weeklyLoading}
             busyId={weeklyBusyId}
@@ -305,12 +318,11 @@ export default function TodosWorkspacePCView({
             onDrop={onMainDrop}
             data-testid="todos-all-column"
           >
-            <h2 className="text-base font-semibold m-0 mb-2">전체 할 일</h2>
-            {listBody}
+            {renderListBody(true)}
           </div>
         </div>
       ) : (
-        listBody
+        renderListBody(false)
       )}
     </main>
   )
