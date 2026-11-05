@@ -746,11 +746,18 @@
 /* 보험사별 보기: 오른쪽 고객 그룹 (고객명 1회 + 기존 수납 테이블) */
 .premium-payments-insurer-customer__name {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
 }
 
 .premium-payments-insurer-customer__phone {
+  margin-left: 4px;
   font-weight: 400;
   font-size: 0.82rem;
   color: var(--text-secondary);
+}
+
+.premium-payments-insurer-customer > .premium-payments-section__header {
+  margin-bottom: 8px;
 }
