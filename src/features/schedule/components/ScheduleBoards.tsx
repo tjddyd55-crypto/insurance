@@ -20,6 +20,11 @@ import {
 } from '../domain/scheduleEventTime'
 
 const WEEKDAY_SUN_FIRST = ['일', '월', '화', '수', '목', '금', '토']
+/** YYYY-MM-DD → 요일 한 글자 */
+function weekdayLabel(ymd: string): string {
+  const [y, m, d] = ymd.split('-').map(Number)
+  return WEEKDAY_SUN_FIRST[new Date(Date.UTC(y, m - 1, d)).getUTCDay()] ?? ''
+}
 const HOURS = Array.from({ length: 24 }, (_, index) => index)
 const MONTH_CELL_LIMIT = 3
 
@@ -208,16 +213,20 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
   )
 }
 
-export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpenTask, holidayMode, pcCell = false }: Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'onOpenEvent' | 'onOpenTask'> & { holidayMode?: ScheduleHolidayMode; pcCell?: boolean }) {
+/**
+ * 주간 보기. PC 는 weeklyPanel(공용 WeeklyTodosPanel)을 왼쪽 약 30%, 월~일 일정표를 오른쪽 약 70%로 둔다.
+ * 위쪽 가로 주간 할 일 영역은 두지 않는다.
+ */
+export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpenTask, holidayMode, pcCell = false, weeklyPanel }: Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'onOpenEvent' | 'onOpenTask'> & { holidayMode?: ScheduleHolidayMode; pcCell?: boolean; weeklyPanel?: ReactNode }) {
   const days = weekDays(anchor)
   const sorted = sortScheduleEvents(events)
   const sortedTasks = sortScheduleTasks(tasks)
-  return (
-    <div className="schedule-page__week" aria-label="주간 일정">
+  const board = (
+    <div className="schedule-page__week" aria-label="주간 일정" data-testid="schedule-week-board">
       <div className="schedule-page__week-grid">
         <div className="schedule-page__week-head">
           <span />
-          {days.map((date, index) => (
+          {days.map((date) => (
             <strong
               key={date}
               className={[
@@ -226,7 +235,7 @@ export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpen
                 holidayMode && scheduleDayTone(date, holidayMode) ? `schedule-page__week-day--${scheduleDayTone(date, holidayMode)}` : '',
               ].filter(Boolean).join(' ')}
             >
-              {WEEKDAY_SUN_FIRST[index]} {Number(date.slice(8))}
+              {weekdayLabel(date)} {Number(date.slice(8))}
               {holidayMode && koreanHolidayName(date, holidayMode) ? <span className="schedule-page__holiday-name"> {koreanHolidayName(date, holidayMode)}</span> : null}
             </strong>
           ))}
@@ -271,6 +280,13 @@ export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpen
           ))}
         </div>
       </div>
+    </div>
+  )
+  if (!weeklyPanel) return board
+  return (
+    <div className="schedule-page__week-split" data-testid="schedule-week-split">
+      {weeklyPanel}
+      {board}
     </div>
   )
 }

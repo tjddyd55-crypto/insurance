@@ -6,6 +6,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import type { TodoCreatePrefill } from '../components/TodoEditorDialog'
 import type { TodoDto } from '../domain/todoTypes'
 import { completeTodo, listTodos, reopenTodo } from '../api/todosApi'
+import { currentSeoulWeekStart, useWeeklyTodos } from './useWeeklyTodos'
 import { getCalendarMonthRange, shiftCalendarMonth } from '../domain/todoCalendar'
 import {
   readTodosViewMode,
@@ -43,6 +44,9 @@ export function useTodosWorkspaceState() {
   const [error, setError] = useState('')
   const [todos, setTodos] = useState<TodoDto[]>([])
   const [calendarTodos, setCalendarTodos] = useState<TodoDto[]>([])
+  const currentWeekStart = useMemo(() => currentSeoulWeekStart(), [])
+  /** 왼쪽 주간 할 일이 보고 있는 주. 오른쪽 전체 목록과는 무관 */
+  const [weekStart, setWeekStart] = useState(currentWeekStart)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editorSession, setEditorSession] = useState(0)
   const [editingTodo, setEditingTodo] = useState<TodoDto | null>(null)
@@ -123,6 +127,30 @@ export function useTodosWorkspaceState() {
     void load()
   }, [load])
 
+  // 주간 할 일: 공통 훅(일정 주간 보기와 같은 데이터·정책)
+  const weekly = useWeeklyTodos({
+    token,
+    weekStart,
+    enabled: !isMobile,
+    onError: setError,
+    onSaved: (saved) =>
+      setTodos((prev) => {
+        if (prev.some((t) => t.id === saved.id)) return prev.map((t) => (t.id === saved.id ? saved : t))
+        void load() // 주간 입력으로 새로 생긴 할 일: 전체 할 일 다시 불러오기
+        return prev
+      }),
+  })
+  const loadWeekly = weekly.reload
+  const weeklyTodos = weekly.todos
+  const weeklyLoading = weekly.loading
+  const weeklyBusyId = weekly.busyId
+  const setFocus = weekly.setFocus
+  /** 드롭·'이번 주로': 보고 있는 주로 직접 지정 */
+  const addToWeek = useCallback((row: TodoDto) => setFocus(row, weekStart), [setFocus, weekStart])
+  const removeFromWeek = useCallback((row: TodoDto) => setFocus(row, null), [setFocus])
+  const createWeekly = weekly.create
+  const moveToWeek = useCallback((row: TodoDto, target: string) => setFocus(row, target), [setFocus])
+
   useEffect(() => {
     if (viewMode === 'calendar') void loadCalendar()
   }, [loadCalendar, viewMode])
@@ -174,6 +202,7 @@ export function useTodosWorkspaceState() {
       }
       setTodos((prev) => sortTodosNewestActivityFirst(prev.map((t) => (t.id === nextRow.id ? nextRow : t))))
       await load()
+      if (!isMobile) await loadWeekly()
       if (viewMode === 'calendar') await loadCalendar()
     } catch (e) {
       const msg =
@@ -220,7 +249,20 @@ export function useTodosWorkspaceState() {
     showPreviousMonth: () => setCalendarMonth((month) => shiftCalendarMonth(month, -1)),
     showNextMonth: () => setCalendarMonth((month) => shiftCalendarMonth(month, 1)),
     showCurrentMonth: () => setCalendarMonth(formatSeoulYmd(new Date()).slice(0, 7)),
-    reload: load,
+    reload: async () => {
+      await load()
+      if (!isMobile) await loadWeekly()
+    },
+    weekStart,
+    currentWeekStart,
+    setWeekStart,
+    moveToWeek,
+    createWeekly,
+    weeklyTodos,
+    weeklyLoading,
+    weeklyBusyId,
+    addToWeek,
+    removeFromWeek,
     reloadCalendar: loadCalendar,
     editorOpen,
     setEditorOpen,

@@ -39,6 +39,22 @@ export function seoulWeekRangeYmd(reference = new Date()) {
 }
 
 /**
+ * 주간 할 일 키: 해당 주 월요일(YYYY-MM-DD, Asia/Seoul 달력일). 월요일이 아니거나 형식이 틀리면 null.
+ * @param {unknown} raw
+ * @returns {string | null}
+ */
+export function parseWeekStartYmd(raw) {
+  if (typeof raw !== 'string') return null
+  const v = raw.trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return null
+  const [y, m, d] = v.split('-').map(Number)
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null
+  if (dt.getUTCDay() !== 1) return null
+  return v
+}
+
+/**
  * @param {import('pg').QueryResultRow} row
  */
 function mapTodoRow(row) {
@@ -80,6 +96,7 @@ function mapTodoRow(row) {
     completedAt: row.completed_at ? new Date(row.completed_at).toISOString() : null,
     canceledAt: row.canceled_at ? new Date(row.canceled_at).toISOString() : null,
     customerName: row.customer_name ?? null,
+    weeklyFocusWeekStart: coerceDateOnlyString(row.weekly_focus_week_start) || null,
   }
 }
 
@@ -257,7 +274,7 @@ export async function listTodosForSchedule(pool, req, scope) {
     ...todoOwnerConditions(),
     todoVisibilityCondition(req, scope.userId, scope.gaId),
     `t.status <> 'canceled'`,
-    `(t.due_date IS NULL OR (t.due_date >= $3::date AND t.due_date <= $4::date) OR (t.status = 'pending' AND t.due_date < $5::date))`,
+    `(t.due_date IS NULL OR (t.due_date >= $3::date AND t.due_date <= $4::date) OR (t.status = 'pending' AND t.due_date < $5::date) OR (t.weekly_focus_week_start >= ($3::date - 6) AND t.weekly_focus_week_start <= $4::date))`,
   ]
   const rows = await selectVisibleTodos(pool, conditions, [scope.gaId, scope.userId, scope.fromYmd, scope.toYmd, scope.todayYmd])
   return rows.map(mapTodoRow)
@@ -355,6 +372,23 @@ export function registerTodosApi(apiRouter, ctx) {
         p += 1
       }
 
+      if (typeof req.query.weekStart === 'string' && req.query.weekStart.trim()) {
+        const weekStart = parseWeekStartYmd(req.query.weekStart)
+        if (!weekStart) {
+          res.status(400).json({ message: 'weekStart 는 월요일 날짜(YYYY-MM-DD)여야 합니다.' })
+          return
+        }
+        // 주간 할 일: 그 주로 지정(weekly_focus_week_start)한 할 일만. 예정일 자동 포함 없음. 취소 제외, 완료는 includeCompleted=1 일 때만.
+        conditions.push(`t.status <> 'canceled'`)
+        const includeCompletedRaw = String(req.query.includeCompleted ?? '').trim().toLowerCase()
+        if (!(includeCompletedRaw === '1' || includeCompletedRaw === 'true') && !statusQ && bucket !== 'open') {
+          conditions.push(`t.status = 'pending'`)
+        }
+        conditions.push(`t.weekly_focus_week_start = $${p}::date`)
+        params.push(weekStart)
+        p += 1
+      }
+
       const rows = await selectVisibleTodos(pool, conditions, params)
       res.json(rows.map(mapTodoRow))
     } catch (error) {
@@ -432,6 +466,17 @@ export function registerTodosApi(apiRouter, ctx) {
       if (metaObj != null && typeof metaObj === 'object') metaJson = JSON.stringify(metaObj)
       else if (typeof metaObj === 'string' && metaObj.trim()) metaJson = metaObj
 
+      // 주간 입력(선택): 그 주 월요일. 없으면 주간 할 일에 넣지 않는다(일반 할 일 입력은 자동 포함 없음).
+      const focusRaw = body.weeklyFocusWeekStart
+      let weeklyFocus = null
+      if (!(focusRaw == null || focusRaw === '')) {
+        weeklyFocus = parseWeekStartYmd(focusRaw)
+        if (!weeklyFocus) {
+          res.status(400).json({ message: '주간 시작일은 월요일 날짜(YYYY-MM-DD)여야 합니다.' })
+          return
+        }
+      }
+
       const tenantDbId = resolveTenantDbId(req)
 
       const ins = await safeQuery(
@@ -442,12 +487,14 @@ export function registerTodosApi(apiRouter, ctx) {
           title, description, due_date, due_time,
           status, priority, source_type, source_id,
           related_entity_type, related_entity_id, metadata,
+          weekly_focus_week_start,
           created_at, updated_at
         ) VALUES (
           $1,$2,$3,$4,
           $5,$6,$7,$8::time,
           'pending',$9,$10,$11::text,
           $12,$13,$14::jsonb,
+          $15::date,
           NOW(),NOW()
         )
         RETURNING *
@@ -467,6 +514,7 @@ export function registerTodosApi(apiRouter, ctx) {
           relType,
           relId,
           metaJson,
+          weeklyFocus,
         ],
       )
       const enriched = await enrichCustomerName(pool, gaId, ins.rows[0])
@@ -637,6 +685,31 @@ export function registerTodosApi(apiRouter, ctx) {
         }
       }
 
+      /** 주간 집중 키만 바뀐 PATCH 는 Google 동기화 대상(id·title·due·status)이 아니므로 notify 생략. */
+      let weeklyFocusChanged = false
+      if ('weeklyFocusWeekStart' in body) {
+        requestedFieldCount += 1
+        const raw = body.weeklyFocusWeekStart
+        const prevWeek = coerceDateOnlyString(prev.weekly_focus_week_start) || null
+        if (raw == null || raw === '') {
+          if (prevWeek != null) {
+            sets.push('weekly_focus_week_start = NULL')
+            weeklyFocusChanged = true
+          }
+        } else {
+          const weekStart = parseWeekStartYmd(raw)
+          if (!weekStart) {
+            res.status(400).json({ message: '주간 시작일은 월요일 날짜(YYYY-MM-DD)여야 합니다.' })
+            return
+          }
+          if (weekStart !== prevWeek) {
+            sets.push(`weekly_focus_week_start = $${p++}::date`)
+            params.push(weekStart)
+            weeklyFocusChanged = true
+          }
+        }
+      }
+
       if ('metadata' in body) {
         requestedFieldCount += 1
         const nextMetadata = body.metadata ?? {}
@@ -677,7 +750,8 @@ export function registerTodosApi(apiRouter, ctx) {
         res.status(404).json({ message: '할 일을 찾을 수 없습니다.' })
         return
       }
-      notifyTodoChanged(pool, userId)
+      const onlyWeeklyFocus = weeklyFocusChanged && sets.length === 2 // weekly_focus + updated_at
+      if (!onlyWeeklyFocus) notifyTodoChanged(pool, userId)
       const enriched = await enrichCustomerName(pool, gaId, next)
       res.json(mapTodoRow(enriched))
     } catch (error) {

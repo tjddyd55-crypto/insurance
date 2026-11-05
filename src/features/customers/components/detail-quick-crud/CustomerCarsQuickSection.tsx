@@ -125,6 +125,7 @@ export function CustomerCarsQuickSection({
         carNumber: modal.draft.carNumber.trim(),
         carModel: modal.draft.carModel.trim(),
         carYear: modal.draft.carYear.trim(),
+        insuranceCompany: modal.draft.insuranceCompany?.trim() ?? '',
         renewalDate: modal.draft.renewalDate?.trim() ?? '',
         carType: modal.draft.carType?.trim() ?? '',
         memo: modal.draft.memo?.trim() ?? '',
@@ -208,6 +209,10 @@ export function CustomerCarsQuickSection({
                   <span className="customer-detail-read__field-value">{dashOr(car.carYear)}</span>
                 </div>
                 <div className="customer-quick-crud-card__row">
+                  <span className="customer-detail-read__field-label">보험회사</span>
+                  <span className="customer-detail-read__field-value">{dashOr(car.insuranceCompany)}</span>
+                </div>
+                <div className="customer-quick-crud-card__row">
                   <span className="customer-detail-read__field-label">갱신 예정일</span>
                   <span className="customer-detail-read__field-value">{dashOr(car.renewalDate)}</span>
                 </div>
@@ -283,6 +288,17 @@ export function CustomerCarsQuickSection({
                 value={activeDraft.carYear}
                 disabled={saving}
                 onChange={handleCarYearChange}
+              />
+            </label>
+            <label className="field">
+              <span className="field__label">보험회사</span>
+              <FormInput
+                className="field__control"
+                placeholder="예: 삼성화재"
+                value={activeDraft.insuranceCompany ?? ''}
+                disabled={saving}
+                data-testid="customer-car-quick-insurance-company"
+                onChange={(e) => updateDraft({ insuranceCompany: e.target.value })}
               />
             </label>
             <label className="field">

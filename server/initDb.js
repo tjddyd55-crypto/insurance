@@ -1807,6 +1807,11 @@ export async function initDb() {
     ON customer_cars(customer_id)
     WHERE is_primary = true
   `)
+  /** 자동차 정보 — 보험회사(자유 입력). nullable 추가 컬럼, 기존 행은 NULL 유지 */
+  await pool.query(`
+    ALTER TABLE customer_cars
+    ADD COLUMN IF NOT EXISTS insurance_company TEXT NULL
+  `)
 
   await pool.query(`
     INSERT INTO customer_cars (
@@ -3924,6 +3929,13 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_todos_ga_updated
     ON todos (ga_id, updated_at DESC)
   `)
+  // 주간 할 일(직접 지정) 키: 그 주 월요일. additive·nullable·default 없음 → 기존 행 변화 없음.
+  await pool.query(`ALTER TABLE todos ADD COLUMN IF NOT EXISTS weekly_focus_week_start DATE`)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_todos_ga_weekly_focus
+    ON todos (ga_id, weekly_focus_week_start)
+    WHERE weekly_focus_week_start IS NOT NULL
+  `)
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ta_call_settings (
@@ -4578,6 +4590,7 @@ export async function initDb() {
   await ensureInsuranceClaimCompanySchema(pool)
   await ensureContractSelfSmsSchema(pool)
   await ensureInsurerSitesSchema(pool)
+  await ensureCardPaymentInsurerLinkSchema(pool)
   await ensurePublicCustomerInviteSessionsSchema(pool)
   const { ensureCoverageSimulationShareSchema } = await import(
     './coverage-simulator/coverageSimulationShareSchema.js'
@@ -6442,6 +6455,22 @@ async function ensureContractSelfSmsSchema(executor) {
  * 전역 공통 보험사 설계사이트 마스터 (GA/회사/팀/유저 FK 없음).
  * 최초 빈 테이블일 때만 시드 삽입; 매 부팅 시 업로드 경로를 제외하고 빈·외부 URL·구번들 로고만 보정합니다.
  */
+/**
+ * 카드 수납 보험사 표준화: insurer_sites(전역 카탈로그) FK 를 additive nullable 로 추가.
+ * 원본 insurance_company 텍스트는 그대로 보존. 백필은 별도 스크립트(dry-run 우선)로만 수행.
+ */
+async function ensureCardPaymentInsurerLinkSchema(executor) {
+  await executor.query(`
+    ALTER TABLE customer_card_payment_contracts
+    ADD COLUMN IF NOT EXISTS insurance_company_id INTEGER NULL
+      REFERENCES insurer_sites(id) ON DELETE SET NULL
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_card_payment_contracts_insurer_site
+    ON customer_card_payment_contracts(ga_id, insurance_company_id)
+  `)
+}
+
 async function ensureInsurerSitesSchema(executor) {
   await executor.query(`
     CREATE TABLE IF NOT EXISTS insurer_sites (

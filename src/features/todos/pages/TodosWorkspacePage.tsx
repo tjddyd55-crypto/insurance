@@ -33,6 +33,16 @@ export default function TodosWorkspacePage() {
     openEdit: vm.openEdit,
     toggleDone: vm.toggleDone,
     onRelatedNavigate: vm.onRelatedNavigate,
+    weekStart: vm.weekStart,
+    currentWeekStart: vm.currentWeekStart,
+    setWeekStart: vm.setWeekStart,
+    moveToWeek: (row, week) => void vm.moveToWeek(row, week),
+    createWeekly: (title) => vm.createWeekly(title),
+    weeklyTodos: vm.weeklyTodos,
+    weeklyLoading: vm.weeklyLoading,
+    weeklyBusyId: vm.weeklyBusyId,
+    addToWeek: (row) => void vm.addToWeek(row),
+    removeFromWeek: (row) => void vm.removeFromWeek(row),
   }
 
   return (
