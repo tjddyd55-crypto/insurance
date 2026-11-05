@@ -12,8 +12,9 @@ function read(rel) {
 }
 
 describe('card payment compact row alignment + policy copy', () => {
-  it('CollectionTargetsSection uses InlineCopyValue for policy number', () => {
-    const section = read('components/CollectionTargetsSection.tsx')
+  it('CollectionTargetsTable uses InlineCopyValue for policy number', () => {
+    assert.match(read('components/CollectionTargetsSection.tsx'), /CollectionTargetsTable/)
+    const section = read('components/CollectionTargetsTable.tsx')
     assert.match(section, /InlineCopyValue/)
     assert.match(section, /emptyLabel="증권번호 없음"/)
     assert.match(section, /onCopyPolicyNumber/)
@@ -42,7 +43,7 @@ describe('card payment compact row alignment + policy copy', () => {
   })
 
   it('amount and day cells share vertical center cell-inner', () => {
-    const section = read('components/CollectionTargetsSection.tsx')
+    const section = read('components/CollectionTargetsTable.tsx')
     const css = read('premium-payments.css')
     assert.match(section, /premium-payments-cell-inner--end/)
     assert.match(section, /premium-payments-cell-inner--center/)
