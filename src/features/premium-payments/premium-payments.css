@@ -722,3 +722,35 @@
   font-size: 0.76rem;
   color: var(--text-secondary);
 }
+
+/* 보험사별 보기: 왼쪽 보험회사 목록 (고객 목록 항목 스타일 재사용) */
+.premium-payments-customer-list__item--insurer {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.premium-payments-customer-list__count {
+  flex: none;
+  min-width: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--surface-muted, #f1f5f9);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* 보험사별 보기: 오른쪽 고객 그룹 (고객명 1회 + 기존 수납 테이블) */
+.premium-payments-insurer-customer__name {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.premium-payments-insurer-customer__phone {
+  font-weight: 400;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}

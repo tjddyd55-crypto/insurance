@@ -1,4 +1,4 @@
-import { FormInput, FormSelect } from '../../../../components/form'
+import { FormInput } from '../../../../components/form'
 import type { InsurerCustomerGroup, InsurerGroupKey, InsurerGroupOption } from '../../domain/insurerGrouping'
 import type {
   CardPaymentCustomerListItem,
@@ -8,10 +8,18 @@ import type {
 export type InsurerViewProps = {
   viewMode: CardPaymentOverviewViewMode
   onViewModeChange: (mode: CardPaymentOverviewViewMode) => void
+  /** 검색 적용된 보험사 목록 (데이터 있는 보험사만) */
   insurerOptions: InsurerGroupOption[]
+  /** 검색 전 전체 보험사 수 (빈 상태 문구용) */
+  insurerTotalCount: number
   selectedInsurerKey: InsurerGroupKey | null
+  selectedInsurer: InsurerGroupOption | null
   onSelectInsurer: (key: InsurerGroupKey) => void
+  insurerSearch: string
+  onInsurerSearchChange: (value: string) => void
   insurerCustomerGroups: InsurerCustomerGroup[]
+  /** 보험사별 오른쪽에서 고객 카드 수납(수정 폼)으로 이동 */
+  onOpenCustomerCards: (customerId: number) => void
 }
 
 type Props = {
@@ -24,10 +32,6 @@ type Props = {
   onSearchChange: (value: string) => void
   onSelectCustomer: (customerId: number) => void
   insurerView?: InsurerViewProps
-}
-
-function formatWon(n: number | null): string {
-  return n == null ? '' : `${n.toLocaleString('ko-KR')}원`
 }
 
 function formatPhone(phone: string): string {
@@ -56,7 +60,9 @@ export function PremiumPaymentsCustomerSidebar({
   return (
     <aside className="premium-payments-workspace__sidebar" aria-labelledby="card-payment-customers-heading">
       <div className="premium-payments-workspace__sidebar-head">
-        <h2 id="card-payment-customers-heading">카드 수납 고객</h2>
+        <h2 id="card-payment-customers-heading" data-testid="card-sidebar-title">
+          {insurerMode ? '보험회사' : '카드 수납 고객'}
+        </h2>
         {insurerView ? (
           <div className="premium-payments-view-toggle" role="tablist" aria-label="보기 방식">
             {(
@@ -85,28 +91,26 @@ export function PremiumPaymentsCustomerSidebar({
             ))}
           </div>
         ) : null}
-        {insurerView && insurerMode ? (
-          <div className="premium-payments-workspace__insurer-select">
-            <FormSelect
-              data-testid="card-insurer-filter"
-              aria-label="보험사 선택"
-              value={insurerView.selectedInsurerKey ?? ''}
-              onChange={(e) => insurerView.onSelectInsurer(e.target.value as InsurerGroupKey)}
-              options={insurerView.insurerOptions.map((o) => ({
-                value: o.key,
-                label: `${o.category === 'LIFE' ? '[생명] ' : o.category === 'NON_LIFE' ? '[손해] ' : ''}${o.label} (${o.count})`,
-              }))}
-            />
-          </div>
-        ) : null}
         <div className="premium-payments-workspace__search">
-          <FormInput
-            type="search"
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="고객명 또는 연락처 검색"
-            aria-label="고객명 또는 연락처 검색"
-          />
+          {insurerView && insurerMode ? (
+            <FormInput
+              type="search"
+              data-testid="card-sidebar-search"
+              value={insurerView.insurerSearch}
+              onChange={(e) => insurerView.onInsurerSearchChange(e.target.value)}
+              placeholder="보험회사 검색"
+              aria-label="보험회사 검색"
+            />
+          ) : (
+            <FormInput
+              type="search"
+              data-testid="card-sidebar-search"
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="고객명 또는 연락처 검색"
+              aria-label="고객명 또는 연락처 검색"
+            />
+          )}
         </div>
       </div>
 
@@ -118,46 +122,37 @@ export function PremiumPaymentsCustomerSidebar({
       ) : null}
 
       {!loading && !error && insurerView && insurerMode ? (
-        insurerView.insurerCustomerGroups.length === 0 ? (
+        insurerView.insurerOptions.length === 0 ? (
           <p className="premium-payments-page__empty">
-            {search.trim() ? '검색 결과가 없습니다.' : '선택한 보험사의 수납 대상이 없습니다.'}
+            {insurerView.insurerTotalCount === 0 ? '카드 수납 대상이 없습니다.' : '검색 결과가 없습니다.'}
           </p>
         ) : (
-          <ul className="premium-payments-customer-list" role="listbox" aria-label="보험사별 고객" data-testid="card-insurer-groups">
-            {insurerView.insurerCustomerGroups.map((group) => {
-              const active = selectedCustomerId === group.customerId
+          <ul className="premium-payments-customer-list" role="listbox" aria-label="보험회사" data-testid="card-insurer-list">
+            {insurerView.insurerOptions.map((option) => {
+              const active = insurerView.selectedInsurerKey === option.key
               return (
-                <li key={group.customerId} data-testid="card-insurer-customer-group">
-                  {/* eslint-disable-next-line no-restricted-syntax -- 보험사별 고객 목록 항목(role=option): 기존 BEM 스타일 유지용 네이티브 button */}
+                <li key={option.key}>
+                  {/* eslint-disable-next-line no-restricted-syntax -- 보험회사 목록 항목(role=option): 고객 목록과 동일 BEM 스타일 유지용 네이티브 button */}
                   <button
                     type="button"
                     role="option"
                     aria-selected={active}
+                    data-testid="card-insurer-item"
+                    data-insurer-key={option.key}
                     className={[
                       'premium-payments-customer-list__item',
+                      'premium-payments-customer-list__item--insurer',
                       active ? 'premium-payments-customer-list__item--active' : '',
                     ]
                       .filter(Boolean)
                       .join(' ')}
-                    onClick={() => onSelectCustomer(group.customerId)}
+                    onClick={() => insurerView.onSelectInsurer(option.key)}
                   >
-                    <span className="premium-payments-customer-list__name">{group.customerName}</span>
-                    <span className="premium-payments-customer-list__meta">
-                      {formatPhone(group.customerPhone)} · {group.contracts.length}건
+                    <span className="premium-payments-customer-list__name">{option.label}</span>
+                    <span className="premium-payments-customer-list__count" data-testid="card-insurer-count">
+                      {option.count}
                     </span>
                   </button>
-                  <ul className="premium-payments-insurer-contracts">
-                    {group.contracts.map((c) => (
-                      <li key={c.id} className="premium-payments-insurer-contracts__item" data-testid="card-insurer-contract">
-                        <span>{c.productName || c.insuranceCompany || '상품명 없음'}</span>
-                        <span className="premium-payments-insurer-contracts__meta">
-                          {[c.policyNumber, formatWon(c.premiumAmount), c.paymentDay ? `매월 ${c.paymentDay}일` : '']
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
                 </li>
               )
             })}
