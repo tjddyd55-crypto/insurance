@@ -3,6 +3,7 @@ import { CustomerCardPaymentPanels } from '../../components/CustomerCardPaymentP
 import type { CustomerCardPaymentState } from '../../hooks/useCustomerPremiumPaymentsState'
 import type { CardPaymentCustomerListItem } from '../../hooks/usePremiumPaymentsOverviewState'
 import { PremiumPaymentsCustomerSidebar, type InsurerViewProps } from './PremiumPaymentsCustomerSidebar'
+import { PremiumPaymentsInsurerDetail } from './PremiumPaymentsInsurerDetail'
 
 type Props = {
   search: string
@@ -53,6 +54,7 @@ export function PremiumPaymentsOverviewBody({
   onAfterDetailMutate,
   insurerView,
 }: Props) {
+  const insurerMode = insurerView?.viewMode === 'insurer'
   return (
     <div className="premium-payments-workspace">
       <div className="premium-payments-workspace__desktop-sidebar">
@@ -76,13 +78,20 @@ export function PremiumPaymentsOverviewBody({
             className="premium-payments-workspace__mobile-picker-btn"
             onClick={onOpenMobilePicker}
           >
-            {selectedCustomer
+            {insurerMode
+              ? insurerView?.selectedInsurer?.label ?? '보험회사 선택'
+              : selectedCustomer
               ? `${selectedCustomer.customerName} · ${formatPhone(selectedCustomer.customerPhone)}`
               : '고객 선택'}
           </button>
         </div>
 
-        {!selectedCustomer || !detailState ? (
+        {insurerView && insurerMode ? (
+          <PremiumPaymentsInsurerDetail
+            insurerView={insurerView}
+            onCopyPolicyNumber={(value) => void detailState?.copyPolicyNumber(value)}
+          />
+        ) : !selectedCustomer || !detailState ? (
           <div className="premium-payments-workspace__detail-empty">
             <p>
               {customers.length === 0
@@ -145,7 +154,17 @@ export function PremiumPaymentsOverviewBody({
                 onSelectCustomer(customerId)
                 onCloseMobilePicker()
               }}
-              insurerView={insurerView}
+              insurerView={
+                insurerView
+                  ? {
+                      ...insurerView,
+                      onSelectInsurer: (key) => {
+                        insurerView.onSelectInsurer(key)
+                        onCloseMobilePicker()
+                      },
+                    }
+                  : undefined
+              }
             />
           </div>
         </div>

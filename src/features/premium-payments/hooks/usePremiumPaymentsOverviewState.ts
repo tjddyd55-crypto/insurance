@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { listCardPaymentContractsOverview, type CardPaymentContractRow } from '../api/premiumPaymentsApi'
 import {
-  INSURER_GROUP_OTHER,
-  INSURER_GROUP_UNASSIGNED,
   buildInsurerGroupOptions,
+  filterInsurerOptions,
   groupContractsByCustomerForInsurer,
   type InsurerGroupKey,
   type InsurerGroupOption,
@@ -33,6 +32,7 @@ export type CardPaymentCustomerListItem = {
 export function usePremiumPaymentsOverviewState(token: string | null) {
   const [month] = useState(currentMonthInputValue)
   const [search, setSearch] = useState('')
+  const [insurerSearch, setInsurerSearch] = useState('')
   const [customers, setCustomers] = useState<CardPaymentCustomerListItem[]>([])
   const [rows, setRows] = useState<CardPaymentContractRow[]>([])
   const [viewMode, setViewMode] = useState<CardPaymentOverviewViewMode>('customer')
@@ -93,43 +93,33 @@ export function usePremiumPaymentsOverviewState(token: string | null) {
     })
   }, [customers, search])
 
-  const insurerOptions = useMemo<InsurerGroupOption[]>(() => {
-    const opts = buildInsurerGroupOptions(rows)
-    // 기타/미지정은 건수 0이어도 선택지에 항상 노출
-    for (const [key, label] of [
-      [INSURER_GROUP_OTHER, '기타'],
-      [INSURER_GROUP_UNASSIGNED, '미지정'],
-    ] as const) {
-      if (!opts.some((o) => o.key === key)) opts.push({ key, label, category: null, count: 0 })
-    }
-    return opts
-  }, [rows])
+  // 카드 수납 데이터가 있는 보험사만 (손해→생명→기타→미지정)
+  const insurerOptions = useMemo<InsurerGroupOption[]>(() => buildInsurerGroupOptions(rows), [rows])
 
-  const effectiveInsurerKey = useMemo<InsurerGroupKey | null>(() => {
-    if (selectedInsurerKey && insurerOptions.some((o) => o.key === selectedInsurerKey)) return selectedInsurerKey
-    return insurerOptions.find((o) => o.count > 0)?.key ?? insurerOptions[0]?.key ?? null
-  }, [insurerOptions, selectedInsurerKey])
-
-  const insurerCustomerGroups = useMemo(
-    () => groupContractsByCustomerForInsurer(rows, effectiveInsurerKey, search),
-    [effectiveInsurerKey, rows, search],
+  const filteredInsurerOptions = useMemo(
+    () => filterInsurerOptions(insurerOptions, insurerSearch),
+    [insurerOptions, insurerSearch],
   )
 
-  /** 현재 모드에서 사이드바에 보이는 고객 (상세 선택 기준) */
-  const visibleCustomers = useMemo<CardPaymentCustomerListItem[]>(() => {
-    if (viewMode === 'customer') return filteredCustomers
-    const byId = new Map(customers.map((c) => [c.customerId, c]))
-    return insurerCustomerGroups.map(
-      (g) =>
-        byId.get(g.customerId) ?? {
-          customerId: g.customerId,
-          customerName: g.customerName,
-          customerPhone: g.customerPhone,
-          ownerDisplayName: '',
-          targetCount: g.contracts.length,
-        },
-    )
-  }, [customers, filteredCustomers, insurerCustomerGroups, viewMode])
+  /** 선택 유지, 없으면(검색 제외 포함) 목록 첫 보험사 자동 선택 */
+  const effectiveInsurerKey = useMemo<InsurerGroupKey | null>(() => {
+    if (selectedInsurerKey && filteredInsurerOptions.some((o) => o.key === selectedInsurerKey)) return selectedInsurerKey
+    return filteredInsurerOptions[0]?.key ?? null
+  }, [filteredInsurerOptions, selectedInsurerKey])
+
+  const selectedInsurer = useMemo(
+    () => insurerOptions.find((o) => o.key === effectiveInsurerKey) ?? null,
+    [effectiveInsurerKey, insurerOptions],
+  )
+
+  // 이미 받은 rows 를 클라이언트에서 그룹핑 — 보험사 클릭 시 추가 API 호출 없음
+  const insurerCustomerGroups = useMemo(
+    () => groupContractsByCustomerForInsurer(rows, effectiveInsurerKey),
+    [effectiveInsurerKey, rows],
+  )
+
+  /** 고객별 보기 상세 선택 기준 */
+  const visibleCustomers = filteredCustomers
 
   return {
     viewMode,
@@ -137,6 +127,10 @@ export function usePremiumPaymentsOverviewState(token: string | null) {
     insurerOptions,
     selectedInsurerKey: effectiveInsurerKey,
     setSelectedInsurerKey,
+    filteredInsurerOptions,
+    selectedInsurer,
+    insurerSearch,
+    setInsurerSearch,
     insurerCustomerGroups,
     visibleCustomers,
     search,
