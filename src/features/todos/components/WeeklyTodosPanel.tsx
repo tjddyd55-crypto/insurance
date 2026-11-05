@@ -46,7 +46,7 @@ type Props = {
 function Chevron({ dir }: { dir: 'left' | 'right' }) {
   return (
     <svg className="weekly-todos__chevron" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-      <path d={dir === 'left' ? 'M10 3 5 8l5 5' : 'M6 3l5 5-5 5'} fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={dir === 'left' ? 'M10.5 3 5.5 8l5 5' : 'M5.5 3l5 5-5 5'} fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
