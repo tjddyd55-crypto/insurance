@@ -247,6 +247,7 @@ export function registerCardPaymentApi(apiRouter, { pool, requireAuth, handleDbE
         status: req.query.status,
         search: req.query.search ?? req.query.q,
         insuranceCompany: req.query.insuranceCompany,
+        insuranceCompanyId: req.query.insuranceCompanyId,
         paymentDay: req.query.paymentDay,
         ownerUserId: req.query.ownerUserId,
         limit: req.query.limit,

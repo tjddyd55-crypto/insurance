@@ -92,3 +92,10 @@ describe('schema + query wiring', () => {
     assert.match(svc, /WHEN insurance_company = \$2 THEN insurance_company_id/)
   })
 })
+
+describe('overview route forwards insuranceCompanyId filter', () => {
+  it('passes req.query.insuranceCompanyId', () => {
+    const api = readFileSync(new URL('../registerCardPaymentApi.js', import.meta.url), 'utf8')
+    assert.match(api, /insuranceCompanyId: req\.query\.insuranceCompanyId/)
+  })
+})
