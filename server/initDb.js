@@ -1789,6 +1789,11 @@ export async function initDb() {
     ON customer_cars(customer_id)
     WHERE is_primary = true
   `)
+  /** 자동차 정보 — 보험회사(자유 입력). nullable 추가 컬럼, 기존 행은 NULL 유지 */
+  await pool.query(`
+    ALTER TABLE customer_cars
+    ADD COLUMN IF NOT EXISTS insurance_company TEXT NULL
+  `)
 
   await pool.query(`
     INSERT INTO customer_cars (

@@ -311,6 +311,7 @@ export function legacyCarSlicesToRecords(
     carNumber: car.carNumber,
     carModel: car.carModel,
     carYear: car.carYear,
+    insuranceCompany: '',
     renewalDate: car.renewalDate ? car.renewalDate : null,
     memo: car.memo,
     isPrimary: index === 0,

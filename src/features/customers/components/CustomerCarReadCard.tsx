@@ -47,6 +47,10 @@ export function CustomerCarReadCard({ car, index }: CustomerCarReadCardProps) {
         <span className="customer-car-read-card__value">{dashOr(car.carYear)}</span>
       </div>
       <div className="customer-car-read-card__row">
+        <span className="customer-car-read-card__label">보험회사</span>
+        <span className="customer-car-read-card__value">{dashOr(car.insuranceCompany)}</span>
+      </div>
+      <div className="customer-car-read-card__row">
         <span className="customer-car-read-card__label">만기일</span>
         <span className="customer-car-read-card__value">
           {dashOr(car.renewalDate)}{' '}

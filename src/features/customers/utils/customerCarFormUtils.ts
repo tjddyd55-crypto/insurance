@@ -6,6 +6,7 @@ export function createEmptyCustomerCar(): CustomerCarFormItem {
     carNumber: '',
     carModel: '',
     carYear: '',
+    insuranceCompany: '',
     renewalDate: '',
     isPrimary: false,
   }
@@ -17,6 +18,7 @@ export function isCustomerCarEmpty(car: CustomerCarFormItem): boolean {
     !t(car.carNumber) &&
     !t(car.carModel) &&
     !t(car.carYear) &&
+    !t(car.insuranceCompany) &&
     !t(car.renewalDate) &&
     !t(car.carType) &&
     !t(car.memo)

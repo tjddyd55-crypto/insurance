@@ -12,6 +12,8 @@ export type CustomerCarEditCardProps = {
   car: CustomerCarFormItem
   canRemove: boolean
   disabled?: boolean
+  /** 공개 등록 폼 등 customer_cars 를 쓰지 않는 화면에서는 숨김 */
+  showInsuranceCompany?: boolean
   onChange: (next: CustomerCarFormItem) => void
   onRemove: () => void
 }
@@ -21,6 +23,7 @@ export const CustomerCarEditCard = memo(function CustomerCarEditCard({
   car,
   canRemove,
   disabled,
+  showInsuranceCompany = true,
   onChange,
   onRemove,
 }: CustomerCarEditCardProps) {
@@ -97,6 +100,19 @@ export const CustomerCarEditCard = memo(function CustomerCarEditCard({
           onChange={handleCarYearChange}
         />
       </label>
+      {showInsuranceCompany ? (
+        <label className="field">
+          <span className="field__label">보험회사</span>
+          <FormInput
+            className="field__control"
+            placeholder="예: 삼성화재"
+            value={car.insuranceCompany ?? ''}
+            disabled={disabled}
+            data-testid="customer-car-insurance-company"
+            onChange={(e) => updateField({ insuranceCompany: e.target.value })}
+          />
+        </label>
+      ) : null}
       <label className="field">
         <span className="field__label">만기(갱신)일</span>
         <AppDateInput

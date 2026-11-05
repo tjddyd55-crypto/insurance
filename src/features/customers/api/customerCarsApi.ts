@@ -7,6 +7,8 @@ export type CustomerCarRecord = {
   carNumber: string
   carModel: string
   carYear: string
+  /** 보험회사(자유 입력). 미입력/레거시는 '' */
+  insuranceCompany?: string
   renewalDate: string | null
   memo: string
   isPrimary: boolean
@@ -21,6 +23,8 @@ export type CustomerCarInput = {
   carModel: string
   carYear: string
   renewalDate: string
+  /** 생략 시 서버는 기존 값 유지(PATCH) / NULL(POST) */
+  insuranceCompany?: string
   memo?: string
   isPrimary?: boolean
 }
@@ -39,6 +43,7 @@ function mapCar(raw: Record<string, unknown>): CustomerCarRecord {
     carNumber: String(raw.carNumber ?? ''),
     carModel: String(raw.carModel ?? ''),
     carYear: String(raw.carYear ?? ''),
+    insuranceCompany: String(raw.insuranceCompany ?? ''),
     renewalDate: raw.renewalDate == null || raw.renewalDate === '' ? null : String(raw.renewalDate),
     memo: String(raw.memo ?? ''),
     isPrimary: raw.isPrimary === true,
