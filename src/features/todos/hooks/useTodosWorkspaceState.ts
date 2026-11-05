@@ -5,7 +5,8 @@ import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
 import type { TodoCreatePrefill } from '../components/TodoEditorDialog'
 import type { TodoDto } from '../domain/todoTypes'
-import { completeTodo, listTodos, reopenTodo } from '../api/todosApi'
+import { completeTodo, listTodos, patchTodo, reopenTodo } from '../api/todosApi'
+import { mondayOfYmd } from '../domain/weeklyFocus'
 import { getCalendarMonthRange, shiftCalendarMonth } from '../domain/todoCalendar'
 import {
   readTodosViewMode,
@@ -43,6 +44,10 @@ export function useTodosWorkspaceState() {
   const [error, setError] = useState('')
   const [todos, setTodos] = useState<TodoDto[]>([])
   const [calendarTodos, setCalendarTodos] = useState<TodoDto[]>([])
+  const weekStart = useMemo(() => mondayOfYmd(formatSeoulYmd(new Date())), [])
+  const [weeklyTodos, setWeeklyTodos] = useState<TodoDto[]>([])
+  const [weeklyLoading, setWeeklyLoading] = useState(false)
+  const [weeklyBusyId, setWeeklyBusyId] = useState<string | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editorSession, setEditorSession] = useState(0)
   const [editingTodo, setEditingTodo] = useState<TodoDto | null>(null)
@@ -119,9 +124,50 @@ export function useTodosWorkspaceState() {
     }
   }, [calendarParams, token])
 
+  /** 주간 할 일(이번 주, 월~일): 그 주 예정일 + 직접 지정. 완료는 기본 숨김. */
+  const loadWeekly = useCallback(async () => {
+    if (!token?.trim()) {
+      setWeeklyTodos([])
+      return
+    }
+    setWeeklyLoading(true)
+    try {
+      setWeeklyTodos(await listTodos(token, { weekStart }))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '주간 할 일을 불러오지 못했습니다.')
+      setWeeklyTodos([])
+    } finally {
+      setWeeklyLoading(false)
+    }
+  }, [token, weekStart])
+
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (!isMobile) void loadWeekly()
+  }, [isMobile, loadWeekly])
+
+  const setWeeklyFocus = useCallback(
+    async (row: TodoDto, next: string | null) => {
+      if (!token?.trim()) return
+      setError('')
+      setWeeklyBusyId(row.id)
+      try {
+        const saved = await patchTodo(token, row.id, { weeklyFocusWeekStart: next })
+        setTodos((prev) => prev.map((t) => (t.id === saved.id ? saved : t)))
+        await loadWeekly()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '주간 할 일 변경에 실패했습니다.')
+      } finally {
+        setWeeklyBusyId(null)
+      }
+    },
+    [loadWeekly, token],
+  )
+  const addToWeek = useCallback((row: TodoDto) => setWeeklyFocus(row, weekStart), [setWeeklyFocus, weekStart])
+  const removeFromWeek = useCallback((row: TodoDto) => setWeeklyFocus(row, null), [setWeeklyFocus])
 
   useEffect(() => {
     if (viewMode === 'calendar') void loadCalendar()
@@ -173,6 +219,7 @@ export function useTodosWorkspaceState() {
       }
       setTodos((prev) => sortTodosNewestActivityFirst(prev.map((t) => (t.id === nextRow.id ? nextRow : t))))
       await load()
+      if (!isMobile) await loadWeekly()
       if (viewMode === 'calendar') await loadCalendar()
     } catch (e) {
       const msg =
@@ -219,7 +266,16 @@ export function useTodosWorkspaceState() {
     showPreviousMonth: () => setCalendarMonth((month) => shiftCalendarMonth(month, -1)),
     showNextMonth: () => setCalendarMonth((month) => shiftCalendarMonth(month, 1)),
     showCurrentMonth: () => setCalendarMonth(formatSeoulYmd(new Date()).slice(0, 7)),
-    reload: load,
+    reload: async () => {
+      await load()
+      if (!isMobile) await loadWeekly()
+    },
+    weekStart,
+    weeklyTodos,
+    weeklyLoading,
+    weeklyBusyId,
+    addToWeek,
+    removeFromWeek,
     reloadCalendar: loadCalendar,
     editorOpen,
     setEditorOpen,

@@ -21,6 +21,8 @@ export type TodoDto = {
   completedAt: string | null
   canceledAt: string | null
   customerName: string | null
+  /** 주간 할 일로 직접 지정한 주의 월요일(YYYY-MM-DD). 없으면 null. */
+  weeklyFocusWeekStart?: string | null
 }
 
 export type TodoStatus = 'pending' | 'completed' | 'canceled'

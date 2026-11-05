@@ -43,11 +43,11 @@ export function monthGridRange(anchor: string): {
   return { start, end: addDaysYmd(start, 41), monthStart, monthEnd, month }
 }
 
-/** 주간은 월간 그리드와 같이 일요일 시작(일~토). */
+/** 주간 보기는 월요일 시작(월~일, Asia/Seoul 달력일). 월간 그리드는 기존대로 일요일 시작. */
 export function weekRange(anchor: string): { start: string; end: string } {
   const [year, month, day] = anchor.split('-').map(Number)
   const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay()
-  const start = addDaysYmd(anchor, -weekday)
+  const start = addDaysYmd(anchor, -((weekday + 6) % 7))
   return { start, end: addDaysYmd(start, 6) }
 }
 
