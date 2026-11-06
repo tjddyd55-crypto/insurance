@@ -227,6 +227,8 @@ describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
     expect(html).toContain('2026.09.27 – 10.03')
     const heads = [...html.matchAll(/schedule-page__week-day[^"]*">([^<]+)</g)].map((match) => match[1])
     expect(heads).toEqual(['일 27', '월 28', '화 29', '수 30', '목 1', '금 2', '토 3'])
+    expect(html).toMatch(/schedule-page__week-day--sun[^"]*">일 27/)
+    expect(html).toMatch(/schedule-page__week-day--sat[^"]*">토 3/)
     expect(html).toContain('종일')
     expect(html).toMatch(/09:00<\/span>.*schedule-page__block--google/s)
     expect(html).toContain('09:00 - 10:00')
