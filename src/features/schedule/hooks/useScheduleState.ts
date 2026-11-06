@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { ApiError } from '../../../lib/apiClient'
 import { updateCustomerSpecialDate } from '../../customers/api/customerSpecialDatesApi'
@@ -19,12 +19,12 @@ import {
 import { filterScheduleTasks } from '../domain/scheduleTasks'
 import { countScheduleItemsByDate } from '../domain/scheduleDayCount'
 import {
-  scheduleViewFromParam,
   seoulToday,
   shiftAnchor,
   viewQueryRange,
   type ScheduleView,
 } from '../domain/scheduleRange'
+import { readScheduleLastView, resolveScheduleView, scheduleViewPath, writeScheduleLastView } from '../domain/scheduleLastView'
 
 export type ScheduleViewProps = {
   token: string
@@ -153,9 +153,17 @@ export function useScheduleState(): ScheduleViewProps {
   const { token, user } = useAuth()
   const userKey = user?.id ? String(user.id) : ''
   const navigate = useNavigate()
+  const location = useLocation()
   const params = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
-  const view = scheduleViewFromParam(params.view)
+  const view = resolveScheduleView(params.view, readScheduleLastView())
+  useEffect(() => {
+    writeScheduleLastView(view)
+    const pathname = scheduleViewPath(view)
+    if (location.pathname !== pathname) {
+      navigate({ pathname, search: location.search }, { replace: true })
+    }
+  }, [location.pathname, location.search, navigate, view])
   const today = seoulToday()
   const anchor = YMD.test(searchParams.get('date') ?? '') ? String(searchParams.get('date')) : today
   const sourcesKey = searchParams.get('sources') ?? ''
@@ -350,10 +358,10 @@ export function useScheduleState(): ScheduleViewProps {
   }, [editDate, editTitle, editing, token])
 
   const goToView = useCallback((next: ScheduleView, date?: string) => {
+    writeScheduleLastView(next)
     const query = new URLSearchParams(searchParams)
     if (date) query.set('date', date)
-    const pathname = next === 'month' ? '/schedule' : `/schedule/${next}`
-    navigate({ pathname, search: query.toString() })
+    navigate({ pathname: scheduleViewPath(next), search: query.toString() })
   }, [navigate, searchParams])
 
   return {

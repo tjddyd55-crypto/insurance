@@ -686,13 +686,6 @@
 .schedule-page--pc .schedule-page__cell--muted.schedule-page__cell--sat > .schedule-page__date { opacity: 0.55; }
 .schedule-page--pc .schedule-page__holiday-name { display: block; font-size: 11px; line-height: 1.2; color: #d93025; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .schedule-page--pc .schedule-page__week-day .schedule-page__holiday-name { display: inline; }
-.schedule-page--pc .schedule-page__holiday-setting { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin: 0 0 6px; font-size: 13px; color: var(--text-secondary); }
-.schedule-page--pc .schedule-page__holiday-label { white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
-.schedule-page--pc .schedule-page__holiday-select { min-height: 30px; height: 30px; padding: 0 8px; font-size: 13px; }
-.schedule-page--pc .schedule-page__holiday-legend { display: inline-flex; gap: 8px; }
-.schedule-page--pc .schedule-page__legend::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; background: currentColor; }
-.schedule-page--pc .schedule-page__legend--sun { color: #d93025; }
-.schedule-page--pc .schedule-page__legend--sat { color: #1a73e8; }
 
 /* ── PC 압축 상단(≥769px 전용, .schedule-page--compact 는 SchedulePCView 에만 붙는다). 모바일 웹은 영향 없음. ── */
 @media (min-width: 769px) {
@@ -717,12 +710,20 @@
     flex-wrap: wrap;
     gap: 8px 16px;
   }
+  .schedule-page--compact .schedule-page__toolbar-row--nav {
+    flex-wrap: nowrap;
+  }
   .schedule-page--compact .schedule-page__toolbar-title {
     margin: 0;
     font-size: 1.125rem;
     line-height: 32px;
     white-space: nowrap;
     color: var(--text-main);
+    flex: 0 0 auto;
+  }
+  .schedule-page--compact .schedule-page__toolbar-spacer {
+    flex: 1 1 16px;
+    min-width: 12px;
   }
   .schedule-page--compact .schedule-page__toolbar-group {
     display: flex;
@@ -761,8 +762,9 @@
     background: var(--danger-bg);
     color: var(--danger-text);
   }
-  .schedule-page--compact .schedule-page__holiday-setting {
-    margin: 0;
+  .schedule-page--compact .schedule-page__toolbar-row--nav .schedule-page__toolbar-group {
+    flex-wrap: nowrap;
+    flex: 0 0 auto;
   }
   /* 달력이 남은 높이를 채운다. 요일 머리줄은 내용 높이, 주(週) 줄은 균등. */
   .schedule-page--compact .schedule-page__month {
@@ -795,6 +797,13 @@
     min-height: 0;
     margin-top: 8px;
     overflow: auto;
+  }
+}
+
+@media (max-width: 1100px) {
+  .schedule-page--compact .schedule-page__toolbar-row--nav,
+  .schedule-page--compact .schedule-page__toolbar-row--nav .schedule-page__toolbar-group {
+    flex-wrap: wrap;
   }
 }
 
