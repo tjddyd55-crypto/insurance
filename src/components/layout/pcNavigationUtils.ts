@@ -95,7 +95,7 @@ export function isActivePcNavigationPath(
   if (menuPathname === '/todos') {
     return pathname === '/todos'
   }
-  if (menuPathname === '/schedule') {
+  if (menuPathname === '/schedule' || menuPathname.startsWith('/schedule/')) {
     return pathname === '/schedule' || pathname.startsWith('/schedule/')
   }
   if (menuPathname === '/notifications') {
