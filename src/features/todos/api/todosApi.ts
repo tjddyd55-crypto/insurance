@@ -12,7 +12,7 @@ export type ListTodosParams = {
   sourceType?: string
   /** 기존 고객 연결(relatedEntityType='customer' + relatedEntityId) 기준 필터 */
   customerId?: string
-  /** 주간 할 일: 그 주 월요일(YYYY-MM-DD). 그 주로 지정(weekly_focus_week_start)한 할 일만 */
+  /** 저장 키(그 주 월요일). 화면 일요일은 storedWeekKey 로 바꾼 뒤 넣는다. */
   weekStart?: string
   includeCompleted?: string
 }

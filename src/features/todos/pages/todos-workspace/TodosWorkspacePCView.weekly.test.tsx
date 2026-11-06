@@ -35,7 +35,7 @@ describe('PC 할 일: 주간 할 일 2단', () => {
     expect(html).toContain('todos-page__split')
     const left = html.slice(html.indexOf('weekly-todos-panel'), html.indexOf('todos-all-column'))
     expect(left).toContain('주간 할 일')
-    expect(left).toContain('11.02 ~ 11.08')
+    expect(left).toContain('11.01 ~ 11.07')
     expect(left).toContain('직접 지정')
     expect(left).not.toContain('이번 주 예정 할 일') // 예정일 자동 포함 없음
     expect(left).toContain('날짜 없음')
@@ -65,7 +65,7 @@ describe('PC 할 일: 주간 할 일 2단', () => {
   it('지난 주 보기: 이번 주 버튼, 빈 안내, 오른쪽은 이 주로', () => {
     const html = render(props({ weekStart: '2026-10-26', currentWeekStart: '2026-11-02', weeklyTodos: [] }))
     const left = html.slice(html.indexOf('weekly-todos-panel'), html.indexOf('todos-all-column'))
-    expect(left).toContain('10.26 ~ 11.01')
+    expect(left).toContain('10.25 ~ 10.31')
     expect(left).toContain('data-testid="weekly-todos-this-week"')
     expect(left).toContain('이 주에 지정된 할 일이 없습니다.')
     expect(left).not.toContain('이번 주로 추가할 수 있습니다.')

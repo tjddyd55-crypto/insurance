@@ -239,8 +239,8 @@
 
 .schedule-page__week-grid {
   --schedule-week-columns: 56px repeat(7, minmax(0, 1fr));
-  /* 1시간 = 60px. 이전 시간 줄 min-height 40px 의 1.5배. 칸 수는 scheduleWeekTimedLayout 의 48과 같다. */
-  --schedule-week-slot: 30px;
+  /* 30분 칸 40px(이전 30px의 1.333배). 1시간 = 80px. 칸 수는 scheduleWeekTimedLayout 의 48과 같다. */
+  --schedule-week-slot: 40px;
   --schedule-week-slots: 48;
   min-width: 720px;
 }
@@ -286,17 +286,44 @@
 .schedule-page__hours {
   max-height: 640px;
   overflow-y: auto;
+  /* 00:00 라벨이 시간 선 위에 반쯤 올라가도 잘리지 않게 */
+  padding-top: 10px;
 }
 
 .schedule-page__time-grid {
+  position: relative;
   grid-template-rows: repeat(var(--schedule-week-slots), var(--schedule-week-slot));
+}
+
+.schedule-page__now {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--primary-active);
+  pointer-events: none;
+}
+
+.schedule-page__now-dot {
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 999px;
+  background: var(--primary-active);
 }
 
 .schedule-page__time-grid > .schedule-page__axis {
   grid-column: 1;
   align-self: start;
   line-height: 1;
-  padding-top: 2px;
+  padding: 0 4px;
+  /* 글자 세로 중심이 그 시각의 시간 선(칸 위쪽 경계)에 온다 */
+  transform: translateY(-50%);
 }
 
 .schedule-page__day-col {
@@ -338,7 +365,12 @@
   white-space: normal;
   line-height: 1.25;
   cursor: pointer;
-  z-index: 1;
+  z-index: 2;
+  border: 1px solid var(--border-strong);
+}
+
+.schedule-page__hours .schedule-page__block--timed.schedule-page__block--google {
+  border-color: var(--primary-active);
 }
 
 .schedule-page__block--timed .schedule-page__block-time,
