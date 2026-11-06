@@ -253,7 +253,30 @@ describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
     const hours = html.slice(html.indexOf('schedule-page__hours'))
     expect(hours).toContain('본사 미팅')
     expect(hours).not.toContain('워크숍')
+    expect(hours).toContain('data-draggable="false"')
+    expect(hours).not.toContain('schedule-page__resize-handle')
     expect(html).toContain('워크숍')
+  })
+
+  it('주간 페이지: 고칠 수 있는 시간 블록만 이동·리사이즈, 자정 넘김은 리사이즈 없음', () => {
+    const local = google('move', '오후 이동', '2026-10-02T14:00:00+09:00', '2026-10-02T16:00:00+09:00', { origin: 'onefc', writable: true, readOnly: false })
+    const overnight = google('night', '야간 이동', '2026-10-02T23:30:00+09:00', '2026-10-03T00:30:00+09:00', { origin: 'onefc', writable: true, readOnly: false })
+    const html = render(props({ view: 'week', events: [local, overnight, EVENTS[1]] }))
+    const hours = html.slice(html.indexOf('schedule-page__hours'))
+    const buttonAround = (title: string) => {
+      const at = hours.indexOf(title)
+      return hours.slice(hours.lastIndexOf('<button', at), hours.indexOf('</button>', at))
+    }
+    const dayBlock = buttonAround('오후 이동')
+    expect(dayBlock).toContain('data-draggable="true"')
+    expect(dayBlock).toContain('data-resizable="true"')
+    expect(dayBlock).toContain('schedule-page__resize-handle--start')
+    expect(dayBlock).toContain('schedule-page__resize-handle--end')
+    const night = buttonAround('야간 이동')
+    expect(night).toContain('data-draggable="true"')
+    expect(night).toContain('data-resizable="false"')
+    expect(night).not.toContain('schedule-page__resize-handle')
+    expect(html.slice(0, html.indexOf('schedule-page__hours'))).not.toContain('schedule-page__resize-handle')
   })
 
   it('일간: 시간순, 시간/제목/출처/고객명/설명/위치', () => {
