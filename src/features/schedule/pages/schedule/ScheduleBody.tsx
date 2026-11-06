@@ -20,6 +20,8 @@ import { weekDays } from '../../domain/scheduleRange'
 import { WeeklyTodosPanel } from '../../../todos/components/WeeklyTodosPanel'
 import { currentSeoulWeekStart, useWeeklyTodos } from '../../../todos/hooks/useWeeklyTodos'
 import { uiWeekStartOfYmd } from '../../../todos/domain/weeklyFocus'
+import { useFinePointer } from '../../hooks/useFinePointer'
+import { useScheduleTimedMove } from '../../hooks/useScheduleTimedMove'
 import type { TodoDto } from '../../../todos/domain/todoTypes'
 
 /** 주간 할 일 행 → 일정 화면의 ONE FC 할 일 상세(같은 편집 모달)용 최소 ScheduleTask */
@@ -111,6 +113,8 @@ export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?
     const deltaWeeks = Math.round((Date.parse(`${targetWeek}T00:00:00Z`) - Date.parse(`${viewWeekStart}T00:00:00Z`)) / (7 * 86400000))
     if (deltaWeeks !== 0) onShift(deltaWeeks)
   }, [onShift, onToday, today, viewWeekStart])
+  const finePointer = useFinePointer()
+  const timedMove = useScheduleTimedMove(props.token, props.events, onReload)
   const weeklyPanel = weeklyOn ? (
     <WeeklyTodosPanel
       className="schedule-page__weekly-panel"
@@ -162,17 +166,24 @@ export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?
         />
       ) : null}
       {props.view === 'week' ? (
-        <ScheduleWeek
-          anchor={props.anchor}
-          today={props.today}
-          events={props.events}
-          tasks={props.tasks}
-          onOpenEvent={onOpenEvent}
-          onOpenTask={onOpenTask}
-          holidayMode={decorMode}
-          pcCell={pc}
-          weeklyPanel={weeklyPanel}
-        />
+        <>
+          <ScheduleWeek
+            anchor={props.anchor}
+            today={props.today}
+            events={timedMove.events}
+            tasks={props.tasks}
+            onOpenEvent={onOpenEvent}
+            onOpenTask={onOpenTask}
+            holidayMode={decorMode}
+            pcCell={pc}
+            weeklyPanel={weeklyPanel}
+            dragEnabled={finePointer}
+            onCommitTimedRange={(event, range) => void timedMove.commit(event, range)}
+          />
+          {timedMove.error ? (
+            <p className="schedule-page__drag-error" role="alert">{timedMove.error}</p>
+          ) : null}
+        </>
       ) : null}
       {props.view === 'day' ? (
         <ScheduleDay

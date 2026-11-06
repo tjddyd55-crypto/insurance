@@ -97,6 +97,22 @@
   color: var(--danger);
 }
 
+.schedule-page__drag-error {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 80;
+  max-width: min(420px, calc(100vw - 32px));
+  margin: 0;
+  transform: translateX(-50%);
+  padding: 10px 14px;
+  border: 1px solid var(--danger-border, var(--border));
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--danger);
+  box-shadow: var(--shadow-elevated, 0 8px 24px rgb(0 0 0 / 12%));
+}
+
 /* 월간 */
 .schedule-page__month {
   display: grid;
@@ -412,6 +428,35 @@
   cursor: pointer;
   z-index: 2;
   border: 1px solid var(--border-strong);
+  position: relative;
+}
+
+.schedule-page__block--draggable {
+  cursor: grab;
+  touch-action: none;
+}
+
+.schedule-page__time-grid--dragging,
+.schedule-page__time-grid--dragging .schedule-page__block--draggable {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.schedule-page__resize-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 8px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.schedule-page__resize-handle--start {
+  top: 0;
+}
+
+.schedule-page__resize-handle--end {
+  bottom: 0;
 }
 
 .schedule-page__hours .schedule-page__block--timed.schedule-page__block--google {
