@@ -290,6 +290,19 @@
   text-align: center;
 }
 
+/* 시간 축 세로 스크롤바가 칸 너비를 먹지 않게, 머리·종일·할 일도 같은 스크롤 여백을 둔다. */
+.schedule-page__week-head,
+.schedule-page__all-day,
+.schedule-page__hours {
+  scrollbar-gutter: stable;
+}
+
+.schedule-page__week-head,
+.schedule-page__all-day {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 .schedule-page__week-day {
   color: var(--text-secondary);
 }
