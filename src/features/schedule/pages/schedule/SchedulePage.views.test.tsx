@@ -218,11 +218,11 @@ describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
     expect(html).toContain('09:00–10:00')
   })
 
-  it('주간: 월~일 머리글(월요일 시작, Asia/Seoul), 종일 영역, 09시 시간 block', () => {
+  it('주간: 일~토 머리글(일요일 시작, Asia/Seoul), 종일 영역, 09시 시간 block', () => {
     const html = render(props({ view: 'week' }))
-    expect(html).toContain('2026.09.28 – 10.04')
+    expect(html).toContain('2026.09.27 – 10.03')
     const heads = [...html.matchAll(/schedule-page__week-day[^"]*">([^<]+)</g)].map((match) => match[1])
-    expect(heads).toEqual(['월 28', '화 29', '수 30', '목 1', '금 2', '토 3', '일 4'])
+    expect(heads).toEqual(['일 27', '월 28', '화 29', '수 30', '목 1', '금 2', '토 3'])
     expect(html).toContain('종일')
     expect(html).toMatch(/09:00<\/span>.*schedule-page__block--google/s)
     expect(html).toContain('09:00 - 10:00')
@@ -358,13 +358,13 @@ describe('일정 관리: 할 일 (Google Tasks · ONE FC 할 일, 읽기 전용)
     const board = html.indexOf('data-testid="schedule-week-board"')
     expect(panel).toBeGreaterThan(split)
     expect(board).toBeGreaterThan(panel) // 왼쪽 패널, 오른쪽 일정표
-    expect(html).toContain('data-week-start="2026-09-28"')
-    expect(html.slice(panel, board)).toContain('09.28 ~ 10.04')
+    expect(html).toContain('data-week-start="2026-09-27"')
+    expect(html.slice(panel, board)).toContain('09.27 ~ 10.03')
     expect(html).toContain('data-testid="weekly-todos-prev"')
     expect(html).toContain('data-testid="weekly-todos-next"')
     const next = render(props({ view: 'week', anchor: '2026-10-09' }))
-    expect(next).toContain('data-week-start="2026-10-05"')
-    expect(next).toContain('10.05 ~ 10.11')
+    expect(next).toContain('data-week-start="2026-10-04"')
+    expect(next).toContain('10.04 ~ 10.10')
   })
 
   it('주간(모바일): 주간 할 일 패널 없음', () => {

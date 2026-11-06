@@ -19,7 +19,7 @@ import ScheduleHolidaySetting, { useScheduleHolidayMode } from '../../components
 import { weekDays } from '../../domain/scheduleRange'
 import { WeeklyTodosPanel } from '../../../todos/components/WeeklyTodosPanel'
 import { currentSeoulWeekStart, useWeeklyTodos } from '../../../todos/hooks/useWeeklyTodos'
-import { mondayOfYmd } from '../../../todos/domain/weeklyFocus'
+import { uiWeekStartOfYmd } from '../../../todos/domain/weeklyFocus'
 import type { TodoDto } from '../../../todos/domain/todoTypes'
 
 /** 주간 할 일 행 → 일정 화면의 ONE FC 할 일 상세(같은 편집 모달)용 최소 ScheduleTask */
@@ -103,12 +103,12 @@ export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?
     onSaved: () => onReload(),
   })
   const onChangeWeek = useCallback((target: string) => {
-    const monday = mondayOfYmd(target)
-    if (monday === mondayOfYmd(today)) {
+    const targetWeek = uiWeekStartOfYmd(target)
+    if (targetWeek === uiWeekStartOfYmd(today)) {
       onToday()
       return
     }
-    const deltaWeeks = Math.round((Date.parse(`${monday}T00:00:00Z`) - Date.parse(`${viewWeekStart}T00:00:00Z`)) / (7 * 86400000))
+    const deltaWeeks = Math.round((Date.parse(`${targetWeek}T00:00:00Z`) - Date.parse(`${viewWeekStart}T00:00:00Z`)) / (7 * 86400000))
     if (deltaWeeks !== 0) onShift(deltaWeeks)
   }, [onShift, onToday, today, viewWeekStart])
   const weeklyPanel = weeklyOn ? (
