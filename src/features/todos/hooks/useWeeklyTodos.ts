@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { completeTodo, createTodo, listTodos, patchTodo, reopenTodo } from '../api/todosApi'
 import type { TodoDto } from '../domain/todoTypes'
-import { mondayOfYmd, sortWeeklyTodos } from '../domain/weeklyFocus'
+import { sortWeeklyTodos, storedWeekKey, uiWeekStartOfYmd } from '../domain/weeklyFocus'
 import { formatSeoulYmd } from '../utils/formatSeoulYmd'
 
-/** 오늘(Asia/Seoul)이 속한 주의 월요일 */
+/** 오늘(Asia/Seoul)이 속한 화면 주(일요일). API 키는 storedWeekKey 로 바꾼다. */
 export function currentSeoulWeekStart(now: Date = new Date()): string {
-  return mondayOfYmd(formatSeoulYmd(now))
+  return uiWeekStartOfYmd(formatSeoulYmd(now))
 }
 
 type Options = {
@@ -22,8 +22,9 @@ type Options = {
 
 /**
  * 주간 할 일 공통 데이터(할 일 화면 · 일정 주간 보기 공용).
- * 같은 API(GET /api/todos?weekStart=&includeCompleted=1)라서 같은 주는 두 화면에서 같은 항목이 보인다.
- * 그 주로 지정한 할 일만(예정일 자동 포함 없음). 완료해도 목록에 남고(완료 표시) 미완료 뒤로 정렬.
+ * weekStart 는 화면 주(일요일). 조회·저장은 storedWeekKey(그 주의 월요일)만 쓴다.
+ * 같은 API라서 같은 주는 두 화면에서 같은 항목이 보인다.
+ * 그 주로 지정한 할 일만(예정일 자동 포함 없음). 완료해도 목록에 남고 미완료 뒤로 정렬.
  */
 export function useWeeklyTodos({ token, weekStart, enabled, refreshKey, onError, onSaved }: Options) {
   const [state, setState] = useState<{ week: string; todos: TodoDto[] }>({ week: '', todos: [] })
@@ -43,7 +44,7 @@ export function useWeeklyTodos({ token, weekStart, enabled, refreshKey, onError,
     }
     setLoading(true)
     try {
-      const rows = sortWeeklyTodos(await listTodos(token, { weekStart, includeCompleted: '1' }))
+      const rows = sortWeeklyTodos(await listTodos(token, { weekStart: storedWeekKey(weekStart), includeCompleted: '1' }))
       if (n === seq.current) setState({ week: weekStart, todos: rows })
     } catch (e) {
       if (n === seq.current) {
@@ -78,10 +79,14 @@ export function useWeeklyTodos({ token, weekStart, enabled, refreshKey, onError,
     [reload, token],
   )
 
-  /** 주간 직접 지정 주 변경(null = 주간에서 빼기). due_date 는 바꾸지 않는다. */
+  /** 주간 직접 지정 주 변경(null = 주간에서 빼기). next 는 화면 일요일 또는 저장 월요일. due_date 는 바꾸지 않는다. */
   const setFocus = useCallback(
     (row: TodoDto, next: string | null) =>
-      run(row, () => patchTodo(token!, row.id, { weeklyFocusWeekStart: next }), '주간 할 일 변경에 실패했습니다.'),
+      run(
+        row,
+        () => patchTodo(token!, row.id, { weeklyFocusWeekStart: next == null ? null : storedWeekKey(next) }),
+        '주간 할 일 변경에 실패했습니다.',
+      ),
     [run, token],
   )
 
@@ -92,7 +97,7 @@ export function useWeeklyTodos({ token, weekStart, enabled, refreshKey, onError,
       if (!text || !token?.trim() || !weekStart) return null
       setBusyId('__new__')
       try {
-        const saved = await createTodo(token, { title: text, sourceType: 'manual', dueDate: null, dueTime: null, weeklyFocusWeekStart: weekStart })
+        const saved = await createTodo(token, { title: text, sourceType: 'manual', dueDate: null, dueTime: null, weeklyFocusWeekStart: storedWeekKey(weekStart) })
         cb.current.onSaved?.(saved)
         await reload()
         return saved

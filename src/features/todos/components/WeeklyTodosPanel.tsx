@@ -14,9 +14,9 @@ import { todoDisplayContent } from '../utils/todoCopy'
 import '../styles/weekly-todos.css'
 
 type Props = {
-  /** 보고 있는 주(월요일) */
+  /** 보고 있는 화면 주(일요일). 저장 키는 그 주의 월요일. */
   weekStart: string
-  /** 오늘이 속한 주(월요일). 다르면 '이번 주' 버튼 표시 */
+  /** 오늘이 속한 화면 주(일요일). 다르면 '이번 주' 버튼 표시 */
   currentWeekStart: string
   todos: TodoDto[]
   loading?: boolean
