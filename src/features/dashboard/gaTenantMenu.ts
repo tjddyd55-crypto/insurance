@@ -28,6 +28,7 @@ import {
 import type { DynamicNewsletterBoardMenuItem } from '../insurer-news/utils/newsletterBoardMenuLinks'
 import { isBillingUiVisibleForUser } from '../billing/storeReviewBillingAccess'
 import { isAiFeatureVisible } from '../ai-secretary/config/aiSecretaryUserUiGate'
+import { readScheduleLastView, scheduleViewPath } from '../schedule/domain/scheduleLastView'
 
 export type { DynamicNewsletterBoardMenuItem }
 
@@ -287,7 +288,7 @@ export function buildGaTenantDashboardMenu(
     { type: 'section', label: '할일 및 알림' },
     { type: 'link', label: '오늘의 TA', path: '/ta-call' },
     { type: 'link', label: '할일', path: '/todos' },
-    { type: 'link', label: '일정 관리', path: '/schedule' },
+    { type: 'link', label: '일정 관리', path: scheduleViewPath(readScheduleLastView() ?? 'month') },
     { type: 'link', label: '메모', path: '/memo' },
     { type: 'link', label: '알림', path: '/notifications' },
 

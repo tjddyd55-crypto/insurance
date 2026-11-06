@@ -195,6 +195,21 @@ describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
       const html = render(props({ tasks: [] }), mobile)
       expect(html).not.toContain('일정 관리</h1>')
       expect(html).toContain('2026년 10월')
+      if (!mobile) {
+        expect(html).not.toContain('공휴일 표시')
+        expect(html).not.toContain('표시 안 함')
+        expect(html).not.toContain('일·공휴일')
+        expect(html).toContain('schedule-page__toolbar-spacer')
+        expect(html).toContain('개천절')
+        const periodAt = html.indexOf('2026년 10월')
+        const prevAt = html.indexOf('>9월<')
+        const viewsAt = html.indexOf('aria-label="일정 보기"')
+        const addAt = html.indexOf('새 항목 추가')
+        expect(periodAt).toBeGreaterThan(-1)
+        expect(prevAt).toBeGreaterThan(periodAt)
+        expect(viewsAt).toBeGreaterThan(prevAt)
+        expect(addAt).toBeGreaterThan(viewsAt)
+      }
       expect(html).toContain('>9월<')
       expect(html).toContain('오늘')
       expect(html).toContain('>11월<')
@@ -546,9 +561,12 @@ describe('일정 관리 PC 압축 상단', () => {
     expect(off).toContain('Google 미연결')
     expect(off).not.toContain('Google을 연결하면')
     expect(off).not.toContain('schedule-page__google-hint')
-    for (const label of ['오늘', '월간', '주간', '일간', '목록', '일정 새로고침', '마지막 갱신', '>일정<', '>할 일<', '알림일', '자동차 만기', '상령일', '완료 포함', '공휴일 표시']) {
+    for (const label of ['오늘', '월간', '주간', '일간', '목록', '일정 새로고침', '마지막 갱신', '>일정<', '>할 일<', '알림일', '자동차 만기', '상령일', '완료 포함']) {
       expect(off).toContain(label)
     }
+    expect(off).not.toContain('공휴일 표시')
+    expect(off).not.toContain('표시 안 함')
+    expect(off).toContain('개천절')
     expect(off).toContain('schedule-page__chip--customer_alert')
     const on = render(props({}))
     expect(on).toContain('schedule-page__google-status--on')

@@ -47,7 +47,7 @@ export function scheduleDayTone(ymd: string, mode: ScheduleHolidayMode): Schedul
 
 const PREF_PREFIX = 'onefc.schedule.holidayMode.'
 
-/** 개인 설정(브라우저·사용자별). 기본은 대한민국 공휴일 표시. */
+/** 예전 브라우저 설정. 일정 화면은 공휴일을 항상 표시하고 이 값을 더 이상 읽지 않는다. */
 export function readScheduleHolidayMode(userId: string | undefined, storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): ScheduleHolidayMode {
   try {
     const raw = storage?.getItem(PREF_PREFIX + (userId || 'anon'))

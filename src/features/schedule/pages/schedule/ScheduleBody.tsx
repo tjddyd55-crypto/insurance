@@ -15,7 +15,6 @@ import {
 } from '../../components/ScheduleBoards'
 import type { ScheduleViewProps } from '../../hooks/useScheduleState'
 import ScheduleTodoEditor from '../../components/ScheduleTodoEditor'
-import ScheduleHolidaySetting, { useScheduleHolidayMode } from '../../components/ScheduleHolidaySetting'
 import { weekDays } from '../../domain/scheduleRange'
 import { WeeklyTodosPanel } from '../../../todos/components/WeeklyTodosPanel'
 import { currentSeoulWeekStart, useWeeklyTodos } from '../../../todos/hooks/useWeeklyTodos'
@@ -58,8 +57,7 @@ function sameMonth(a: string, b: string): boolean {
  * 모바일 웹은 기존 동작 그대로.
  */
 export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?: boolean; compact?: boolean }) {
-  const [holidayMode, setHolidayMode] = useScheduleHolidayMode(props.userKey, props.token)
-  const decorMode = props.calendarDecor ? holidayMode : undefined
+  const decorMode = props.calendarDecor ? 'kr' as const : undefined
   const pc = Boolean(props.calendarDecor)
   // 열린 고객 팝업은 연 계정(owner)과 같이 둔다. 다른 계정으로 바뀌면 바로 닫힌 것으로 본다(계정 분리).
   const [customerOpen, setCustomerOpen] = useState<{ owner: string; target: ScheduleCustomerTarget } | null>(null)
@@ -132,19 +130,9 @@ export default function ScheduleBody(props: ScheduleViewProps & { calendarDecor?
     <>
       <ScheduleChrome
         {...props}
-        toolbarExtra={(
-            <>
-              {googleWrite.noticeNode}
-              {googleWrite.toolbarButton}
-              {props.compact && props.calendarDecor && (props.view === 'month' || props.view === 'week')
-                ? <ScheduleHolidaySetting mode={holidayMode} onChange={setHolidayMode} />
-                : null}
-            </>
-          )}
+        primaryAction={googleWrite.toolbarButton}
+        toolbarExtra={googleWrite.noticeNode}
       />
-      {!props.compact && props.calendarDecor && (props.view === 'month' || props.view === 'week') ? (
-        <ScheduleHolidaySetting mode={holidayMode} onChange={setHolidayMode} />
-      ) : null}
       {props.view === 'month' ? (
         <ScheduleMonth
           anchor={props.anchor}
