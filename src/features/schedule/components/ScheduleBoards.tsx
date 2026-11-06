@@ -7,7 +7,7 @@ import { formatDateWithKoreanWeekday } from '../../../utils/formatDateWithKorean
 import { SCHEDULE_FILTER_LABEL, scheduleFilterKeyOf, type ScheduleEvent, type ScheduleTask } from '../api/scheduleApi'
 import type { ScheduleViewProps } from '../hooks/useScheduleState'
 import { monthCells, viewQueryRange, weekDays } from '../domain/scheduleRange'
-import { koreanHolidayName, scheduleDayTone, type ScheduleHolidayMode } from '../domain/koreanHolidays'
+import { koreanHolidayName, scheduleDayTone, weekdayOfYmd, type ScheduleHolidayMode } from '../domain/koreanHolidays'
 import { groupListTasks, groupMonthTasks, isOverdueTask, sortScheduleTasks, tasksOnDate } from '../domain/scheduleTasks'
 import {
   eventClock,
@@ -22,8 +22,15 @@ import { countScheduleItemsByDate, dayCountLabel } from '../domain/scheduleDayCo
 const WEEKDAY_SUN_FIRST = ['일', '월', '화', '수', '목', '금', '토']
 /** YYYY-MM-DD → 요일 한 글자 */
 function weekdayLabel(ymd: string): string {
-  const [y, m, d] = ymd.split('-').map(Number)
-  return WEEKDAY_SUN_FIRST[new Date(Date.UTC(y, m - 1, d)).getUTCDay()] ?? ''
+  return WEEKDAY_SUN_FIRST[weekdayOfYmd(ymd)] ?? ''
+}
+
+/** 주간 머리글. 일/토 색은 월간과 같은 --sun/--sat. 공휴일 이름은 월간 칸과 같이 holiday. */
+function weekDayHeaderClass(date: string, today: string, holidayMode?: ScheduleHolidayMode): string {
+  const weekday = weekdayOfYmd(date)
+  const weekend = weekday === 0 ? 'schedule-page__week-day--sun' : weekday === 6 ? 'schedule-page__week-day--sat' : ''
+  const holiday = holidayMode && scheduleDayTone(date, holidayMode) === 'holiday' ? 'schedule-page__week-day--holiday' : ''
+  return ['schedule-page__week-day', date === today ? 'schedule-page__week-day--today' : '', weekend, holiday].filter(Boolean).join(' ')
 }
 const MONTH_CELL_LIMIT = 3
 
@@ -230,14 +237,7 @@ export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpen
         <div className="schedule-page__week-head">
           <span />
           {days.map((date) => (
-            <strong
-              key={date}
-              className={[
-                'schedule-page__week-day',
-                date === today ? 'schedule-page__week-day--today' : '',
-                holidayMode && scheduleDayTone(date, holidayMode) ? `schedule-page__week-day--${scheduleDayTone(date, holidayMode)}` : '',
-              ].filter(Boolean).join(' ')}
-            >
+            <strong key={date} className={weekDayHeaderClass(date, today, holidayMode)}>
               {weekdayLabel(date)} {Number(date.slice(8))}
               {holidayMode && koreanHolidayName(date, holidayMode) ? <span className="schedule-page__holiday-name"> {koreanHolidayName(date, holidayMode)}</span> : null}
             </strong>
