@@ -68,5 +68,6 @@ describe('주간 현재 시각 선', () => {
     const cssPath = join(dirname(fileURLToPath(import.meta.url)), '../schedule-page.css')
     const css = readFileSync(cssPath, 'utf8')
     expect(css).toMatch(/--schedule-week-slot:\s*40px/)
+    expect(css).toMatch(/\.schedule-page__week-head,\s*\.schedule-page__all-day,\s*\.schedule-page__hours\s*\{\s*scrollbar-gutter:\s*stable;/)
   })
 })
