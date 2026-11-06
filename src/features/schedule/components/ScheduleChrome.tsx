@@ -136,8 +136,8 @@ export function ScheduleCompactStatus(props: Pick<ScheduleViewProps, 'google' | 
   return chips.length > 0 ? <>{chips}</> : null
 }
 
-/** PC(≥769px) 압축 상단: 제목·이동·보기·상태·갱신 1줄, 출처·캘린더·공휴일 1줄. 동작·필터는 기존과 같다. */
-function ScheduleCompactChrome(props: ScheduleViewProps & { toolbarExtra?: ReactNode }) {
+/** PC 상단. 날짜 · 이전/오늘/다음 · 보기 · 새 항목. 출처·갱신은 다음 줄. */
+function ScheduleCompactChrome(props: ScheduleViewProps & { toolbarExtra?: ReactNode; primaryAction?: ReactNode }) {
   const allOn = props.sources.length === SCHEDULE_FILTER_KEYS.length
   const googleOn = props.sources.includes('google')
   const anyTasksOn = props.sources.includes('google_task') || props.sources.includes('onefc_todo')
@@ -146,14 +146,14 @@ function ScheduleCompactChrome(props: ScheduleViewProps & { toolbarExtra?: React
     : props.google.calendars.filter((calendar) => calendar.defaultVisible).map((calendar) => calendar.id)
   return (
     <div className="schedule-page__toolbar">
-      <div className="schedule-page__toolbar-row">
-        <h1 className="schedule-page__toolbar-title">일정 관리</h1>
+      <div className="schedule-page__toolbar-row schedule-page__toolbar-row--nav">
+        <h1 className="schedule-page__toolbar-title">{periodTitle(props.view, props.anchor)}</h1>
         <div className="schedule-page__toolbar-group">
           <Button type="button" variant="secondary" size="sm" onClick={() => props.onShift(-1)} aria-label="이전 기간">이전</Button>
           <Button type="button" variant="secondary" size="sm" onClick={props.onToday}>오늘</Button>
           <Button type="button" variant="secondary" size="sm" onClick={() => props.onShift(1)} aria-label="다음 기간">다음</Button>
-          <strong className="schedule-page__period">{periodTitle(props.view, props.anchor)}</strong>
         </div>
+        <span className="schedule-page__toolbar-spacer" />
         <div className="schedule-page__toolbar-group" role="tablist" aria-label="일정 보기">
           {VIEWS.map((item) => (
             <Button
@@ -169,26 +169,7 @@ function ScheduleCompactChrome(props: ScheduleViewProps & { toolbarExtra?: React
             </Button>
           ))}
         </div>
-        {props.toolbarExtra ? <div className="schedule-page__toolbar-group schedule-page__toolbar-end">{props.toolbarExtra}</div> : null}
-        <div className={props.toolbarExtra ? 'schedule-page__toolbar-group' : 'schedule-page__toolbar-group schedule-page__toolbar-end'}>
-          <ScheduleCompactStatus google={props.google} sources={props.sources} sourceStatus={props.sourceStatus} onOpenIntegrations={props.onOpenIntegrations} />
-          {props.loading ? <span className="schedule-page__status" role="status">불러오는 중…</span> : null}
-          {props.error ? <span className="schedule-page__error" role="alert">{props.error}</span> : null}
-          {props.refreshMessage ? (
-            <span
-              className={props.refreshMessage.kind === 'error' ? 'schedule-page__refresh-message schedule-page__refresh-message--error' : 'schedule-page__refresh-message'}
-              role={props.refreshMessage.kind === 'error' ? 'alert' : 'status'}
-            >
-              {props.refreshMessage.text}
-            </span>
-          ) : null}
-          <span className="schedule-page__refreshed" aria-live="polite">
-            {props.lastRefreshedAt ? `마지막 갱신 ${formatScheduleRefreshedAt(props.lastRefreshedAt)}` : '마지막 갱신 -'}
-          </span>
-          <Button type="button" variant="secondary" size="sm" loading={props.refreshing} loadingText="새로고침 중…" onClick={props.onRefresh}>
-            일정 새로고침
-          </Button>
-        </div>
+        {props.primaryAction ? <div className="schedule-page__toolbar-group">{props.primaryAction}</div> : null}
       </div>
       <div className="schedule-page__toolbar-row">
         <div className="schedule-page__toolbar-group" role="group" aria-label="일정 출처">
@@ -226,12 +207,32 @@ function ScheduleCompactChrome(props: ScheduleViewProps & { toolbarExtra?: React
             })}
           </div>
         ) : null}
+        <div className="schedule-page__toolbar-group schedule-page__toolbar-end">
+          <ScheduleCompactStatus google={props.google} sources={props.sources} sourceStatus={props.sourceStatus} onOpenIntegrations={props.onOpenIntegrations} />
+          {props.loading ? <span className="schedule-page__status" role="status">불러오는 중…</span> : null}
+          {props.error ? <span className="schedule-page__error" role="alert">{props.error}</span> : null}
+          {props.refreshMessage ? (
+            <span
+              className={props.refreshMessage.kind === 'error' ? 'schedule-page__refresh-message schedule-page__refresh-message--error' : 'schedule-page__refresh-message'}
+              role={props.refreshMessage.kind === 'error' ? 'alert' : 'status'}
+            >
+              {props.refreshMessage.text}
+            </span>
+          ) : null}
+          {props.toolbarExtra}
+          <span className="schedule-page__refreshed" aria-live="polite">
+            {props.lastRefreshedAt ? `마지막 갱신 ${formatScheduleRefreshedAt(props.lastRefreshedAt)}` : '마지막 갱신 -'}
+          </span>
+          <Button type="button" variant="secondary" size="sm" loading={props.refreshing} loadingText="새로고침 중…" onClick={props.onRefresh}>
+            일정 새로고침
+          </Button>
+        </div>
       </div>
     </div>
   )
 }
 
-export default function ScheduleChrome(props: ScheduleViewProps & { compact?: boolean; toolbarExtra?: ReactNode }) {
+export default function ScheduleChrome(props: ScheduleViewProps & { compact?: boolean; toolbarExtra?: ReactNode; primaryAction?: ReactNode }) {
   if (props.compact) {
     return <ScheduleCompactChrome {...props} />
   }
@@ -260,6 +261,7 @@ export default function ScheduleChrome(props: ScheduleViewProps & { compact?: bo
         <Button type="button" variant="secondary" size="sm" loading={props.refreshing} loadingText="새로고침 중…" onClick={props.onRefresh}>
           일정 새로고침
         </Button>
+        {props.primaryAction}
         {props.toolbarExtra}
         {props.refreshMessage ? (
           <span

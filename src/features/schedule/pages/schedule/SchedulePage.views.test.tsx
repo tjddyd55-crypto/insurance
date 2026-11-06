@@ -192,7 +192,24 @@ describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
   it('월간: 기간 제목, 출처 badge, +N, 필터 칩(전체/Google 일정/Google 할 일/ONE FC 할 일/알림일/자동차 만기/상령일)', () => {
     for (const mobile of [false, true]) {
       const html = render(props({ tasks: [] }), mobile)
-      expect(html).toContain('일정 관리')
+      if (mobile) {
+        expect(html).toContain('일정 관리')
+      } else {
+        expect(html).not.toContain('일정 관리')
+        expect(html).not.toContain('공휴일 표시')
+        expect(html).not.toContain('표시 안 함')
+        expect(html).not.toContain('일·공휴일')
+        expect(html.split('2026년 10월').length - 1).toBe(1)
+        const titleAt = html.indexOf('schedule-page__toolbar-title')
+        const prevAt = html.indexOf('>이전<')
+        const viewsAt = html.indexOf('aria-label="일정 보기"')
+        const addAt = html.indexOf('새 항목 추가')
+        expect(titleAt).toBeGreaterThan(-1)
+        expect(prevAt).toBeGreaterThan(titleAt)
+        expect(viewsAt).toBeGreaterThan(prevAt)
+        expect(addAt).toBeGreaterThan(viewsAt)
+        expect(html).toContain('개천절')
+      }
       expect(html).toContain('2026년 10월')
       expect(html).toContain('이전')
       expect(html).toContain('오늘')
@@ -565,9 +582,12 @@ describe('일정 관리 PC 압축 상단', () => {
     expect(off).toContain('Google 미연동')
     expect(off).not.toContain('Google을 연결하면')
     expect(off).not.toContain('schedule-page__google-hint')
-    for (const label of ['이전', '오늘', '다음', '월간', '주간', '일간', '목록', '일정 새로고침', '마지막 갱신', '전체', 'Google 일정', 'Google 할 일', 'ONE FC 할 일', '알림일', '자동차 만기', '상령일', '완료 포함', '공휴일 표시']) {
+    for (const label of ['이전', '오늘', '다음', '월간', '주간', '일간', '목록', '일정 새로고침', '마지막 갱신', '전체', 'Google 일정', 'Google 할 일', 'ONE FC 할 일', '알림일', '자동차 만기', '상령일', '완료 포함']) {
       expect(off).toContain(label)
     }
+    expect(off).not.toContain('공휴일 표시')
+    expect(off).not.toContain('표시 안 함')
+    expect(off).toContain('개천절')
     expect(off).toContain('schedule-page__chip--customer_alert')
     const pending = render(props({ google: { configured: true, connected: false, status: 'disconnected', connectAllowed: false, calendars: [] } }))
     expect(pending).toContain('Google 준비 중')
