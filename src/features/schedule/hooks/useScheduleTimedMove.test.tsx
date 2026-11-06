@@ -143,4 +143,28 @@ describe('주간 시간 블록 저장', () => {
     }))
     expect(api.updateOnefcSchedule).not.toHaveBeenCalled()
   })
+
+  it('재조회·모달·동기화로 목록이 바뀌면 드래그 시각은 다시 덮지 않는다', async () => {
+    const event = timed('onefc')
+    const onReload = vi.fn()
+    api.updateOnefcSchedule.mockResolvedValue({ event })
+    await mount(event, onReload)
+    const range = moveTimedRange(readTimedRange(event)!, 0, 60)
+    await act(async () => { await latest.commit(event, range) })
+    expect(latest.events[0]?.startAt).toBe('2026-11-06T15:00:00+09:00')
+
+    const edited = { ...event, startAt: '2026-11-06T18:00:00+09:00', endAt: '2026-11-06T19:00:00+09:00' }
+    await act(async () => {
+      root.render(<Probe events={[edited]} onReload={onReload} />)
+    })
+    expect(latest.events[0]?.startAt).toBe('2026-11-06T18:00:00+09:00')
+    expect(latest.events[0]?.endAt).toBe('2026-11-06T19:00:00+09:00')
+
+    const reverted = { ...event, startAt: event.startAt, endAt: event.endAt }
+    await act(async () => {
+      root.render(<Probe events={[reverted]} onReload={onReload} />)
+    })
+    expect(latest.events[0]?.startAt).toBe(event.startAt)
+    expect(latest.events[0]?.endAt).toBe(event.endAt)
+  })
 })
