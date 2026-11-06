@@ -3,7 +3,6 @@ import type { ReactNode } from 'react'
 import { FormButton, FormInput } from '../../../components/form'
 import { FormDialog } from '../../../components/dialog'
 import { Button } from '../../../components/ui'
-import { formatKstTime } from '../../../utils/displayDateTime'
 import { formatDateWithKoreanWeekday } from '../../../utils/formatDateWithKoreanWeekday'
 import { SCHEDULE_FILTER_LABEL, scheduleFilterKeyOf, type ScheduleEvent, type ScheduleTask } from '../api/scheduleApi'
 import type { ScheduleViewProps } from '../hooks/useScheduleState'
@@ -14,10 +13,10 @@ import {
   eventClock,
   eventCoversDate,
   eventEndDay,
-  eventHour,
   eventStartDay,
   sortScheduleEvents,
 } from '../domain/scheduleEventTime'
+import { ScheduleWeekTimeGrid } from './ScheduleWeekTimeGrid'
 import { countScheduleItemsByDate, dayCountLabel } from '../domain/scheduleDayCount'
 
 const WEEKDAY_SUN_FIRST = ['일', '월', '화', '수', '목', '금', '토']
@@ -26,7 +25,6 @@ function weekdayLabel(ymd: string): string {
   const [y, m, d] = ymd.split('-').map(Number)
   return WEEKDAY_SUN_FIRST[new Date(Date.UTC(y, m - 1, d)).getUTCDay()] ?? ''
 }
-const HOURS = Array.from({ length: 24 }, (_, index) => index)
 const MONTH_CELL_LIMIT = 3
 
 export function ScheduleSourceBadge({ event }: { event: ScheduleEvent }) {
@@ -269,20 +267,12 @@ export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpen
           ))}
         </div>
         <div className="schedule-page__hours">
-          {HOURS.map((hour) => (
-            <div key={hour} className="schedule-page__hour-row">
-              <span className="schedule-page__axis">{String(hour).padStart(2, '0')}:00</span>
-              {days.map((date) => (
-                <div key={date} className="schedule-page__slot">
-                  {sorted.filter((event) => !event.allDay && eventStartDay(event) === date && eventHour(event) === hour).map((event) => (
-                    <button key={event.id} type="button" className={eventButtonClass('schedule-page__block', event)} onClick={() => onOpenEvent(event)}>
-                      <span className="schedule-page__block-time">{formatKstTime(event.startAt)}</span> {event.title}
-                    </button>
-                  ))}
-                </div>
-              ))}
-            </div>
-          ))}
+          <ScheduleWeekTimeGrid
+            days={days}
+            events={sorted}
+            onOpenEvent={onOpenEvent}
+            eventClassName={(event) => eventButtonClass('schedule-page__block', event)}
+          />
         </div>
       </div>
     </div>

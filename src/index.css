@@ -9750,12 +9750,36 @@ div.cta-button.customers-page__action-btn[role='button']{
 .form-input:not([type='radio']):not([type='checkbox']):disabled,
 .form-select:disabled,
 .form-textarea:disabled,
-.form-input:not([type='radio']):not([type='checkbox']):read-only,
-.form-textarea:read-only{
+.form-input:not([type='radio']):not([type='checkbox'])[readonly],
+.form-textarea[readonly]{
   background-color: var(--disabled-bg, color-mix(in srgb, var(--bg-card) 86%, var(--bg-base)));
   color: var(--disabled-text, var(--text-muted));
   border-color: var(--border-subtle, var(--border-default));
   cursor: not-allowed;
+}
+
+/*
+ * :read-only 는 브라우저에 따라 활성 date/time 에도 맞는다.
+ * 그때 not-allowed 가 입력·달력/시계 아이콘·피커 영역까지 따라간다.
+ * 실제로 막힌 경우([readonly], :disabled)만 not-allowed 로 둔다.
+ */
+.form-input[type='date']:not(:disabled):not([readonly]),
+.form-input[type='time']:not(:disabled):not([readonly]),
+.form-input[type='datetime-local']:not(:disabled):not([readonly]),
+.form-input[type='month']:not(:disabled):not([readonly]),
+.form-input[type='week']:not(:disabled):not([readonly]){
+  cursor: pointer;
+}
+
+.form-input[type='date']:not(:disabled):not([readonly])::-webkit-calendar-picker-indicator,
+.form-input[type='time']:not(:disabled):not([readonly])::-webkit-calendar-picker-indicator,
+.form-input[type='datetime-local']:not(:disabled):not([readonly])::-webkit-calendar-picker-indicator,
+.form-input[type='month']:not(:disabled):not([readonly])::-webkit-calendar-picker-indicator,
+.form-input[type='week']:not(:disabled):not([readonly])::-webkit-calendar-picker-indicator,
+.form-input[type='date']:not(:disabled):not([readonly])::-webkit-datetime-edit,
+.form-input[type='time']:not(:disabled):not([readonly])::-webkit-datetime-edit,
+.form-input[type='datetime-local']:not(:disabled):not([readonly])::-webkit-datetime-edit{
+  cursor: pointer;
 }
 
 /* radio / checkbox — 텍스트 입력 SSOT 와 분리된 compact 선택 컨트롤 */

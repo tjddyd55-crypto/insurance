@@ -270,14 +270,18 @@
 }
 
 .schedule-page__week-grid {
+  --schedule-week-columns: 56px repeat(7, minmax(0, 1fr));
+  /* 1시간 = 60px. 이전 시간 줄 min-height 40px 의 1.5배. 칸 수는 scheduleWeekTimedLayout 의 48과 같다. */
+  --schedule-week-slot: 30px;
+  --schedule-week-slots: 48;
   min-width: 720px;
 }
 
 .schedule-page__week-head,
 .schedule-page__all-day,
-.schedule-page__hour-row {
+.schedule-page__time-grid {
   display: grid;
-  grid-template-columns: 56px repeat(7, minmax(88px, 1fr));
+  grid-template-columns: var(--schedule-week-columns);
 }
 
 .schedule-page__week-head {
@@ -294,8 +298,7 @@
   color: var(--primary);
 }
 
-.schedule-page__all-day,
-.schedule-page__hour-row {
+.schedule-page__all-day {
   min-height: 40px;
   border-bottom: 1px solid var(--border);
 }
@@ -315,6 +318,68 @@
 .schedule-page__hours {
   max-height: 640px;
   overflow-y: auto;
+}
+
+.schedule-page__time-grid {
+  grid-template-rows: repeat(var(--schedule-week-slots), var(--schedule-week-slot));
+}
+
+.schedule-page__time-grid > .schedule-page__axis {
+  grid-column: 1;
+  align-self: start;
+  line-height: 1;
+  padding-top: 2px;
+}
+
+.schedule-page__day-col {
+  grid-row: 1 / -1;
+  display: grid;
+  grid-template-rows: repeat(var(--schedule-week-slots), var(--schedule-week-slot));
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  min-width: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--border);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--schedule-week-slot) - 1px),
+    color-mix(in srgb, var(--border) 45%, transparent) calc(var(--schedule-week-slot) - 1px),
+    color-mix(in srgb, var(--border) 45%, transparent) var(--schedule-week-slot),
+    transparent var(--schedule-week-slot),
+    transparent calc(var(--schedule-week-slot) * 2 - 1px),
+    var(--border) calc(var(--schedule-week-slot) * 2 - 1px),
+    var(--border) calc(var(--schedule-week-slot) * 2)
+  );
+}
+
+.schedule-page__hours .schedule-page__block--timed {
+  align-self: stretch;
+  justify-self: start;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: calc(100% / var(--timed-lanes, 1) - 2px);
+  max-width: calc(100% / var(--timed-lanes, 1) - 2px);
+  height: auto;
+  min-height: 22px;
+  margin: 0 0 0 calc(100% * var(--timed-lane, 0) / var(--timed-lanes, 1) + 1px);
+  padding: 2px 4px;
+  overflow: hidden;
+  white-space: normal;
+  line-height: 1.25;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.schedule-page__block--timed .schedule-page__block-time,
+.schedule-page__block--timed .schedule-page__block-title {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .schedule-page__block {
@@ -773,7 +838,7 @@
   }
 }
 
-/* 주간 보기: 종일·할 일 줄을 넉넉하게(하루 2~4개가 읽히도록). 시간 줄은 기존 높이·내부 스크롤 유지. */
+/* 주간 보기: 종일·할 일 줄은 넉넉하게(하루 2~4개가 읽히도록). 시간 축은 칸 안에서만 세로 스크롤한다. */
 .schedule-page__week .schedule-page__all-day {
   min-height: 92px;
 }
@@ -811,12 +876,8 @@
 }
 /* 좁아진 일정표: 요일 칸 최소 폭을 줄여 가로 스크롤을 늦춘다 */
 .schedule-page__week-split .schedule-page__week-grid {
+  --schedule-week-columns: 48px repeat(7, minmax(0, 1fr));
   min-width: 560px;
-}
-.schedule-page__week-split .schedule-page__week-head,
-.schedule-page__week-split .schedule-page__all-day,
-.schedule-page__week-split .schedule-page__hour-row {
-  grid-template-columns: 48px repeat(7, minmax(68px, 1fr));
 }
 .schedule-page__week-split .schedule-page__all-day .schedule-page__block {
   font-size: 0.75rem;
