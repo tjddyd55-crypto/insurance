@@ -229,6 +229,13 @@ describe('일정 관리 화면 (PC·모바일 웹 공통)', () => {
     expect(heads).toEqual(['월 28', '화 29', '수 30', '목 1', '금 2', '토 3', '일 4'])
     expect(html).toContain('종일')
     expect(html).toMatch(/09:00<\/span>.*schedule-page__block--google/s)
+    expect(html).toContain('09:00 - 10:00')
+    expect(html).toContain('schedule-page__block--timed')
+    expect(html).toContain('data-row-start="19"')
+    expect(html).toContain('data-row-end="21"')
+    const hours = html.slice(html.indexOf('schedule-page__hours'))
+    expect(hours).toContain('본사 미팅')
+    expect(hours).not.toContain('워크숍')
     expect(html).toContain('워크숍')
   })
 
