@@ -17,6 +17,7 @@ import {
   sortScheduleEvents,
 } from '../domain/scheduleEventTime'
 import { ScheduleWeekTimeGrid } from './ScheduleWeekTimeGrid'
+import type { TimedRange } from '../domain/scheduleWeekDrag'
 import { countScheduleItemsByDate, dayCountLabel } from '../domain/scheduleDayCount'
 
 const WEEKDAY_SUN_FIRST = ['일', '월', '화', '수', '목', '금', '토']
@@ -227,7 +228,7 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
  * 주간 보기. PC 는 weeklyPanel(공용 WeeklyTodosPanel)을 왼쪽 약 30%, 월~일 일정표를 오른쪽 약 70%로 둔다.
  * 위쪽 가로 주간 할 일 영역은 두지 않는다.
  */
-export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpenTask, holidayMode, pcCell = false, weeklyPanel }: Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'onOpenEvent' | 'onOpenTask'> & { holidayMode?: ScheduleHolidayMode; pcCell?: boolean; weeklyPanel?: ReactNode }) {
+export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpenTask, holidayMode, pcCell = false, weeklyPanel, dragEnabled = false, onCommitTimedRange }: Pick<ScheduleViewProps, 'anchor' | 'today' | 'events' | 'tasks' | 'onOpenEvent' | 'onOpenTask'> & { holidayMode?: ScheduleHolidayMode; pcCell?: boolean; weeklyPanel?: ReactNode; dragEnabled?: boolean; onCommitTimedRange?: (event: ScheduleEvent, range: TimedRange) => void }) {
   const days = weekDays(anchor)
   const sorted = sortScheduleEvents(events)
   const sortedTasks = sortScheduleTasks(tasks)
@@ -272,6 +273,8 @@ export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpen
             events={sorted}
             onOpenEvent={onOpenEvent}
             eventClassName={(event) => eventButtonClass('schedule-page__block', event)}
+            dragEnabled={dragEnabled}
+            onCommitRange={onCommitTimedRange}
           />
         </div>
       </div>
