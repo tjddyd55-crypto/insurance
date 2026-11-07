@@ -7,7 +7,6 @@ import CustomerConsultationsPageMobile from '../../pages/detail/CustomerConsulta
 import type { CustomerConsultationRow } from '../../api/customerExtraApi'
 import { TodoEditorDialog, type TodoCreatePrefill } from '../../../todos/components/TodoEditorDialog'
 import { firstLineTodoTitle } from '../../../todos/utils/todoCopy'
-import { suggestDueDateFromText } from '../../../todos/utils/suggestDueDateFromText'
 
 type CustomerConsultationsModalProps = {
   customerId: number
@@ -49,7 +48,6 @@ export default function CustomerConsultationsModal({
         sourceId: String(consultId),
         title: firstLineTodoTitle(bodyText),
         description: bodyText,
-        dueDate: suggestDueDateFromText(bodyText),
         relatedEntityType: 'customer',
         relatedEntityId: String(customerId),
         lockRelated: true,
