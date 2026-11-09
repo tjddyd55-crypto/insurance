@@ -35,7 +35,7 @@
   outline: 2px solid var(--input-focus-border);
   outline-offset: 4px;
 }
-:is(.customers-page--pc, .customers-page--mobile) .customer-filter-detail__body {
+:is(.customers-page--pc, .customers-page--mobile) .customer-filter-advanced__body {
   padding-top: 12px;
 }
 :is(.customers-page--pc, .customers-page--mobile)
@@ -76,17 +76,19 @@
   height: 16px;
   margin-top: 3px;
 }
-:is(.customers-page--pc, .customers-page--mobile) .customer-filter-panel .customers-sort-row {
-  margin: 12px 0 0;
-  align-items: flex-start;
-  flex-direction: column;
-  gap: 8px;
-}
 :is(.customers-page--pc, .customers-page--mobile)
-  .customer-filter-panel
-  > .customer-filter-panel-actions {
+  .customer-filter-main
+  .customer-filter-apply-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 0;
+  margin: 14px 0 0;
+}
+:is(.customers-page--pc, .customers-page--mobile) .customer-filter-main .customer-quick-filter-bar {
+  margin: 0 0 14px;
+}
+:is(.customers-page--pc, .customers-page--mobile) .customer-filter-advanced {
+  min-width: 0;
+  padding: 14px;
+  border-top: 1px solid var(--border);
 }
