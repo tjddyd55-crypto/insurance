@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react'
+import { scheduleItemCssVariables, SCHEDULE_COMPLETED_OPACITY } from '../../scheduleItemColors'
 import { useLayoutEffect, useRef } from 'react'
 import type { ScheduleViewProps } from '../../hooks/useScheduleState'
 import ScheduleBody from './ScheduleBody'
@@ -20,7 +22,7 @@ export default function SchedulePCView(props: ScheduleViewProps) {
     return () => window.removeEventListener('resize', update)
   }, [])
   return (
-    <main ref={ref} className="page schedule-page schedule-page--pc schedule-page--compact page--with-back">
+    <main ref={ref} style={{ ...scheduleItemCssVariables({ source: 'onefc_todo' }), '--schedule-completed-opacity': String(SCHEDULE_COMPLETED_OPACITY) } as CSSProperties} className="page schedule-page schedule-page--pc schedule-page--compact page--with-back">
       <ScheduleBody {...props} calendarDecor compact />
     </main>
   )
