@@ -2,17 +2,16 @@ import type { Dispatch, RefObject, SetStateAction } from 'react'
 import { FormButton, FormInput, FormSelect } from '../../../components/form'
 import './customer-filter-controls.css'
 import AppDateInput from '../../../components/common/AppDateInput'
-import {
-  CUSTOMER_INFLOW_SOURCE_FILTER_OPTIONS,
-  CUSTOMER_LIST_SORT_OPTIONS,
-  type CustomerListSortValue,
-} from '../config/customerInflowSource.config'
+import { CUSTOMER_INFLOW_SOURCE_FILTER_OPTIONS } from '../config/customerInflowSource.config'
 import {
   CUSTOMER_CONSULTATION_FILTER_OPTIONS,
   type CustomerConsultationFilterValue,
 } from '../config/customerConsultationFilter.config'
 
-import type { CustomerSortType } from '../types/customerListSort'
+import {
+  CUSTOMER_FILTER_SORT_OPTIONS,
+  type CustomerFilterSortValue,
+} from '../utils/customerFilterState'
 import type { CustomerAdvancedFilters } from '../utils/customerListFilters'
 
 export type CustomerConsultationFilter = CustomerConsultationFilterValue
@@ -33,9 +32,8 @@ type FilterPanelProps = {
   variant: 'filterPanel'
   deepSearch: boolean
   setDeepSearch: Dispatch<SetStateAction<boolean>>
+  activeAdvancedSearchCount: number
   advSearchLoading: boolean
-  sortType: CustomerSortType
-  setSortType: Dispatch<SetStateAction<CustomerSortType>>
   advancedFilters: CustomerAdvancedFilters
   setAdvancedFilters: Dispatch<SetStateAction<CustomerAdvancedFilters>>
   advancedFiltersActive: boolean
@@ -48,14 +46,10 @@ type FilterPanelProps = {
   setConsultationCutoffDate: Dispatch<SetStateAction<string>>
   consultationKeyword: string
   setConsultationKeyword: Dispatch<SetStateAction<string>>
-  consultationFrom: string
-  setConsultationFrom: Dispatch<SetStateAction<string>>
-  consultationTo: string
-  setConsultationTo: Dispatch<SetStateAction<string>>
   inflowSource: string
   setInflowSource: Dispatch<SetStateAction<string>>
-  listSort: CustomerListSortValue
-  setListSort: Dispatch<SetStateAction<CustomerListSortValue>>
+  listSort: CustomerFilterSortValue
+  setListSort: Dispatch<SetStateAction<CustomerFilterSortValue>>
   onApplyConsultationFilter: () => void
   consultationFilterMessage: string
 }
@@ -119,9 +113,8 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
   const {
     deepSearch,
     setDeepSearch,
+    activeAdvancedSearchCount,
     advSearchLoading,
-    sortType,
-    setSortType,
     advancedFilters,
     setAdvancedFilters,
     advancedFiltersActive,
@@ -134,10 +127,6 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
     setConsultationCutoffDate,
     consultationKeyword,
     setConsultationKeyword,
-    consultationFrom,
-    setConsultationFrom,
-    consultationTo,
-    setConsultationTo,
     inflowSource,
     setInflowSource,
     listSort,
@@ -148,13 +137,9 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
 
   return (
     <div className="customer-filter-panel">
-      <div
-        className="customers-advanced-filters customers-advanced-filters--consultation customers-advanced-filters--consultation-primary"
-        role="search"
-        aria-label="상담·유입 필터"
-      >
-        <h3 className="customer-filter-section-title">기본 필터</h3>
-        <div className="customers-advanced-filters__grid customers-advanced-filters__grid--consultation-primary">
+      <section className="customers-advanced-filters customer-filter-main" aria-label="고객 필터">
+        <h3 className="customer-filter-section-title">필터</h3>
+        <div className="customers-advanced-filters__grid">
           <label className="customers-advanced-filters__field">
             <span>유입 경로</span>
             <FormSelect
@@ -174,7 +159,7 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
             />
           </label>
           {consultationFilter === 'no_since' ? (
-            <label className="customers-advanced-filters__field">
+            <label className="customers-advanced-filters__field customers-advanced-filters__field--wide">
               <span>기준 날짜</span>
               <AppDateInput
                 value={consultationCutoffDate}
@@ -183,237 +168,170 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
               />
             </label>
           ) : null}
-        </div>
-      </div>
-
-      <div
-        className="customers-advanced-filters customers-advanced-filters--consultation-keyword"
-        role="search"
-        aria-label="상담 내용 고급 검색"
-      >
-        <h3 className="customer-filter-section-title">고급 검색</h3>
-        <label className="customers-advanced-filters__field customers-advanced-filters__field--wide">
-          <span>상담 내용 검색</span>
-          <FormInput
-            type="search"
-            value={consultationKeyword}
-            onChange={(e) => setConsultationKeyword(e.target.value)}
-            placeholder="키워드 (예: 부재, 다음주)"
-            aria-label="상담 내용 키워드"
-          />
-        </label>
-
-        <div className="customer-filter-controls__stack">
-          <label className="customer-filter-controls__deep-row">
+          <label className="customers-advanced-filters__field">
+            <span>보험나이 최소</span>
             <FormInput
-              type="checkbox"
-              checked={deepSearch}
-              onChange={(e) => setDeepSearch(e.target.checked)}
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={advancedFilters.minInsuranceAge}
+              onChange={(e) =>
+                setAdvancedFilters((f) => ({
+                  ...f,
+                  minInsuranceAge: e.target.value,
+                }))
+              }
             />
-            상담·연계 포함 검색 (서버 심층 검색)
+          </label>
+          <label className="customers-advanced-filters__field">
+            <span>보험나이 최대</span>
+            <FormInput
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={advancedFilters.maxInsuranceAge}
+              onChange={(e) =>
+                setAdvancedFilters((f) => ({
+                  ...f,
+                  maxInsuranceAge: e.target.value,
+                }))
+              }
+            />
+          </label>
+          <label className="customers-advanced-filters__field">
+            <span>성별</span>
+            <FormSelect
+              aria-label="성별"
+              value={advancedFilters.gender}
+              onChange={(e) =>
+                setAdvancedFilters((f) => ({
+                  ...f,
+                  gender: e.target.value as CustomerAdvancedFilters['gender'],
+                }))
+              }
+              options={[
+                { value: '', label: '전체' },
+                { value: 'male', label: '남' },
+                { value: 'female', label: '여' },
+              ]}
+            />
           </label>
         </div>
-        {advSearchLoading ? (
+        <div className="customers-advanced-filters__quick filter-group customer-quick-filter-bar customer-filter-panel-actions">
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            size="sm"
+            className={`customer-filter-chip${advancedFilters.minInsuranceAge === '' && advancedFilters.maxInsuranceAge === '30' && advancedFilters.gender === 'male' ? ' customer-filter-chip--active' : ''}`}
+            aria-pressed={
+              advancedFilters.minInsuranceAge === '' &&
+              advancedFilters.maxInsuranceAge === '30' &&
+              advancedFilters.gender === 'male'
+            }
+            onClick={() => applyQuickFilter('AGE_UNDER_30_MALE')}
+          >
+            30세 이하 남성
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            size="sm"
+            className={`customer-filter-chip${advancedFilters.minInsuranceAge === '40' && advancedFilters.maxInsuranceAge === '' && advancedFilters.gender === 'female' ? ' customer-filter-chip--active' : ''}`}
+            aria-pressed={
+              advancedFilters.minInsuranceAge === '40' &&
+              advancedFilters.maxInsuranceAge === '' &&
+              advancedFilters.gender === 'female'
+            }
+            onClick={() => applyQuickFilter('AGE_OVER_40_FEMALE')}
+          >
+            40세 이상 여성
+          </FormButton>
+          {advancedFiltersActive ? (
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              size="sm"
+              className="customer-filter-chip"
+              onClick={resetAdvancedFilters}
+            >
+              나이·성별 초기화
+            </FormButton>
+          ) : null}
+        </div>
+        <label className="customers-advanced-filters__field">
+          <span>정렬</span>
+          <FormSelect
+            aria-label="목록 정렬"
+            value={listSort}
+            onChange={(e) => setListSort(e.target.value as CustomerFilterSortValue)}
+            options={CUSTOMER_FILTER_SORT_OPTIONS}
+          />
+        </label>
+        <div className="customers-advanced-filters__quick filter-group customer-filter-panel-actions customer-filter-apply-actions">
+          <FormButton
+            htmlType="button"
+            variant="primary"
+            size="sm"
+            className="customer-filter-chip"
+            onClick={onApplyConsultationFilter}
+          >
+            필터 적용
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            size="sm"
+            className="customer-filter-chip"
+            onClick={resetAllFilters}
+          >
+            필터 초기화
+          </FormButton>
+        </div>
+        {consultationFilterMessage ? (
           <p
             className="customer-filter-controls__loading text-[var(--text-secondary)]"
             role="status"
           >
-            심층 검색 중…
+            {consultationFilterMessage}
           </p>
         ) : null}
-      </div>
+      </section>
+      <details className="customer-filter-advanced">
+        <summary className="customer-filter-section-title">
+          고급 검색{activeAdvancedSearchCount > 0 ? ` (${activeAdvancedSearchCount})` : ''}
+        </summary>
+        <div className="customer-filter-advanced__body">
+          <label className="customers-advanced-filters__field customers-advanced-filters__field--wide">
+            <span>상담 내용 검색</span>
+            <FormInput
+              type="search"
+              value={consultationKeyword}
+              onChange={(e) => setConsultationKeyword(e.target.value)}
+              placeholder="키워드 (예: 부재, 다음주)"
+              aria-label="상담 내용 키워드"
+            />
+          </label>
 
-      <details className="customers-advanced-filters customer-filter-detail">
-        <summary className="customer-filter-section-title">상세 조건</summary>
-        <div className="customer-filter-detail__body">
-          <div className="customers-advanced-filters__grid">
-            <label className="customers-advanced-filters__field">
-              <span>상담일 시작</span>
-              <AppDateInput
-                value={consultationFrom}
-                onChange={setConsultationFrom}
-                aria-label="상담일 시작"
-              />
-            </label>
-            <label className="customers-advanced-filters__field">
-              <span>상담일 종료</span>
-              <AppDateInput
-                value={consultationTo}
-                onChange={setConsultationTo}
-                aria-label="상담일 종료"
-              />
-            </label>
-
-            <label className="customers-advanced-filters__field">
-              <span>보험나이 최소</span>
+          <div className="customer-filter-controls__stack">
+            <label className="customer-filter-controls__deep-row">
               <FormInput
-                type="number"
-                min={0}
-                inputMode="numeric"
-                value={advancedFilters.minInsuranceAge}
-                onChange={(e) =>
-                  setAdvancedFilters((f) => ({
-                    ...f,
-                    minInsuranceAge: e.target.value,
-                  }))
-                }
+                type="checkbox"
+                checked={deepSearch}
+                onChange={(e) => setDeepSearch(e.target.checked)}
               />
-            </label>
-            <label className="customers-advanced-filters__field">
-              <span>보험나이 최대</span>
-              <FormInput
-                type="number"
-                min={0}
-                inputMode="numeric"
-                value={advancedFilters.maxInsuranceAge}
-                onChange={(e) =>
-                  setAdvancedFilters((f) => ({
-                    ...f,
-                    maxInsuranceAge: e.target.value,
-                  }))
-                }
-              />
-            </label>
-            <label className="customers-advanced-filters__field">
-              <span>성별</span>
-              <FormSelect
-                aria-label="성별"
-                value={advancedFilters.gender}
-                onChange={(e) =>
-                  setAdvancedFilters((f) => ({
-                    ...f,
-                    gender: e.target.value as CustomerAdvancedFilters['gender'],
-                  }))
-                }
-                options={[
-                  { value: '', label: '전체' },
-                  { value: 'male', label: '남' },
-                  { value: 'female', label: '여' },
-                ]}
-              />
+              상담·연계 포함 검색 (서버 심층 검색)
             </label>
           </div>
-          <div className="customers-advanced-filters__quick filter-group customer-quick-filter-bar customer-filter-panel-actions">
-            <FormButton
-              htmlType="button"
-              variant="secondary"
-              size="sm"
-              className={`customer-filter-chip${advancedFilters.minInsuranceAge === '' && advancedFilters.maxInsuranceAge === '30' && advancedFilters.gender === 'male' ? ' customer-filter-chip--active' : ''}`}
-              aria-pressed={
-                advancedFilters.minInsuranceAge === '' &&
-                advancedFilters.maxInsuranceAge === '30' &&
-                advancedFilters.gender === 'male'
-              }
-              onClick={() => applyQuickFilter('AGE_UNDER_30_MALE')}
+          {advSearchLoading ? (
+            <p
+              className="customer-filter-controls__loading text-[var(--text-secondary)]"
+              role="status"
             >
-              30세 이하 남성
-            </FormButton>
-            <FormButton
-              htmlType="button"
-              variant="secondary"
-              size="sm"
-              className={`customer-filter-chip${advancedFilters.minInsuranceAge === '40' && advancedFilters.maxInsuranceAge === '' && advancedFilters.gender === 'female' ? ' customer-filter-chip--active' : ''}`}
-              aria-pressed={
-                advancedFilters.minInsuranceAge === '40' &&
-                advancedFilters.maxInsuranceAge === '' &&
-                advancedFilters.gender === 'female'
-              }
-              onClick={() => applyQuickFilter('AGE_OVER_40_FEMALE')}
-            >
-              40세 이상 여성
-            </FormButton>
-            {advancedFiltersActive ? (
-              <FormButton
-                htmlType="button"
-                variant="secondary"
-                size="sm"
-                className="customer-filter-chip"
-                onClick={resetAdvancedFilters}
-              >
-                나이·성별 초기화
-              </FormButton>
-            ) : null}
-          </div>
+              심층 검색 중…
+            </p>
+          ) : null}
         </div>
       </details>
-
-      <section className="customers-advanced-filters customer-filter-sort">
-        <h3 className="customer-filter-section-title">정렬</h3>
-        <label className="customers-advanced-filters__field">
-          <span>목록 정렬</span>
-          <FormSelect
-            aria-label="목록 정렬"
-            value={listSort}
-            onChange={(e) => setListSort(e.target.value as CustomerListSortValue)}
-            options={CUSTOMER_LIST_SORT_OPTIONS}
-          />
-        </label>
-        <div
-          className="customers-sort-row customer-sort-bar"
-          role="group"
-          aria-label="목록 정렬 (같은 버튼을 다시 누르면 해제되어 이름 가나다순)"
-        >
-          <span className="customers-sort-row__label">빠른 정렬</span>
-          <div className="customers-sort-row__buttons filter-group">
-            <FormButton
-              htmlType="button"
-              variant="secondary"
-              size="sm"
-              className={`customer-filter-chip${sortType === 'age' ? ' customer-filter-chip--active' : ''}`}
-              aria-pressed={sortType === 'age'}
-              onClick={() => setSortType((t) => (t === 'age' ? null : 'age'))}
-            >
-              상령일 빠른순
-            </FormButton>
-            <FormButton
-              htmlType="button"
-              variant="secondary"
-              size="sm"
-              className={`customer-filter-chip${sortType === 'car' ? ' customer-filter-chip--active' : ''}`}
-              aria-pressed={sortType === 'car'}
-              onClick={() => setSortType((t) => (t === 'car' ? null : 'car'))}
-            >
-              자동차 만기순
-            </FormButton>
-            <FormButton
-              htmlType="button"
-              variant="secondary"
-              size="sm"
-              className={`customer-filter-chip${sortType === 'recent' ? ' customer-filter-chip--active' : ''}`}
-              aria-pressed={sortType === 'recent'}
-              onClick={() => setSortType((t) => (t === 'recent' ? null : 'recent'))}
-            >
-              최근등록
-            </FormButton>
-          </div>
-        </div>
-      </section>
-
-      <div className="customers-advanced-filters__quick filter-group customer-filter-panel-actions">
-        <FormButton
-          htmlType="button"
-          variant="primary"
-          size="sm"
-          className="customer-filter-chip"
-          onClick={onApplyConsultationFilter}
-        >
-          필터 적용
-        </FormButton>
-        <FormButton
-          htmlType="button"
-          variant="secondary"
-          size="sm"
-          className="customer-filter-chip"
-          onClick={resetAllFilters}
-        >
-          필터 초기화
-        </FormButton>
-      </div>
-      {consultationFilterMessage ? (
-        <p className="customer-filter-controls__loading text-[var(--text-secondary)]" role="status">
-          {consultationFilterMessage}
-        </p>
-      ) : null}
     </div>
   )
 }
