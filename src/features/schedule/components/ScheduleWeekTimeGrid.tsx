@@ -6,6 +6,8 @@ import { canDragTimedEvent, canResizeTimedEvent, eventWithTimedRange, type Timed
 import { timedEventRangeLabel, WEEK_SLOTS_PER_DAY, weekTimedSegments } from '../domain/scheduleWeekTimedLayout'
 import { useTimedBlockGesture } from '../hooks/useTimedBlockGesture'
 
+import { scheduleItemCssVariables } from '../scheduleItemColors'
+
 const HOURS = Array.from({ length: 24 }, (_, index) => index)
 
 type Props = {
@@ -72,6 +74,7 @@ export function ScheduleWeekTimeGrid({ days, events, onOpenEvent, eventClassName
             const draggable = dragEnabled && canDragTimedEvent(segment.event)
             const resizable = draggable && canResizeTimedEvent(segment.event)
             const laneStyle = {
+              ...scheduleItemCssVariables(segment.event),
               gridRow: `${segment.rowStart} / ${segment.rowEnd}`,
               '--timed-lane': String(segment.lane),
               '--timed-lanes': String(segment.laneCount),

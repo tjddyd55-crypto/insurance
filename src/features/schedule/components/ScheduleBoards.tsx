@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-syntax -- 달력 칸·일정 칩·목록 행은 버튼 모양이 아닌 목록 항목이라 native button 을 쓴다(알림 달력과 같은 방식). 툴바 버튼은 공용 Button. */
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { FormButton, FormInput } from '../../../components/form'
 import { FormDialog } from '../../../components/dialog'
 import { Button } from '../../../components/ui'
@@ -19,6 +19,12 @@ import {
 import { ScheduleWeekTimeGrid } from './ScheduleWeekTimeGrid'
 import type { TimedRange } from '../domain/scheduleWeekDrag'
 
+import { scheduleItemCssVariables } from '../scheduleItemColors'
+
+function itemStyle(item: ScheduleEvent | ScheduleTask): CSSProperties {
+  return scheduleItemCssVariables(item) as CSSProperties
+}
+
 const WEEKDAY_SUN_FIRST = ['일', '월', '화', '수', '목', '금', '토']
 /** YYYY-MM-DD → 요일 한 글자 */
 function weekdayLabel(ymd: string): string {
@@ -36,15 +42,15 @@ const MONTH_CELL_LIMIT = 3
 
 export function ScheduleSourceBadge({ event }: { event: ScheduleEvent }) {
   const key = scheduleFilterKeyOf(event)
-  return <span className={`schedule-page__badge schedule-page__badge--${key}`}>{event.origin === 'onefc' ? 'ONE FC 일정' : SCHEDULE_FILTER_LABEL[key]}</span>
+  return <span className={`schedule-page__badge schedule-page__badge--${key} schedule-item-color`} style={itemStyle(event)}>{event.origin === 'onefc' ? 'ONE FC 일정' : SCHEDULE_FILTER_LABEL[key]}</span>
 }
 
 function eventButtonClass(base: string, event: ScheduleEvent): string {
-  return `${base} ${base}--${scheduleFilterKeyOf(event)}`
+  return `${base} ${base}--${scheduleFilterKeyOf(event)} schedule-item-color`
 }
 
 export function ScheduleTaskBadge({ task }: { task: ScheduleTask }) {
-  return <span className={`schedule-page__badge schedule-page__badge--${task.source}`}>{SCHEDULE_FILTER_LABEL[task.source]}</span>
+  return <span className={`schedule-page__badge schedule-page__badge--${task.source} schedule-item-color`} style={itemStyle(task)}>{SCHEDULE_FILTER_LABEL[task.source]}</span>
 }
 
 /** 할 일 표시: ○ 열림 / ✓ 완료. 일정과 구분되도록 테두리형 칩. */
@@ -53,7 +59,7 @@ function taskMark(task: ScheduleTask): string {
 }
 
 function taskButtonClass(base: string, task: ScheduleTask, today?: string): string {
-  const classes = [base, `${base}--task`, `${base}--${task.source}`]
+  const classes = [base, `${base}--task`, `${base}--${task.source}`, 'schedule-item-color']
   if (task.status === 'completed') classes.push(`${base}--done`)
   if (today && isOverdueTask(task, today)) classes.push(`${base}--overdue`)
   return classes.join(' ')
@@ -67,6 +73,7 @@ function TaskChip({ task, base, today, onOpenTask, sourceTag = false }: { task: 
     <button
       type="button"
       className={taskButtonClass(base, task, today)}
+      style={itemStyle(task)}
       title={`${SCHEDULE_FILTER_LABEL[task.source]} · 할 일 · ${task.title}${task.status === 'completed' ? ' (완료)' : ''}`}
       onClick={() => onOpenTask(task)}
     >
@@ -147,7 +154,7 @@ export function ScheduleMonth({ anchor, today, events, tasks, selectedDate, onSe
                 <button
                   key={event.id}
                   type="button"
-                  className={eventButtonClass('schedule-page__chip', event)}
+                  className={eventButtonClass('schedule-page__chip', event)} style={itemStyle(event)}
                   title={`${event.origin === 'onefc' ? 'ONE FC 일정' : SCHEDULE_FILTER_LABEL[scheduleFilterKeyOf(event)]} · ${event.title}`}
                   onClick={() => onOpenEvent(event)}
                 >
@@ -244,7 +251,7 @@ export function ScheduleWeek({ anchor, today, events, tasks, onOpenEvent, onOpen
           {days.map((date) => (
             <div key={date} className="schedule-page__slot">
               {sorted.filter((event) => event.allDay && eventCoversDate(event, date)).map((event) => (
-                <button key={event.id} type="button" className={eventButtonClass('schedule-page__block', event)} onClick={() => onOpenEvent(event)}>
+                <button key={event.id} type="button" className={eventButtonClass('schedule-page__block', event)} style={itemStyle(event)} onClick={() => onOpenEvent(event)}>
                   {event.title}
                 </button>
               ))}
@@ -298,7 +305,7 @@ export function ScheduleDayList({ events, onOpenEvent, detailed, showDate = true
     <ul className={detailed ? 'schedule-page__day-list schedule-page__day-list--detailed' : 'schedule-page__day-list'}>
       {rows.map((event) => (
         <li key={event.id}>
-          <button type="button" onClick={() => onOpenEvent(event)}>
+          <button type="button" className="schedule-item-color" style={itemStyle(event)} onClick={() => onOpenEvent(event)}>
             <span className="schedule-page__row-time">
               {showDate ? `${formatDateWithKoreanWeekday(eventStartDay(event))} ` : ''}{eventClock(event)}
             </span>
@@ -339,7 +346,7 @@ export function ScheduleTaskSection({ title, tasks, today, onOpenTask, showDate 
       {tasks.length === 0 ? <p className="schedule-page__empty">{emptyText}</p> : (
         <ul className="schedule-page__day-list schedule-page__task-list">
           {tasks.map((task) => (
-            <li key={task.id} className={taskButtonClass('schedule-page__task-item', task, today)}>
+            <li key={task.id} className={taskButtonClass('schedule-page__task-item', task, today)} style={itemStyle(task)}>
               <button type="button" onClick={() => onOpenTask(task)}>
                 <span className="schedule-page__task-mark" aria-hidden="true">{taskMark(task)}</span>
                 {showDate ? <span className="schedule-page__row-time">{taskDueLabel(task)}</span> : null}
