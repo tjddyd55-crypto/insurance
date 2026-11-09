@@ -618,3 +618,29 @@ describe('일정 관리 PC: 출처 표시 · 고객 연결', () => {
     expect(mobileHtml).not.toContain('schedule-page__src-tag')
   })
 })
+
+describe('일정 표시 색상은 보기·플랫폼·API 필터와 독립적으로 동일', () => {
+  for (const mobile of [false, true]) {
+    for (const view of ['month', 'week', 'day', 'list'] as const) {
+      it(`${mobile ? '모바일' : 'PC'} ${view}: ONE FC 일정과 할 일을 구분한다`, () => {
+        const event = google('onefc-color', '색상 확인 일정', '2026-10-02T09:00:00+09:00', '2026-10-02T10:00:00+09:00', { origin: 'onefc' })
+        const todo = task('onefc-color', 'onefc_todo', '색상 확인 할 일', '2026-10-02')
+        const html = render(props({ view, events: [event], tasks: [todo], selectedDate: '2026-10-02' }), mobile)
+        for (const [title, background] of [['색상 확인 일정', '#dcfce7'], ['색상 확인 할 일', '#ede9fe']]) {
+          const at = html.indexOf(title)
+          const button = html.slice(html.lastIndexOf('<button', at), html.indexOf('</button>', at))
+          expect(button).toContain(`--schedule-item-bg-light:${background}`)
+        }
+        expect(html).not.toContain('범례')
+      })
+    }
+  }
+  it('완료한 할 일은 같은 출처색을 흐리게 표시하고 API 필터 키는 유지한다', () => {
+    const completed = task('done-color', 'onefc_todo', '완료 색상 확인', '2026-10-02', { status: 'completed' })
+    const html = render(props({ view: 'list', tasks: [completed], includeCompleted: true }))
+    expect(html).toContain('--schedule-item-opacity:0.5')
+    expect(html).toContain('--schedule-item-decoration:line-through')
+    expect(html).toContain('--schedule-item-bg-light:#ede9fe')
+    expect(html).toContain('schedule-page__task-item--onefc_todo')
+  })
+})
