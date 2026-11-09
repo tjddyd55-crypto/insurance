@@ -13,7 +13,7 @@ export const EMPTY_ADVANCED_FILTERS: CustomerAdvancedFilters = {
   gender: '',
 }
 
-function parseOptionalInt(s: string): number | null {
+export function parseOptionalInt(s: string): number | null {
   const t = s.trim()
   if (!t) {
     return null
