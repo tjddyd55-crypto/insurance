@@ -1,3 +1,4 @@
+import { DEFAULT_CUSTOMER_FILTERS, getActiveCustomerFilterCount, getActiveCustomerAdvancedSearchCount, getCustomerQuickSortMode, type CustomerFilterSortValue } from '../utils/customerFilterState'
 import {
   useCallback,
   useEffect,
@@ -29,7 +30,6 @@ import type { CustomerRecord } from '../domain/types'
 import {
   buildCrmExtensionPayloadForSave,
 } from '../domain/crmExtension'
-import type { CustomerSortType } from '../types/customerListSort'
 import { customerNoteItems } from '../domain/types'
 import { buildKakaoCustomerCopyText } from '../utils/customerText'
 import { customerMatchesNamePhoneKeyword } from '../lib/customerKeywordMatch'
@@ -46,7 +46,7 @@ import { useDebounce } from '../../../hooks/useDebounce'
 import { ExitConfirmDialog } from '../../../components/ExitConfirmDialog'
 import { MSG_CUSTOMER_CREATE_EXIT } from '../../../navigation/backNavigationPolicy'
 import { searchCustomersAdvanced } from '../api/customerExtraApi'
-import { capturedAddressRegionPayload, formatAddressForSave, FormButton, FormInput, FormTextarea } from '../../../components/form'
+import { capturedAddressRegionPayload, formatAddressForSave, FormButton, FormTextarea } from '../../../components/form'
 import { useGaSettings } from '../../ga-settings/useGaSettings'
 import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
 import CustomerMobileModals from '../components/CustomerMobileModals'
@@ -54,7 +54,6 @@ import CustomerPageHeaderActions from '../components/CustomerPageHeaderActions'
 import CustomerRegistrationLinkShareModal from '../components/CustomerRegistrationLinkShareModal'
 import { CustomerFilterControls, type CustomerConsultationFilter } from '../components/CustomerFilterControls'
 import {
-  type CustomerListSortValue,
   resolveReferrerNameForSave,
 } from '../config/customerInflowSource.config'
 import CustomerExcelSelectToolbar from '../components/CustomerExcelSelectToolbar'
@@ -329,29 +328,25 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const listPanelRef = useRef<HTMLElement | null>(null)
   const keyword = useDebounce(searchInput, 180)
-  const [sortType, setSortType] = useState<CustomerSortType>(null)
   const [advancedFilters, setAdvancedFilters] = useState<CustomerAdvancedFilters>(() => ({
     ...EMPTY_ADVANCED_FILTERS,
   }))
-  const [deepSearch, setDeepSearch] = useState(false)
+  const [deepSearch, setDeepSearch] = useState(DEFAULT_CUSTOMER_FILTERS.deepSearch)
   const [advSearchHits, setAdvSearchHits] = useState<CustomerRecord[] | null>(null)
   const [advSearchLoading, setAdvSearchLoading] = useState(false)
-  const [favoriteOnly, setFavoriteOnly] = useState(false)
+  const [favoriteOnly, setFavoriteOnly] = useState(DEFAULT_CUSTOMER_FILTERS.favoriteOnly)
   const [showFilters, setShowFilters] = useState(false)
-  const [consultationFilterDraft, setConsultationFilterDraft] = useState<CustomerConsultationFilter>('')
-  const [consultationCutoffDraft, setConsultationCutoffDraft] = useState('')
-  const [consultationKeywordDraft, setConsultationKeywordDraft] = useState('')
-  const [consultationFromDraft, setConsultationFromDraft] = useState('')
-  const [consultationToDraft, setConsultationToDraft] = useState('')
-  const [inflowSourceDraft, setInflowSourceDraft] = useState('')
-  const [listSortDraft, setListSortDraft] = useState<CustomerListSortValue>('')
-  const [appliedConsultationFilter, setAppliedConsultationFilter] = useState<CustomerConsultationFilter>('')
-  const [appliedConsultationCutoff, setAppliedConsultationCutoff] = useState('')
-  const [appliedConsultationKeyword, setAppliedConsultationKeyword] = useState('')
-  const [appliedConsultationFrom, setAppliedConsultationFrom] = useState('')
-  const [appliedConsultationTo, setAppliedConsultationTo] = useState('')
-  const [appliedInflowSource, setAppliedInflowSource] = useState('')
-  const [appliedListSort, setAppliedListSort] = useState<CustomerListSortValue>('')
+  const [consultationFilterDraft, setConsultationFilterDraft] = useState<CustomerConsultationFilter>(DEFAULT_CUSTOMER_FILTERS.consultationFilter)
+  const [consultationCutoffDraft, setConsultationCutoffDraft] = useState(DEFAULT_CUSTOMER_FILTERS.consultationCutoff)
+  const [consultationKeywordDraft, setConsultationKeywordDraft] = useState(DEFAULT_CUSTOMER_FILTERS.consultationKeyword)
+  const [inflowSourceDraft, setInflowSourceDraft] = useState(DEFAULT_CUSTOMER_FILTERS.inflowSource)
+  const [listSortDraft, setListSortDraft] = useState<CustomerFilterSortValue>(DEFAULT_CUSTOMER_FILTERS.listSort)
+  const [appliedConsultationFilter, setAppliedConsultationFilter] = useState<CustomerConsultationFilter>(DEFAULT_CUSTOMER_FILTERS.consultationFilter)
+  const [appliedConsultationCutoff, setAppliedConsultationCutoff] = useState(DEFAULT_CUSTOMER_FILTERS.consultationCutoff)
+  const [appliedConsultationKeyword, setAppliedConsultationKeyword] = useState(DEFAULT_CUSTOMER_FILTERS.consultationKeyword)
+  const [appliedInflowSource, setAppliedInflowSource] = useState(DEFAULT_CUSTOMER_FILTERS.inflowSource)
+  const [appliedListSort, setAppliedListSort] = useState<CustomerFilterSortValue>(DEFAULT_CUSTOMER_FILTERS.listSort)
+  const sortType = getCustomerQuickSortMode(appliedListSort)
   const [consultationFilterMessage, setConsultationFilterMessage] = useState('')
   const [customerCreateExitModalOpen, setCustomerCreateExitModalOpen] = useState(false)
   /** 터치→합성 mouse/click 등으로 초대 복사가 두 번 도는 것 방지 */
@@ -424,6 +419,21 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     return !!(f.minInsuranceAge.trim() || f.maxInsuranceAge.trim() || f.gender)
   }, [advancedFilters])
 
+  const appliedCustomerFilters = {
+    advancedFilters,
+    favoriteOnly,
+    deepSearch,
+    keyword,
+    hasAdvancedSearchHits: advSearchHits != null,
+    consultationFilter: appliedConsultationFilter,
+    consultationCutoff: appliedConsultationCutoff,
+    consultationKeyword: appliedConsultationKeyword,
+    inflowSource: appliedInflowSource,
+    listSort: appliedListSort,
+  }
+  const activeFilterCount = getActiveCustomerFilterCount(appliedCustomerFilters)
+  const activeAdvancedSearchCount = getActiveCustomerAdvancedSearchCount(appliedCustomerFilters)
+
   const listIsNarrowed = useMemo(
     () =>
       keyword.trim() !== '' ||
@@ -432,8 +442,6 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       advSearchHits != null ||
       appliedConsultationFilter !== '' ||
       appliedConsultationKeyword.trim() !== '' ||
-      appliedConsultationFrom.trim() !== '' ||
-      appliedConsultationTo.trim() !== '' ||
       appliedInflowSource.trim() !== '' ||
       appliedListSort !== '',
     [
@@ -443,8 +451,6 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       advSearchHits,
       appliedConsultationFilter,
       appliedConsultationKeyword,
-      appliedConsultationFrom,
-      appliedConsultationTo,
       appliedInflowSource,
       appliedListSort,
     ],
@@ -459,8 +465,6 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         hasAdvancedSearchHits: advSearchHits != null,
         consultationFilter: appliedConsultationFilter,
         consultationKeyword: appliedConsultationKeyword.trim(),
-        consultationFrom: appliedConsultationFrom.trim(),
-        consultationTo: appliedConsultationTo.trim(),
         inflowSource: appliedInflowSource.trim(),
         listSort: appliedListSort,
       }),
@@ -471,8 +475,6 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       advSearchHits,
       appliedConsultationFilter,
       appliedConsultationKeyword,
-      appliedConsultationFrom,
-      appliedConsultationTo,
       appliedInflowSource,
       appliedListSort,
     ],
@@ -501,41 +503,32 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       consultationFilterDraft === 'no_since' ? consultationCutoffDraft.trim() : '',
     )
     setAppliedConsultationKeyword(consultationKeywordDraft.trim())
-    setAppliedConsultationFrom(consultationFromDraft.trim())
-    setAppliedConsultationTo(consultationToDraft.trim())
     setAppliedInflowSource(inflowSourceDraft.trim())
     setAppliedListSort(listSortDraft)
   }, [
     consultationCutoffDraft,
     consultationFilterDraft,
-    consultationFromDraft,
     consultationKeywordDraft,
-    consultationToDraft,
     inflowSourceDraft,
     listSortDraft,
   ])
 
   const resetAllCustomerFilters = useCallback(() => {
     setSearchInput('')
-    setDeepSearch(false)
+    setDeepSearch(DEFAULT_CUSTOMER_FILTERS.deepSearch)
     setAdvSearchHits(null)
-    setFavoriteOnly(false)
-    setSortType(null)
+    setFavoriteOnly(DEFAULT_CUSTOMER_FILTERS.favoriteOnly)
     setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })
-    setConsultationFilterDraft('')
-    setConsultationCutoffDraft('')
-    setConsultationKeywordDraft('')
-    setConsultationFromDraft('')
-    setConsultationToDraft('')
-    setInflowSourceDraft('')
-    setListSortDraft('')
-    setAppliedConsultationFilter('')
-    setAppliedConsultationCutoff('')
-    setAppliedConsultationKeyword('')
-    setAppliedConsultationFrom('')
-    setAppliedConsultationTo('')
-    setAppliedInflowSource('')
-    setAppliedListSort('')
+    setConsultationFilterDraft(DEFAULT_CUSTOMER_FILTERS.consultationFilter)
+    setConsultationCutoffDraft(DEFAULT_CUSTOMER_FILTERS.consultationCutoff)
+    setConsultationKeywordDraft(DEFAULT_CUSTOMER_FILTERS.consultationKeyword)
+    setInflowSourceDraft(DEFAULT_CUSTOMER_FILTERS.inflowSource)
+    setListSortDraft(DEFAULT_CUSTOMER_FILTERS.listSort)
+    setAppliedConsultationFilter(DEFAULT_CUSTOMER_FILTERS.consultationFilter)
+    setAppliedConsultationCutoff(DEFAULT_CUSTOMER_FILTERS.consultationCutoff)
+    setAppliedConsultationKeyword(DEFAULT_CUSTOMER_FILTERS.consultationKeyword)
+    setAppliedInflowSource(DEFAULT_CUSTOMER_FILTERS.inflowSource)
+    setAppliedListSort(DEFAULT_CUSTOMER_FILTERS.listSort)
     setConsultationFilterMessage('')
     pinnedListCustomerIdRef.current = null
     mapEntryExpandPendingRef.current = null
@@ -687,16 +680,10 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       if (appliedConsultationKeyword.trim()) {
         listOpts.consultationKeyword = appliedConsultationKeyword.trim()
       }
-      if (appliedConsultationFrom.trim()) {
-        listOpts.consultationFrom = appliedConsultationFrom.trim()
-      }
-      if (appliedConsultationTo.trim()) {
-        listOpts.consultationTo = appliedConsultationTo.trim()
-      }
       if (appliedInflowSource.trim()) {
         listOpts.inflowSource = appliedInflowSource.trim()
       }
-      if (appliedListSort) {
+      if (appliedListSort && sortType === null) {
         listOpts.sort = appliedListSort
       }
       const { customers: rows, total } = await listCustomers(token, listOpts)
@@ -731,10 +718,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     appliedConsultationFilter,
     appliedConsultationCutoff,
     appliedConsultationKeyword,
-    appliedConsultationFrom,
-    appliedConsultationTo,
     appliedInflowSource,
     appliedListSort,
+    sortType,
     isMobile,
   ])
 
@@ -811,8 +797,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     (customerId: number, customerName?: string) => {
       // 연계고객 클릭은 "검색"이 아니라 해당 고객 선택/펼침으로 동작해야 한다.
       setSearchInput('')
-      setDeepSearch(false)
-      setFavoriteOnly(false)
+      setDeepSearch(DEFAULT_CUSTOMER_FILTERS.deepSearch)
+      setFavoriteOnly(DEFAULT_CUSTOMER_FILTERS.favoriteOnly)
       setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })
       setAdvSearchHits(null)
       setExpandedId(customerId)
@@ -884,8 +870,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     }
     mapEntryExpandPendingRef.current = entryExpandId
     setSearchInput('')
-    setDeepSearch(false)
-    setFavoriteOnly(false)
+    setDeepSearch(DEFAULT_CUSTOMER_FILTERS.deepSearch)
+    setFavoriteOnly(DEFAULT_CUSTOMER_FILTERS.favoriteOnly)
     setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })
     setAdvSearchHits(null)
     applyListCustomerExpand(entryExpandId)
@@ -1767,40 +1753,17 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               enterExcelSelectMode={enterExcelSelectMode}
             />
           ) : null}
-          <div className="customers-page__search-row customer-filter-bar">
-            <FormInput
-              ref={searchInputRef}
-              className="search-input customers-page__search-input"
-              type="search"
-              placeholder="이름 / 전화번호 검색"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              autoComplete="off"
-              aria-label="이름 또는 전화번호 검색"
-            />
-            <div className="customers-page__search-actions" role="group" aria-label="고객 목록 빠른 필터">
-              <FormButton
-                htmlType="button"
-                variant="secondary"
-                size="sm"
-                className={`favorite-btn customer-filter-chip${favoriteOnly ? ' favorite-btn--on customer-filter-chip--active' : ''}`}
-                aria-pressed={favoriteOnly}
-                onClick={() => setFavoriteOnly((v) => !v)}
-              >
-                중요 고객
-              </FormButton>
-              <FormButton
-                htmlType="button"
-                variant="secondary"
-                size="sm"
-                className={`customers-page__filter-toggle customer-filter-chip${showFilters ? ' customers-page__filter-toggle--on customer-filter-chip--active' : ''}`}
-                aria-expanded={showFilters}
-                onClick={() => setShowFilters((v) => !v)}
-              >
-                필터
-              </FormButton>
-            </div>
-          </div>
+          <CustomerFilterControls
+            variant="searchRow"
+            searchInputRef={searchInputRef}
+            searchInput={searchInput}
+            setSearchInput={setSearchInput}
+            favoriteOnly={favoriteOnly}
+            setFavoriteOnly={setFavoriteOnly}
+            activeFilterCount={activeFilterCount}
+            showFilters={showFilters}
+            setShowFilters={setShowFilters}
+          />
         </>
       ) : (
         <div className="customers-page__create-nav">
@@ -1842,9 +1805,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           variant="filterPanel"
           deepSearch={deepSearch}
           setDeepSearch={setDeepSearch}
+          activeAdvancedSearchCount={activeAdvancedSearchCount}
           advSearchLoading={advSearchLoading}
-          sortType={sortType}
-          setSortType={setSortType}
           advancedFilters={advancedFilters}
           setAdvancedFilters={setAdvancedFilters}
           advancedFiltersActive={advancedFiltersActive}
@@ -1857,10 +1819,6 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           setConsultationCutoffDate={setConsultationCutoffDraft}
           consultationKeyword={consultationKeywordDraft}
           setConsultationKeyword={setConsultationKeywordDraft}
-          consultationFrom={consultationFromDraft}
-          setConsultationFrom={setConsultationFromDraft}
-          consultationTo={consultationToDraft}
-          setConsultationTo={setConsultationToDraft}
           inflowSource={inflowSourceDraft}
           setInflowSource={setInflowSourceDraft}
           listSort={listSortDraft}

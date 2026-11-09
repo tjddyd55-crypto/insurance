@@ -1,0 +1,94 @@
+/* Scoped to the existing shared customer views. */
+:is(.customers-page--pc, .customers-page--mobile) .customer-filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  margin-bottom: 16px;
+}
+:is(.customers-page--pc, .customers-page--mobile)
+  .customer-filter-panel
+  > .customers-advanced-filters {
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg) 97%, var(--text-sub) 3%);
+  min-width: 0;
+}
+:is(.customers-page--pc, .customers-page--mobile)
+  .customer-filter-panel
+  .customer-filter-section-title {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--text-main);
+}
+:is(.customers-page--pc, .customers-page--mobile)
+  .customer-filter-panel
+  summary.customer-filter-section-title {
+  cursor: pointer;
+  margin: 0;
+  border-radius: 4px;
+}
+:is(.customers-page--pc, .customers-page--mobile) .customer-filter-panel summary:focus-visible {
+  outline: 2px solid var(--input-focus-border);
+  outline-offset: 4px;
+}
+:is(.customers-page--pc, .customers-page--mobile) .customer-filter-advanced__body {
+  padding-top: 12px;
+}
+:is(.customers-page--pc, .customers-page--mobile)
+  .customer-filter-panel
+  .customers-advanced-filters__grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 12px;
+}
+:is(.customers-page--pc, .customers-page--mobile)
+  .customer-filter-panel
+  .customers-advanced-filters__field {
+  min-width: 0;
+  gap: 6px;
+}
+:is(.customers-page--pc, .customers-page--mobile)
+  .customer-filter-panel
+  .customers-advanced-filters__field
+  :is(input, select) {
+  min-width: 0;
+  min-height: 40px;
+  max-width: 100%;
+}
+:is(.customers-page--pc, .customers-page--mobile)
+  .customer-filter-panel
+  .customer-filter-controls__deep-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.5;
+}
+:is(.customers-page--pc, .customers-page--mobile)
+  .customer-filter-panel
+  .customer-filter-controls__deep-row
+  input {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+}
+:is(.customers-page--pc, .customers-page--mobile)
+  .customer-filter-main
+  .customer-filter-apply-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+:is(.customers-page--pc, .customers-page--mobile) .customer-filter-main .customer-quick-filter-bar {
+  margin: 0 0 14px;
+}
+:is(.customers-page--pc, .customers-page--mobile) .customer-filter-advanced {
+  min-width: 0;
+  padding: 14px;
+  border-top: 1px solid var(--border);
+}
