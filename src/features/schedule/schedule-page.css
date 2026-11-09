@@ -195,34 +195,7 @@
   font-size: 0.75rem;
 }
 
-/* 출처별 표시: 토큰 조합만 사용 */
-.schedule-page__chip--google,
-.schedule-page__block--google,
-.schedule-page__badge--google {
-  background: var(--primary-soft);
-  color: var(--text-main);
-}
 
-.schedule-page__chip--customer_alert,
-.schedule-page__block--customer_alert,
-.schedule-page__badge--customer_alert {
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
-
-.schedule-page__chip--car_expiry,
-.schedule-page__block--car_expiry,
-.schedule-page__badge--car_expiry {
-  background: var(--accent-car-bg);
-  color: var(--accent-car-text);
-}
-
-.schedule-page__chip--insurance_age,
-.schedule-page__block--insurance_age,
-.schedule-page__badge--insurance_age {
-  background: var(--bg-soft);
-  color: var(--text-secondary);
-}
 
 .schedule-page__badge {
   display: inline-block;
@@ -427,9 +400,6 @@
   bottom: 0;
 }
 
-.schedule-page__hours .schedule-page__block--timed.schedule-page__block--google {
-  border-color: var(--primary-active);
-}
 
 .schedule-page__block--timed .schedule-page__block-time,
 .schedule-page__block--timed .schedule-page__block-title {
@@ -574,20 +544,9 @@
   color: var(--text-main);
 }
 
-.schedule-page__chip--google_task,
-.schedule-page__block--google_task {
-  border-color: var(--primary-border);
-}
-
-.schedule-page__chip--onefc_todo,
-.schedule-page__block--onefc_todo {
-  border-color: var(--accent);
-}
-
 .schedule-page__chip--done,
 .schedule-page__block--done,
 .schedule-page__task-item--done .schedule-page__row-title {
-  color: var(--text-muted);
   text-decoration: line-through;
 }
 
@@ -595,18 +554,6 @@
 .schedule-page__block--overdue {
   border-style: solid;
   border-color: var(--danger-border);
-}
-
-.schedule-page__badge--google_task {
-  background: var(--bg-card);
-  border: 1px solid var(--primary-border);
-  color: var(--text-main);
-}
-
-.schedule-page__badge--onefc_todo {
-  background: var(--bg-card);
-  border: 1px solid var(--accent);
-  color: var(--accent-text);
 }
 
 .schedule-page__task-mark {
@@ -790,14 +737,6 @@
   background: var(--bg-card);
   color: var(--text-secondary);
 }
-.schedule-page--pc .schedule-page__src-tag--google_task {
-  color: var(--info-text, #1d4ed8);
-  border-color: var(--info-border, #bfdbfe);
-}
-.schedule-page--pc .schedule-page__src-tag--onefc_todo {
-  color: var(--primary, #15803d);
-  border-color: var(--primary-border, #bbf7d0);
-}
 .schedule-page--pc .schedule-page__month .schedule-page__cell {
   cursor: pointer;
 }
@@ -979,4 +918,56 @@
   .schedule-page__week-split {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Every view reads the same source palette from scheduleItemColors.ts.
+   Only color changes here: timed grid widths, gaps, solid edge and drag policy stay intact. */
+.schedule-page .schedule-item-color {
+  --schedule-item-bg: var(--schedule-item-bg-light);
+  --schedule-item-fg: var(--schedule-item-fg-light);
+  --schedule-item-border: var(--schedule-item-border-light);
+  background-color: var(--schedule-item-bg);
+  color: var(--schedule-item-fg);
+  border-color: var(--schedule-item-border);
+  opacity: var(--schedule-item-opacity, 1);
+  text-decoration: var(--schedule-item-decoration, none);
+}
+[data-theme='dark'] .schedule-page .schedule-item-color {
+  --schedule-item-bg: var(--schedule-item-bg-dark);
+  --schedule-item-fg: var(--schedule-item-fg-dark);
+  --schedule-item-border: var(--schedule-item-border-dark);
+}
+.schedule-page .schedule-page__hours .schedule-item-color.schedule-page__block--timed {
+  border-color: var(--schedule-item-border);
+}
+.schedule-page .schedule-item-color > button {
+  background-color: var(--schedule-item-bg);
+  color: inherit;
+}
+.schedule-page .schedule-item-color .schedule-item-color { opacity: 1; }
+.schedule-page .schedule-item-color .schedule-page__src-tag {
+  color: inherit;
+  border-color: currentColor;
+  background: transparent;
+}
+.schedule-page .schedule-item-color .schedule-page__task-mark { color: inherit; }
+.schedule-page .schedule-item-color.schedule-page__chip--overdue,
+.schedule-page .schedule-item-color.schedule-page__block--overdue { border-color: var(--danger-border); }
+
+/* The schedule's reused weekly Todo panel gets the same colors; the standalone
+   Todo feature and its interactions remain outside this selector. */
+.schedule-page .weekly-todos__item {
+  background-color: var(--schedule-item-bg-light);
+  border-color: var(--schedule-item-border-light);
+  color: var(--schedule-item-fg-light);
+}
+.schedule-page .weekly-todos__item .weekly-todos__name { color: inherit; }
+.schedule-page .weekly-todos__item--done {
+  opacity: var(--schedule-completed-opacity);
+  text-decoration: line-through;
+}
+[data-theme='dark'] .schedule-page .weekly-todos__item {
+  background-color: var(--schedule-item-bg-dark);
+  border-color: var(--schedule-item-border-dark);
+  color: var(--schedule-item-fg-dark);
 }
