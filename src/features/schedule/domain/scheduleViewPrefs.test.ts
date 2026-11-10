@@ -70,4 +70,33 @@ describe('scheduleViewPrefs store', () => {
     m.queueScheduleViewPrefs('u1', 't', { sources: [] })
     expect(m.getScheduleViewPrefs('u2').sources).toBeUndefined()
   })
+  it('keeps in-flight writes over a stale server read and serializes later edits', async () => {
+    let finish!: () => void
+    saveMock.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve })).mockResolvedValue({})
+    m.queueScheduleViewPrefs('u1', 't', { sources: [] })
+    await vi.advanceTimersByTimeAsync(400)
+    fetchMock.mockResolvedValue({ sources: ['google'] })
+    await m.loadScheduleViewPrefs('u1', 't')
+    expect(m.getScheduleViewPrefs('u1').sources).toEqual([])
+    m.queueScheduleViewPrefs('u1', 't', { includeCompleted: true })
+    await vi.advanceTimersByTimeAsync(400)
+    expect(saveMock).toHaveBeenCalledTimes(1)
+    finish()
+    await vi.advanceTimersByTimeAsync(400)
+    expect(saveMock).toHaveBeenCalledTimes(2)
+    expect(saveMock.mock.calls[1][1]).toEqual({ includeCompleted: true })
+  })
+
+  it('does not replace a newer local edit with a late GET response', async () => {
+    let finish!: (value: unknown) => void
+    fetchMock.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const loading = m.loadScheduleViewPrefs('u1', 't')
+    saveMock.mockResolvedValue({})
+    m.queueScheduleViewPrefs('u1', 't', { sources: [] })
+    await vi.advanceTimersByTimeAsync(400)
+    finish({ sources: ['google'] })
+    await loading
+    expect(m.getScheduleViewPrefs('u1').sources).toEqual([])
+  })
+
 })
