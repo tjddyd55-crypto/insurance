@@ -12,14 +12,17 @@ vi.mock('../../auth/AuthProvider', () => ({ useAuth: () => auth }))
 
 type Call = { refresh: boolean; resolve: (value: unknown) => void; reject: (error: unknown) => void }
 const calls: Call[] = []
+const prefs = vi.hoisted(() => ({ fetch: vi.fn(async () => ({})) }))
 vi.mock('../api/scheduleApi', async () => {
   const actual = await vi.importActual<typeof import('../api/scheduleApi')>('../api/scheduleApi')
   return {
     ...actual,
+    fetchScheduleViewPrefs: prefs.fetch,
     fetchScheduleEvents: vi.fn((_token: string, query: { refresh?: boolean }) => new Promise((resolve, reject) => calls.push({ refresh: Boolean(query.refresh), resolve, reject }))),
   }
 })
 
+const { resetScheduleViewPrefsForTest } = await import('../domain/scheduleViewPrefs')
 const { useScheduleState, AUTO_REFETCH_MIN_MS } = await import('./useScheduleState')
 
 let latest: ReturnType<typeof useScheduleState>
@@ -45,6 +48,8 @@ describe('일정 새로고침·마지막 갱신·focus 자동 재조회', () => 
     vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
     vi.setSystemTime(new Date('2026-10-02T03:00:00.000Z'))
     calls.length = 0
+    resetScheduleViewPrefsForTest()
+    prefs.fetch.mockReset().mockResolvedValue({})
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
@@ -61,6 +66,14 @@ describe('일정 새로고침·마지막 갱신·focus 자동 재조회', () => 
     })
     await act(async () => { calls[0].resolve(response('첫 조회', '2026-10-02T03:00:00.000Z')) })
   }
+
+  it('focus reloads Native changes even while cached events are fresh and clears stale URL filters', async () => {
+    await mount()
+    prefs.fetch.mockResolvedValue({ sources: [] } as never)
+    await act(async () => { window.dispatchEvent(new Event('focus')) })
+    expect(latest.sources).toEqual([])
+    expect(prefs.fetch).toHaveBeenCalledTimes(2)
+  })
 
   it('수동 새로고침은 refresh=1, 진행 중 표시, 성공 안내, 마지막 갱신 갱신', async () => {
     await mount()
