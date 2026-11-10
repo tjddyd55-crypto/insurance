@@ -318,6 +318,13 @@ export function useScheduleState(): ScheduleViewProps {
     if (!hasToken) return
     const refetch = () => {
       if (document.visibilityState === 'hidden') return
+      void loadScheduleViewPrefs(userKey, token ?? '').then(() => {
+        setSearchParams((previous) => {
+          const next = new URLSearchParams(previous)
+          for (const key of ['sources', 'done', 'overdue', 'calendars']) next.delete(key)
+          return next
+        }, { replace: true })
+      }).catch(() => {})
       if (Date.now() - lastFetchAtRef.current < AUTO_REFETCH_MIN_MS) return
       setReloadNonce((current) => current + 1)
     }
@@ -327,7 +334,7 @@ export function useScheduleState(): ScheduleViewProps {
       window.removeEventListener('focus', refetch)
       document.removeEventListener('visibilitychange', refetch)
     }
-  }, [hasToken])
+  }, [hasToken, token, userKey, setSearchParams])
 
   useEffect(() => {
     if (!refreshMessage) return
@@ -337,11 +344,18 @@ export function useScheduleState(): ScheduleViewProps {
 
   const onRefresh = useCallback(() => {
     if (!hasToken || refreshing) return
+    void loadScheduleViewPrefs(userKey, token ?? '').then(() => {
+      setSearchParams((previous) => {
+        const next = new URLSearchParams(previous)
+        for (const key of ['sources', 'done', 'overdue', 'calendars']) next.delete(key)
+        return next
+      }, { replace: true })
+    }).catch(() => {})
     manualRefreshRef.current = true
     setRefreshing(true)
     setRefreshMessage(null)
     setReloadNonce((current) => current + 1)
-  }, [hasToken, refreshing])
+  }, [hasToken, refreshing, token, userKey, setSearchParams])
 
   const sameOwner = hasToken && result.owner === userKey
   const events = sameOwner ? result.events : EMPTY_EVENTS

@@ -58,14 +58,14 @@ function writeCache(userId: string, prefs: ScheduleViewPrefs) {
   }
 }
 
-type Entry = { prefs: ScheduleViewPrefs; pending: ScheduleViewPrefs; timer: ReturnType<typeof setTimeout> | null; token: string; serverLoaded: boolean }
+type Entry = { prefs: ScheduleViewPrefs; pending: ScheduleViewPrefs; timer: ReturnType<typeof setTimeout> | null; token: string; serverLoaded: boolean; inFlight: ScheduleViewPrefs; revision: number; loadId: number }
 const entries = new Map<string, Entry>()
 const listeners = new Set<() => void>()
 
 function entry(userId: string): Entry {
   let e = entries.get(userId)
   if (!e) {
-    e = { prefs: readCachedScheduleViewPrefs(userId), pending: {}, timer: null, token: '', serverLoaded: false }
+    e = { prefs: readCachedScheduleViewPrefs(userId), pending: {}, timer: null, token: '', serverLoaded: false, inFlight: {}, revision: 0, loadId: 0 }
     entries.set(userId, e)
   }
   return e
@@ -89,13 +89,19 @@ function flush(userId: string) {
   const e = entries.get(userId)
   if (!e) return
   e.timer = null
+  if (Object.keys(e.inFlight).length) return
   const patch = e.pending
   if (!e.token || Object.keys(patch).length === 0) return
   e.pending = {}
-  saveScheduleViewPrefs(e.token, patch).catch(() => {
-    // 실패: 화면은 그대로. 더 새 변경이 없던 키만 다음 저장 때 다시 보낸다.
-    const cur = entries.get(userId)
-    if (cur) cur.pending = { ...patch, ...cur.pending }
+  e.inFlight = patch
+  Promise.resolve(saveScheduleViewPrefs(e.token, patch)).then(() => {
+    e.inFlight = {}
+    e.revision++
+    if (Object.keys(e.pending).length) e.timer = setTimeout(() => flush(userId), SCHEDULE_VIEW_PREFS_SAVE_DELAY_MS)
+  }).catch(() => {
+    e.inFlight = {}
+    e.revision++
+    e.pending = { ...patch, ...e.pending }
   })
 }
 
@@ -105,6 +111,7 @@ export function queueScheduleViewPrefs(userId: string, token: string | null | un
   const clean = sanitizeScheduleViewPrefs(patch)
   for (const key of KEYS) if (key in patch && !(key in clean)) return
   const e = entry(userId)
+  e.revision++
   e.token = String(token ?? '').trim()
   e.prefs = { ...e.prefs, ...clean }
   e.pending = { ...e.pending, ...clean }
@@ -120,10 +127,13 @@ export function queueScheduleViewPrefs(userId: string, token: string | null | un
  */
 export async function loadScheduleViewPrefs(userId: string, token: string): Promise<ScheduleViewPrefs> {
   if (!userId || !token.trim()) return getScheduleViewPrefs(userId)
-  const server = sanitizeScheduleViewPrefs(await fetchScheduleViewPrefs(token))
   const e = entry(userId)
+  const revision = e.revision
+  const loadId = ++e.loadId
+  const server = sanitizeScheduleViewPrefs(await fetchScheduleViewPrefs(token))
+  if (revision !== e.revision || loadId !== e.loadId) return e.prefs
   e.token = token.trim()
-  e.prefs = { ...server, ...e.pending }
+  e.prefs = { ...server, ...e.inFlight, ...e.pending }
   e.serverLoaded = true
   writeCache(userId, e.prefs)
   if (server.holidayMode === undefined && e.pending.holidayMode === undefined) {
