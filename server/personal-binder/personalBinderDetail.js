@@ -40,6 +40,8 @@ export async function loadBinderDetail(executor, binderId, scope) {
       m.file_id,
       m.title AS material_title,
       m.custom_title,
+      m.source_type,
+      (m.updated_at = m.created_at) AS material_untouched,
       m.source_display_name,
       f.display_name AS file_display_name,
       f.original_name AS file_original_name,
