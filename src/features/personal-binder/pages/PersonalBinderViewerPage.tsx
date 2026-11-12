@@ -1,3 +1,5 @@
+import { useBinderSourceRefresh } from '../hooks/useBinderSourceRefresh'
+import { binderMaterialDownloadName } from '../utils/binderFileDisplay'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { getDocument, type PDFDocumentProxy } from 'pdfjs-dist'
@@ -169,6 +171,16 @@ export default function PersonalBinderViewerPage() {
     })()
     return () => controller.abort()
   }, [activeShareId, binderId, isSharedView, token])
+
+  const refreshSources = useCallback(async () => {
+    if (!token || !binderId || isSharedView) return
+    try {
+      setBinder(await getPersonalBinder(token, binderId))
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '바인더를 불러오지 못했습니다.')
+    }
+  }, [token, binderId, isSharedView])
+  useBinderSourceRefresh(refreshSources)
 
   const pageLoadErrorMessage = useCallback((material: PersonalBinderMaterial, reason: unknown) => {
     const kind = resolveBinderMaterialRenderKind(material)
@@ -408,14 +420,21 @@ export default function PersonalBinderViewerPage() {
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = url
-      anchor.download = current.material.originalFileName || 'download'
+      anchor.download = binderMaterialDownloadName(current.material)
       anchor.rel = 'noopener'
       anchor.click()
       URL.revokeObjectURL(url)
       return
     }
     const url = await createStorageFileDownloadUrl(token, current.material.fileId)
-    window.location.assign(url)
+    const response = await fetch(url)
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const blobUrl = URL.createObjectURL(await response.blob())
+    const anchor = document.createElement('a')
+    anchor.href = blobUrl
+    anchor.download = binderMaterialDownloadName(current.material)
+    anchor.click()
+    URL.revokeObjectURL(blobUrl)
   }
 
   const retryCurrentPage = () => {

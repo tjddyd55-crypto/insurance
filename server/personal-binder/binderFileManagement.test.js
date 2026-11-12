@@ -243,3 +243,34 @@ test('item insert maps unavailable source to 409 and rolls back without writing'
   assert.equal(calls.at(-1), 'release')
   assert.ok(!calls.some((sql) => sql.includes('INSERT INTO personal_binder_items')))
 })
+
+test('legacy renamed-before-picker source follows subsequent rename in detail and library', async () => {
+  const row = { id: 5, section_id: 2, material_id: 4, file_id: 3,
+    material_title: 'Registration display', title: 'Registration display',
+    original_file_name: 'Upload.pdf', custom_title: null, source_display_name: null,
+    source_type: 'my_file', material_untouched: true,
+    file_display_name: 'Current display.pdf' }
+  const executor = { async query(sql) {
+    if (sql.includes('FROM personal_binders')) return { rows: [{ id: 1 }] }
+    if (sql.includes('FROM personal_binder_sections')) return { rows: [{ id: 2 }] }
+    if (sql.includes('FROM files')) return { rows: [{ id: 3, display_name: 'Current display.pdf' }] }
+    assert.match(sql, /m.source_type/)
+    assert.match(sql, /m.updated_at = m.created_at/)
+    return { rows: [row] }
+  } }
+  assert.equal((await loadBinderDetail(executor, 1, scope)).sections[0].items[0].material.title, 'Current display.pdf')
+  assert.equal((await resolveBinderMaterialRows(executor, [row], scope))[0].title, 'Current display.pdf')
+})
+
+test('legacy inheritance is conservative and explicit overrides win', () => {
+  const row = { title: 'Picker display', original_file_name: 'Upload.pdf',
+    source_type: 'my_file', custom_title: null, source_display_name: null,
+    material_untouched: true, file_display_name: 'Current.pdf' }
+  assert.equal(resolveBinderMaterialTitle(row), 'Current.pdf')
+  assert.equal(resolveBinderMaterialTitle({ ...row, material_untouched: false }), 'Picker display')
+  assert.equal(resolveBinderMaterialTitle({ ...row, material_untouched: undefined }), 'Picker display')
+  assert.equal(resolveBinderMaterialTitle({ ...row, source_type: 'personal' }), 'Picker display')
+  assert.equal(resolveBinderMaterialTitle({ ...row, title: 'Upload', source_type: 'personal' }), 'Current.pdf')
+  assert.equal(resolveBinderMaterialTitle({ ...row, custom_title: 'Custom' }), 'Custom')
+  assert.equal(resolveBinderMaterialTitle({ ...row, material_untouched: false, source_display_name: 'Picker display' }), 'Current.pdf')
+})

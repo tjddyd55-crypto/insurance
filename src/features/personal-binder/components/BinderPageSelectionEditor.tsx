@@ -74,13 +74,15 @@ export const BinderPageSelectionEditor = forwardRef<
   const swipeStartRef = useRef<number | null>(null)
   const initialKeyRef = useRef('')
 
+  const materialId = material?.id
+  const materialPageCount = material?.pageCount
   useEffect(() => {
-    if (!active || !material) return
+    if (!active || !materialId || materialPageCount == null) return
     const frame = requestAnimationFrame(() => {
       const next =
         initialSelection == null
           ? []
-          : normalizeSelectedPages(initialSelection, material.pageCount)
+          : normalizeSelectedPages(initialSelection, materialPageCount)
       setMode(initialSelection == null ? 'all' : 'partial')
       setSelected(next)
       setRangeInput(formatSelectedPages(next))
@@ -91,7 +93,7 @@ export const BinderPageSelectionEditor = forwardRef<
       initialKeyRef.current = `${initialSelection == null ? 'all' : 'partial'}:${formatSelectedPages(next)}`
     })
     return () => cancelAnimationFrame(frame)
-  }, [active, initialSelection, material])
+  }, [active, initialSelection, materialId, materialPageCount])
 
   useEffect(() => {
     if (!active) return
@@ -342,7 +344,7 @@ export const BinderPageSelectionEditor = forwardRef<
           ) : (
             <>
               <h2>{material.title}</h2>
-              <p>{material.originalFileName} · 원본 {pageCount}페이지</p>
+              <p>원본 {pageCount}페이지</p>
             </>
           )}
         </div>

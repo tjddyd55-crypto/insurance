@@ -47,7 +47,7 @@ export function PersonalBinderShareDialog({
     const names: string[] = []
     for (const section of binder.sections) {
       for (const item of section.items) {
-        names.push(item.material.originalFileName || item.material.title)
+        names.push(item.material.title)
       }
     }
     return names.slice(0, 12)
