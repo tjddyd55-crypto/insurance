@@ -1,3 +1,4 @@
+import { assertBinderItemSources } from './assertBinderItemSources.js'
 import { loadBinderDetail } from './personalBinderDetail.js'
 import {
   INSURANCE_STORAGE_CATEGORY,
@@ -375,6 +376,7 @@ export async function importSharedPersonalBinder(pool, scope, gaCode, shareId, i
         if (!materialId) {
           throw Object.assign(new Error('가져오기 구성이 올바르지 않습니다.'), { httpStatus: 500 })
         }
+        await assertBinderItemSources(client, sectionId, [materialId], scope)
         await safeQuery(
           client,
           `

@@ -1,3 +1,4 @@
+import { planBinderExport } from './exportPersonalBinderPdf.js'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { registerPersonalBinderApi } from '../apis/personalBinderApi.js'
@@ -183,4 +184,62 @@ test('batch route runs real single-delete policy with owner/GA isolation and ref
   assert.equal(item, false)
   assert.equal(materialDeleted, true)
   assert.equal(files.get(3).deleted, true)
+})
+
+
+test('active owned detail preserves viewer/page-image fields and PDF page selections', async () => {
+  const executor = { async query(sql, params) {
+    if (sql.includes('FROM personal_binders')) return { rows: [{ id: 1, title: 'Binder' }] }
+    if (sql.includes('FROM personal_binder_sections')) return { rows: [{ id: 2, title: 'Section', sort_order: 0 }] }
+    assert.match(sql, /INNER JOIN files f ON f.id = m.file_id/)
+    assert.match(sql, /f.user_id = m.owner_user_id AND f.ga_id = m.ga_id/)
+    assert.match(sql, /f.deleted_at IS NULL AND f.status = 'active'/)
+    assert.deepEqual(params, [1, 'owner', 7])
+    return { rows: [{ id: 5, section_id: 2, material_id: 4, file_id: 3,
+      material_title: 'A.pdf', original_file_name: 'A.pdf', mime_type: 'application/pdf',
+      page_count: 3, page_selection: [3, 1], sort_order: 0 }] }
+  } }
+  const detail = await loadBinderDetail(executor, 1, scope)
+  const item = detail.sections[0].items[0]
+  assert.equal(item.material.fileId, 3)
+  assert.equal(item.material.pageCount, 3)
+  assert.equal(item.material.mimeType, 'application/pdf')
+  assert.deepEqual(planBinderExport(detail).map((job) => ({ materialId: job.materialId, pages: job.pages })),
+    [{ materialId: '4', pages: [3, 1] }])
+})
+
+test('binder list counts only sources eligible for binder detail, retaining empty sections', async () => {
+  const pool = { async query(sql) {
+    assert.match(sql, /COUNT\(DISTINCT s.id\)/)
+    assert.match(sql, /COUNT\(DISTINCT CASE WHEN f.id IS NOT NULL THEN i.material_id END\)/)
+    assert.match(sql, /CASE WHEN f.id IS NULL THEN 0/)
+    assert.match(sql, /m.deleted_at IS NULL/)
+    assert.match(sql, /m.owner_user_id = b.owner_user_id AND m.ga_id = b.ga_id/)
+    assert.match(sql, /f.user_id = b.owner_user_id AND f.ga_id = b.ga_id/)
+    assert.match(sql, /f.deleted_at IS NULL AND f.status = 'active'/)
+    return { rows: [] }
+  } }
+  const res = response()
+  await routerFor(registerPersonalBinderApi, pool).get('get /personal-binders')({ user: { id: 'owner', gaId: 7 } }, res)
+  assert.equal(res.statusCode, 200)
+})
+
+test('item insert maps unavailable source to 409 and rolls back without writing', async () => {
+  const calls = []
+  const client = { release() { calls.push('release') }, async query(sql) {
+    calls.push(sql.trim())
+    if (sql.includes('SELECT s.id')) return { rows: [{ id: 2, binder_id: 1 }], rowCount: 1 }
+    return { rows: [], rowCount: 0 }
+  } }
+  const res = response()
+  const routes = routerFor(registerPersonalBinderApi, { connect: async () => client })
+  await routes.get('post /personal-binders/sections/:sectionId/items')({
+    user: { id: 'owner', gaId: 7 }, params: { sectionId: '2' }, body: { materialId: 4 },
+  }, res)
+  assert.equal(res.statusCode, 409)
+  assert.equal(res.body.code, 'BINDER_SOURCE_UNAVAILABLE')
+  assert.ok(calls.includes('BEGIN'))
+  assert.ok(calls.includes('ROLLBACK'))
+  assert.equal(calls.at(-1), 'release')
+  assert.ok(!calls.some((sql) => sql.includes('INSERT INTO personal_binder_items')))
 })

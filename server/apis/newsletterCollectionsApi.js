@@ -1,3 +1,4 @@
+import { assertBinderItemSources } from '../personal-binder/assertBinderItemSources.js'
 import { r2DeleteObject } from '../lib/consentStorage.js'
 import { buildNewsletterBinderPdfFileName } from '../newsletter-collections/newsletterBinderFileName.js'
 import { readStorageFileBufferFromPath } from '../lib/storageFileObjectKey.js'
@@ -282,35 +283,48 @@ async function compensateStoredFile(pool, scope, fileRow) {
 }
 
 async function addSectionItem(pool, section, materialId, scope) {
-  const existing = await safeQuery(
-    pool,
-    `
-    SELECT i.id
-    FROM personal_binder_items i
-    INNER JOIN personal_binder_sections s ON s.id = i.section_id
-    INNER JOIN personal_binders b ON b.id = s.binder_id
-    WHERE i.section_id = $1 AND i.material_id = $2
-      AND b.owner_user_id = $3 AND b.ga_id = $4 AND b.deleted_at IS NULL
-    LIMIT 1
-    `,
-    [section.id, materialId, scope.userId, scope.gaId],
-  )
-  if (existing.rowCount > 0) return { id: String(existing.rows[0].id), existing: true }
-  // personalBinderApi 와 동일하게 pool.query 사용 (items 테이블에 ga_id 컬럼 없음).
-  const result = await pool.query(
-    `
-    INSERT INTO personal_binder_items (section_id, material_id, sort_order, page_selection)
-    SELECT $1, $2, COALESCE(MAX(sort_order), -1) + 1, NULL
-    FROM personal_binder_items WHERE section_id = $1
-    RETURNING id
-    `,
-    [section.id, materialId],
-  )
-  await pool.query(
-    `UPDATE personal_binders SET updated_at = NOW() WHERE id = $1 AND owner_user_id = $2 AND ga_id = $3`,
-    [section.binder_id, scope.userId, scope.gaId],
-  )
-  return { id: String(result.rows[0].id), existing: false }
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    await assertBinderItemSources(client, section.id, [materialId], scope)
+    const existing = await safeQuery(
+      client,
+      `
+      SELECT i.id
+      FROM personal_binder_items i
+      INNER JOIN personal_binder_sections s ON s.id = i.section_id
+      INNER JOIN personal_binders b ON b.id = s.binder_id
+      WHERE i.section_id = $1 AND i.material_id = $2
+        AND b.owner_user_id = $3 AND b.ga_id = $4 AND b.deleted_at IS NULL
+      LIMIT 1
+      `,
+      [section.id, materialId, scope.userId, scope.gaId],
+    )
+    if (existing.rowCount > 0) {
+      await client.query('COMMIT')
+      return { id: String(existing.rows[0].id), existing: true }
+    }
+    const result = await client.query(
+      `
+      INSERT INTO personal_binder_items (section_id, material_id, sort_order, page_selection)
+      SELECT $1, $2, COALESCE(MAX(sort_order), -1) + 1, NULL
+      FROM personal_binder_items WHERE section_id = $1
+      RETURNING id
+      `,
+      [section.id, materialId],
+    )
+    await client.query(
+      `UPDATE personal_binders SET updated_at = NOW() WHERE id = $1 AND owner_user_id = $2 AND ga_id = $3`,
+      [section.binder_id, scope.userId, scope.gaId],
+    )
+    await client.query('COMMIT')
+    return { id: String(result.rows[0].id), existing: false }
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {})
+    throw error
+  } finally {
+    client.release()
+  }
 }
 
 async function importOneNewsletter(pool, scope, gaCode, section, newsletterId) {
@@ -402,7 +416,7 @@ export function registerNewsletterCollectionsApi(apiRouter, ctx) {
 
   const fail = (error, req, res) => {
     if (error?.httpStatus) {
-      res.status(error.httpStatus).json({ message: error.message })
+      res.status(error.httpStatus).json({ message: error.message, code: error.code })
       return
     }
     handleDbError(error, req, res)
@@ -642,6 +656,7 @@ export function registerNewsletterCollectionsApi(apiRouter, ctx) {
           const r = await importOneNewsletter(pool, scope, gaCode, section, newsletterId)
           results.push({ newsletterId, ok: true, ...r })
         } catch (error) {
+          if (error?.code === 'BINDER_SOURCE_UNAVAILABLE') throw error
           if (!error?.httpStatus) {
             console.error('[newsletter-binder-import] failed', { newsletterId, message: error?.message })
           }

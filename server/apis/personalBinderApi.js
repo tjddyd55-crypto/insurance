@@ -1,3 +1,4 @@
+import { assertBinderItemSources } from '../personal-binder/assertBinderItemSources.js'
 import { resolveBinderMaterialRows } from '../personal-binder/binderMaterialTitle.js'
 import { readStorageFileBufferFromPath } from '../lib/storageFileObjectKey.js'
 import {
@@ -662,9 +663,9 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         SELECT
           b.*,
           COUNT(DISTINCT s.id)::int AS section_count,
-          COUNT(DISTINCT i.material_id)::int AS material_count,
+          COUNT(DISTINCT CASE WHEN f.id IS NOT NULL THEN i.material_id END)::int AS material_count,
           COALESCE(SUM(
-            CASE WHEN i.id IS NULL THEN 0
+            CASE WHEN f.id IS NULL THEN 0
               WHEN i.page_selection IS NULL THEN m.page_count
               ELSE jsonb_array_length(i.page_selection)
             END
@@ -673,6 +674,10 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         LEFT JOIN personal_binder_sections s ON s.binder_id = b.id
         LEFT JOIN personal_binder_items i ON i.section_id = s.id
         LEFT JOIN personal_binder_materials m ON m.id = i.material_id AND m.deleted_at IS NULL
+          AND m.owner_user_id = b.owner_user_id AND m.ga_id = b.ga_id
+        LEFT JOIN files f ON f.id = m.file_id
+          AND f.user_id = b.owner_user_id AND f.ga_id = b.ga_id
+          AND f.deleted_at IS NULL AND f.status = 'active'
         WHERE b.owner_user_id = $1 AND b.ga_id = $2 AND b.deleted_at IS NULL
         GROUP BY b.id
         ORDER BY b.updated_at DESC, b.id DESC
@@ -851,15 +856,20 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
           `,
           [newBinderId, section.title, section.sort_order],
         )
+        const sourceItems = await client.query(
+          `SELECT material_id FROM personal_binder_items WHERE section_id = $1 ORDER BY id`,
+          [section.id],
+        )
+        await assertBinderItemSources(client, sectionInsert.rows[0].id, sourceItems.rows.map((row) => row.material_id), scope)
         await client.query(
           `
           INSERT INTO personal_binder_items (section_id, material_id, sort_order, page_selection)
           SELECT $1, material_id, sort_order, page_selection
           FROM personal_binder_items
-          WHERE section_id = $2
+          WHERE section_id = $2 AND material_id = ANY($3::bigint[])
           ORDER BY sort_order
           `,
-          [sectionInsert.rows[0].id, section.id],
+          [sectionInsert.rows[0].id, section.id, sourceItems.rows.map((row) => row.material_id)],
         )
       }
       await client.query('COMMIT')
@@ -982,18 +992,21 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
   })
 
   apiRouter.post('/personal-binders/sections/:sectionId/items', requireAuth, async (req, res) => {
+    const client = await pool.connect()
     try {
       const scope = requestScope(req, res)
       if (!scope) return
       const sectionId = positiveId(req.params.sectionId)
       const materialId = positiveId(req.body?.materialId)
-      const section = sectionId ? await getOwnedSection(pool, sectionId, scope) : null
+      const section = sectionId ? await getOwnedSection(client, sectionId, scope) : null
       if (!section || !materialId) {
         res.status(404).json({ message: '섹션 또는 자료를 찾을 수 없습니다.' })
         return
       }
+      await client.query('BEGIN')
+      await assertBinderItemSources(client, sectionId, [materialId], scope)
       const material = await safeQuery(
-        pool,
+        client,
         `
         SELECT id, page_count FROM personal_binder_materials
         WHERE id = $1 AND owner_user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
@@ -1002,12 +1015,13 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         [materialId, scope.userId, scope.gaId],
       )
       if (material.rowCount === 0) {
+        await client.query('ROLLBACK')
         res.status(404).json({ message: '자료를 찾을 수 없습니다.' })
         return
       }
       const selection = normalizePageSelection(req.body?.pageSelection, Number(material.rows[0].page_count))
       const existingItem = await safeQuery(
-        pool,
+        client,
         `
         SELECT i.id
         FROM personal_binder_items i
@@ -1023,13 +1037,14 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         [sectionId, materialId, scope.userId, scope.gaId],
       )
       if (existingItem.rowCount > 0) {
+        await client.query('COMMIT')
         res.status(200).json({
           id: String(existingItem.rows[0].id),
           existing: true,
         })
         return
       }
-      const result = await pool.query(
+      const result = await client.query(
         `
         INSERT INTO personal_binder_items (section_id, material_id, sort_order, page_selection)
         SELECT $1, $2, COALESCE(MAX(sort_order), -1) + 1, $3::jsonb
@@ -1038,10 +1053,14 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         `,
         [sectionId, materialId, selection == null ? null : JSON.stringify(selection)],
       )
-      await pool.query(`UPDATE personal_binders SET updated_at = NOW() WHERE id = $1`, [section.binder_id])
+      await client.query(`UPDATE personal_binders SET updated_at = NOW() WHERE id = $1`, [section.binder_id])
+      await client.query('COMMIT')
       res.status(201).json({ id: String(result.rows[0].id) })
     } catch (error) {
+      await client.query('ROLLBACK').catch(() => {})
       sendError(error, req, res, handleDbError)
+    } finally {
+      client.release()
     }
   })
 

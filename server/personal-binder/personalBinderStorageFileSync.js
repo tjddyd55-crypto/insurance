@@ -45,6 +45,7 @@ export async function getPersonalStorageFileBinderDeleteImpact(executor, scope, 
     INNER JOIN personal_binder_sections s ON s.id = i.section_id
     INNER JOIN personal_binders b
       ON b.id = s.binder_id
+      AND b.deleted_at IS NULL
       AND b.owner_user_id = $2
       AND b.ga_id = $3
     WHERE i.material_id = ANY($1::bigint[])
