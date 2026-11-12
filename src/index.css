@@ -20201,3 +20201,31 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
     max-height: 230px;
   }
 }
+
+/* Keep selection actions with the file list and allow narrow panels to wrap. */
+.storage-workspace .storage-workspace__selection-toolbar{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-left: auto;
+  min-width: 0;
+  max-width: 100%;
+}
+.storage-workspace .storage-workspace__selection-toolbar > *{
+  white-space: nowrap;
+}
+.storage-workspace .storage-workspace__summary{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.storage-workspace .storage-explorer-files__breadcrumb--with-selection{
+  height: auto;
+  max-height: none;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  overflow: visible;
+}

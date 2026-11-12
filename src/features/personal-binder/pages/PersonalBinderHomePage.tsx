@@ -1,3 +1,8 @@
+import ResponsiveLayout from '../../../components/ResponsiveLayout'
+import PCOnlySection from '../../../components/PCOnlySection'
+import PersonalBinderHomePCView from './PersonalBinderHome/PersonalBinderHomePCView'
+import PersonalBinderHomeMobileView from './PersonalBinderHome/PersonalBinderHomeMobileView'
+import type { PersonalBinderHomeViewProps } from './PersonalBinderHome/personalBinderHomeViewProps'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Navigate, useLocation, useMatch, useNavigate } from 'react-router-dom'
 
@@ -20,6 +25,7 @@ import {
 } from '../domain/lastSelectedBinder'
 import {
   createPersonalBinder,
+  deletePersonalBinder,
   createPersonalBinderFolder,
   deletePersonalBinderFolder,
   duplicatePersonalBinder,
@@ -58,6 +64,7 @@ export default function PersonalBinderHomePage() {
   const [error, setError] = useState('')
   const [binderForm, setBinderForm] = useState<BinderFormState | null>(null)
   const [saving, setSaving] = useState(false)
+  const nestedConfirmBlockingRef = useRef(false)
   const [createBinderFolderId, setCreateBinderFolderId] = useState<string | undefined>(undefined)
 
   const load = useCallback(async (signal?: AbortSignal) => {
@@ -144,6 +151,22 @@ export default function PersonalBinderHomePage() {
 
   if (!token) return <Navigate to="/login" replace />
 
+  const requestCloseBinderForm = async () => {
+    if (saving || nestedConfirmBlockingRef.current) return
+    if (binderForm && (binderForm.title || binderForm.description)) {
+      nestedConfirmBlockingRef.current = true
+      try {
+        const accepted = await confirm({ title: '확인',
+          message: '변경사항이 저장되지 않았습니다. 닫으시겠습니까?',
+          confirmLabel: '확인', cancelLabel: '취소' })
+        if (!accepted) return
+      } finally {
+        nestedConfirmBlockingRef.current = false
+      }
+    }
+    setBinderForm(null)
+  }
+
   const saveBinderForm = async () => {
     if (!binderForm || !binderForm.title.trim() || saving) return
     setSaving(true)
@@ -200,6 +223,30 @@ export default function PersonalBinderHomePage() {
     )
   }
 
+  const handleDeleteBinder = async (binder: PersonalBinderSummary) => {
+    if (saving || !(await confirmLeaveEditor())) return
+    const accepted = await confirm({
+      title: '이 바인더를 삭제하시겠습니까?',
+      message: '바인더 구성은 삭제되지만 원본 파일은 내 파일에서 삭제되지 않습니다.',
+      cancelLabel: '취소', confirmLabel: '삭제', tone: 'danger',
+    })
+    if (!accepted) return
+    setSaving(true)
+    try {
+      await deletePersonalBinder(token, binder.id)
+      setBinders((rows) => rows.filter((row) => row.id !== binder.id))
+      if (workspaceEditBinderId === binder.id) {
+        setPageSelectionDock(null)
+        setPreviewItemId(null)
+        navigate('/personal-binders', { replace: true })
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '바인더를 삭제하지 못했습니다.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const openCreateBinder = (folderId?: string) => {
     setCreateBinderFolderId(folderId)
     setBinderForm({
@@ -233,7 +280,7 @@ export default function PersonalBinderHomePage() {
     </div>
   )
 
-  const mineWorkspaceBody = isMobile ? (
+  const mobileContent = (
     <>
       {!loading ? (
         <section className="personal-binder-workspace__binder-nav personal-binder-workspace__binder-nav--mobile">
@@ -249,18 +296,23 @@ export default function PersonalBinderHomePage() {
                   섹션 {binder.sectionCount} · 자료 {binder.materialCount}
                 </small>
               </button>
+              <FormButton variant="danger" size="sm" disabled={saving} onClick={() => void handleDeleteBinder(binder)}
+                aria-label={`${binder.title} 삭제`}>삭제</FormButton>
             </article>
           ))}
         </section>
       ) : null}
     </>
-  ) : (
+  )
+
+  const pcContent = (
     <>
       <PersonalBinderExplorerTree
         binders={binders}
         folders={binderFolders}
         selectedBinderId={workspaceEditBinderId}
         onSelectBinder={openBinderEdit}
+        onDeleteBinder={(binder) => void handleDeleteBinder(binder)}
         onCreateBinder={() => openCreateBinder()}
         onCreateFolder={handleCreateFolder}
         onRenameFolder={handleRenameFolder}
@@ -304,40 +356,13 @@ export default function PersonalBinderHomePage() {
     </>
   )
 
-  return (
-    <main
-      className={[
-        'page personal-binder-page personal-binder-page--compact',
-        !isMobile ? 'personal-binder-page--workspace personal-binder-page--workspace-studio' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-    >
-      <header className="personal-binder-page-header personal-binder-page-header--compact">
-        <h1>내 바인더</h1>
-        {isMobile ? (
-          <FormButton variant="primary" size="sm" onClick={() => openCreateBinder()}>
-            + 바인더
-          </FormButton>
-        ) : null}
-      </header>
-
-      {error ? <p className="personal-binder-error">{error}</p> : null}
-      {loading ? <div className="personal-binder-status">불러오는 중…</div> : null}
-
-      {!loading ? (
-        isMobile ? (
-          mineWorkspaceBody
-        ) : (
-          <div className="personal-binder-workspace__body personal-binder-workspace__body--studio">
-            {mineWorkspaceBody}
-          </div>
-        )
-      ) : null}
-
+  const dialogs = (
+    <>
       <BaseDialog
         open={binderForm != null}
-        onClose={() => setBinderForm(null)}
+        onClose={() => void requestCloseBinderForm()}
+        closeOnEsc={false}
+        onEscapeRequest={() => void requestCloseBinderForm()}
         closeOnBackdrop={false}
         ariaLabel={binderForm?.mode === 'duplicate' ? '바인더 복제' : '새 바인더'}
       >
@@ -362,8 +387,8 @@ export default function PersonalBinderHomePage() {
             aria-label="바인더 설명"
             rows={3}
           />
-          {binderForm?.mode === 'create' && !isMobile && binderFolders.length > 0 ? (
-            <label className="personal-binder-dialog-field">
+          {binderForm?.mode === 'create' && binderFolders.length > 0 ? (
+            <PCOnlySection><label className="personal-binder-dialog-field">
               <span className="personal-binder-dialog-field__label">저장 폴더</span>
               <select
                 className="field__control"
@@ -384,11 +409,11 @@ export default function PersonalBinderHomePage() {
                   <option key={folder.id} value={folder.id}>{folder.name}</option>
                 ))}
               </select>
-            </label>
+            </label></PCOnlySection>
           ) : null}
         </div>
         <div className="personal-binder-dialog-actions">
-          <FormButton variant="secondary" onClick={() => setBinderForm(null)}>취소</FormButton>
+          <FormButton variant="secondary" onClick={() => void requestCloseBinderForm()}>취소</FormButton>
           <FormButton
             variant="primary"
             disabled={!binderForm?.title.trim() || saving}
@@ -400,6 +425,9 @@ export default function PersonalBinderHomePage() {
         </div>
       </BaseDialog>
       {confirmDialog}
-    </main>
+    </>
   )
+  return <ResponsiveLayout<PersonalBinderHomeViewProps>
+    PC={PersonalBinderHomePCView} Mobile={PersonalBinderHomeMobileView}
+    viewProps={{ loading, error, pcContent, mobileContent, dialogs, onCreateBinder: () => openCreateBinder() }} />
 }

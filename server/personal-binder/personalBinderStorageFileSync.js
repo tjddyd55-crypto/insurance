@@ -133,7 +133,6 @@ export async function cleanupPersonalBinderRefsForDeletedStorageFile(client, sco
     WHERE i.material_id = m.id
       AND i.section_id = s.id
       AND s.binder_id = b.id
-      AND b.deleted_at IS NULL
       AND b.owner_user_id = $2
       AND b.ga_id = $3
       AND m.id = ANY($1::bigint[])

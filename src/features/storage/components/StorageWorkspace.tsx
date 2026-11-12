@@ -1,9 +1,12 @@
+import FormButton from '../../../components/form/FormButton'
+import { toggleStorageSelection, retainFailedSelection, storageBatchDeleteSummary } from '../utils/storageBatchSelection'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ApiError } from '../../../lib/apiClient'
 import {
   createStorageFileDownloadUrl,
   createStorageFolder,
   deleteStorageFile,
+  deleteStorageFilesBatch,
   deleteStorageFolder,
   fetchStorageFileBinderDeleteImpact,
   getPersonalStorageQuota,
@@ -198,6 +201,12 @@ export default function StorageWorkspace({
   const explorerPersistScope = useMemo((): StorageExplorerPersistScope => {
     return customerId != null ? { type: 'customer', customerId } : { type: 'personal' }
   }, [customerId])
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectionIds, setSelectionIds] = useState<Set<number>>(new Set())
+  const [batchIds, setBatchIds] = useState<number[]>([])
+  const [batchImpactLines, setBatchImpactLines] = useState<string[]>([])
+  const [batchBusy, setBatchBusy] = useState(false)
+  const [batchSummary, setBatchSummary] = useState('')
   const [folders, setFolders] = useState<StorageFolderRow[]>([])
   const [files, setFiles] = useState<StorageFileRow[]>([])
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<number>>(new Set())
@@ -333,6 +342,10 @@ export default function StorageWorkspace({
     if (!token?.trim()) {
       return
     }
+    setSelectionMode(false)
+    setSelectionIds(new Set())
+    setBatchIds([])
+    setBatchSummary('')
     setFolders([])
     setFiles([])
     setExplorerSelection({ mode: 'all' })
@@ -696,26 +709,22 @@ export default function StorageWorkspace({
   }, [loadFolders, renameTarget, submitting, token])
 
   const openDeleteFileDialog = useCallback(
-    (file: StorageFileRow) => {
-      setDeleteTarget({ kind: 'file', file })
-      setDeleteDetailLines([])
-      setDeleteBinderItemCountAck(null)
-      if (!token?.trim() || customerId != null) {
-        return
+    async (file: StorageFileRow) => {
+      if (!token?.trim() || submitting || batchBusy) return
+      setSubmitting(true)
+      setError('')
+      try {
+        const impact = await fetchStorageFileBinderDeleteImpact(token, file.id)
+        setDeleteDetailLines(buildStorageBinderDeleteImpactDetailLines(impact))
+        setDeleteBinderItemCountAck(impact.binderItemCount)
+        setDeleteTarget({ kind: 'file', file })
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : '바인더 사용 여부를 확인하지 못했습니다.')
+      } finally {
+        setSubmitting(false)
       }
-      void fetchStorageFileBinderDeleteImpact(token, file.id)
-        .then((impact) => {
-          if (impact.binderItemCount <= 0) {
-            return
-          }
-          setDeleteBinderItemCountAck(impact.binderItemCount)
-          setDeleteDetailLines(buildStorageBinderDeleteImpactDetailLines(impact))
-        })
-        .catch(() => {
-          // 영향 조회 실패 시 기본 삭제 확인만 표시
-        })
     },
-    [customerId, token],
+    [batchBusy, submitting, token],
   )
 
   const submitDelete = useCallback(async () => {
@@ -832,8 +841,65 @@ export default function StorageWorkspace({
     setSortOrder('date-desc')
   }, [])
 
+  const prepareBatchDelete = async () => {
+    if (!token || batchBusy || selectionIds.size === 0) return
+    setBatchBusy(true)
+    setError('')
+    try {
+      const ids = [...selectionIds]
+      if (ids.length > 100) throw new Error('한 번에 100개 이하의 파일을 선택해 주세요.')
+      const lines: string[] = []
+      for (const id of ids) {
+        let impact
+        try {
+          impact = await fetchStorageFileBinderDeleteImpact(token, id)
+        } catch (reason) {
+          // A stale row is still sent to batch delete so the server reports NOT_FOUND.
+          if (reason instanceof ApiError && reason.status === 404) continue
+          throw reason
+        }
+        if (impact.binderItemCount > 0) {
+          const name = files.find((file) => file.id === id)?.displayName ?? String(id)
+          lines.push(`${name}: 이 파일은 ${impact.binderCount}개의 바인더에서 사용 중입니다.`)
+        }
+      }
+      if (lines.length) lines.unshift(`선택한 파일 중 ${lines.length}개가 바인더에서 사용 중입니다.`)
+      setBatchImpactLines(lines)
+      setBatchIds(ids)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '삭제 영향을 확인하지 못했습니다.')
+    } finally {
+      setBatchBusy(false)
+    }
+  }
+
+  const submitBatchDelete = async () => {
+    if (!token || batchBusy) return
+    setBatchBusy(true)
+    try {
+      const result = await deleteStorageFilesBatch(token, batchIds, batchImpactLines.length > 0)
+      const deleted = new Set(result.deleted)
+      setFiles((rows) => rows.filter((row) => !deleted.has(row.id)))
+      setSelectionIds((ids) => retainFailedSelection(ids, result.deleted))
+      setSelectedFileId((id) => id != null && deleted.has(id) ? null : id)
+      setBatchSummary(storageBatchDeleteSummary(result.deleted.length, result.failed.length))
+      setBatchIds([])
+      await loadQuota()
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '선택 삭제에 실패했습니다.')
+    } finally {
+      setBatchBusy(false)
+    }
+  }
+
   const dialogBlock = (
     <>
+      <StorageDeleteDialog open={batchIds.length > 0}
+        title={`선택한 ${batchIds.length}개 파일을 삭제하시겠습니까?`}
+        description="" detailLines={batchImpactLines} loading={batchBusy}
+        confirmLabel={batchImpactLines.length ? '파일과 바인더 참조 모두 삭제' : '삭제'}
+        onClose={() => { if (!batchBusy) setBatchIds([]) }}
+        onConfirm={() => void submitBatchDelete()} />
       <StorageRenameDialog
         open={createFolderOpen}
         title={isExplorerLayout ? `폴더 생성 · ${explorerFolderPath}` : '폴더 생성'}
@@ -864,6 +930,7 @@ export default function StorageWorkspace({
       />
 
       <StorageDeleteDialog
+        confirmLabel={deleteDetailLines.length ? '파일과 바인더 참조 모두 삭제' : '삭제'}
         open={deleteTarget != null}
         title={
           deleteTarget?.kind === 'file' && deleteDetailLines.length > 0
@@ -908,6 +975,19 @@ export default function StorageWorkspace({
     />
   ) : null
 
+  const selectionToolbar = !binderPickMode ? <div className="storage-workspace__selection-toolbar" role="group" aria-label="파일 선택">
+        {selectionMode ? <>
+          <span role="status">{selectionIds.size}개 선택됨</span>
+          <FormButton variant="secondary" size="sm" disabled={batchBusy} onClick={() => setSelectionIds(new Set(filteredFiles.map((file) => file.id)))}>전체 선택</FormButton>
+          <FormButton variant="secondary" size="sm" disabled={batchBusy} onClick={() => setSelectionIds(new Set())}>선택 해제</FormButton>
+          <FormButton variant="danger" size="sm" disabled={batchBusy || selectionIds.size === 0} onClick={() => void prepareBatchDelete()}>선택 삭제</FormButton>
+        </> : null}
+        <FormButton variant="secondary" size="sm" disabled={batchBusy || submitting} onClick={() => {
+          setSelectionMode((value) => !value)
+          setSelectionIds(new Set())
+        }}>{selectionMode ? '선택 종료' : '선택'}</FormButton>
+      </div> : null
+
   return (
     <div
       className={[
@@ -919,6 +999,7 @@ export default function StorageWorkspace({
         .join(' ')}
     >
       {headerSlot}
+      {batchSummary ? <p role="status">{batchSummary}</p> : null}
       <div
         className={[
           'storage-workspace__header',
@@ -1028,8 +1109,11 @@ export default function StorageWorkspace({
             </div>
             <StorageExplorerFilePanel
               breadcrumb={explorerBreadcrumb}
+              selectionToolbar={selectionToolbar}
               folders={folders}
               files={filteredFiles}
+              selectionIds={selectionMode ? selectionIds : undefined}
+              onToggleSelection={(id) => { if (!batchBusy) setSelectionIds((ids) => toggleStorageSelection(ids, id)) }}
               isAllFilesView={explorerSelection.mode === 'all'}
               loading={loading}
               listFetchError={filesListError}
@@ -1111,10 +1195,13 @@ export default function StorageWorkspace({
           </div>
 
           <div className="storage-workspace__summary">
+            <span>
             표시 {filteredFiles.length}개 / 전체 {files.length}개 · 폴더 {folders.length}개
             {selectedFolderId !== null
               ? ` · 선택 폴더: ${folders.find((folder) => folder.id === selectedFolderId)?.name ?? '폴더'}`
               : ''}
+            </span>
+            {selectionToolbar}
           </div>
 
           {foldersLoadError ? (
@@ -1125,6 +1212,8 @@ export default function StorageWorkspace({
           {error ? <p className="storage-workspace__error">{error}</p> : null}
 
           <StorageFileList
+            selectionIds={selectionMode ? selectionIds : undefined}
+            onToggleSelection={(id) => { if (!batchBusy) setSelectionIds((ids) => toggleStorageSelection(ids, id)) }}
             folders={folders}
             files={filteredFiles}
             actionVariant={actionVariant}

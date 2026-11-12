@@ -1,3 +1,4 @@
+import { resolveBinderMaterialRows } from './binderMaterialTitle.js'
 import { consentPutObject } from '../lib/consentStorage.js'
 import {
   INSURANCE_STORAGE_CATEGORY,
@@ -82,9 +83,9 @@ export async function insertPersonalBinderMaterial(executor, scope, input) {
     `
     INSERT INTO personal_binder_materials (
       owner_user_id, ga_id, folder_id, file_id, title, original_file_name,
-      mime_type, file_size, page_count, checksum_sha256, source_type, source_ref
+      mime_type, file_size, page_count, checksum_sha256, source_type, source_ref, source_display_name
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     RETURNING *, 0::int AS binder_count
     `,
     [
@@ -100,6 +101,7 @@ export async function insertPersonalBinderMaterial(executor, scope, input) {
       checksum,
       sourceType,
       sourceRef,
+      input.sourceDisplayName ?? title,
     ],
   )
   return insert.rows[0]
@@ -128,7 +130,7 @@ async function loadOwnedBinderMaterialWithBinderCount(executor, scope, materialI
     `,
     [materialId, scope.userId, scope.gaId],
   )
-  return result.rows[0] ?? null
+  return (await resolveBinderMaterialRows(executor, result.rows, scope))[0] ?? null
 }
 
 /**
@@ -201,7 +203,8 @@ export async function registerBinderMaterialFromStorageFile(executor, scope, fil
   }
   const row = await insertPersonalBinderMaterial(executor, scope, {
     fileId,
-    title: options.title,
+    title: String(fileRow.display_name || fileRow.original_name || options.title),
+    sourceDisplayName: String(fileRow.display_name || fileRow.original_name || options.title),
     originalFileName: originalName,
     mimeType,
     fileSize: Number(fileRow.file_size) || buffer.length,
