@@ -1,3 +1,4 @@
+import FormInput from '../../../components/form/FormInput'
 import { useEffect, useState } from 'react'
 import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 import { StorageExplorerFileActionsMenu } from './StorageExplorerFileActionsMenu'
@@ -18,6 +19,8 @@ const EXPLORER_FILE_ACTION_DANGER_CLASS =
 type StorageExplorerFilePanelProps = {
   breadcrumb: string[]
   folders: StorageFolderRow[]
+  selectionIds?: ReadonlySet<number>
+  onToggleSelection?: (id: number) => void
   files: StorageFileRow[]
   isAllFilesView: boolean
   loading: boolean
@@ -93,6 +96,8 @@ export default function StorageExplorerFilePanel({
   breadcrumb,
   folders,
   files,
+  selectionIds,
+  onToggleSelection,
   isAllFilesView,
   loading,
   listFetchError = '',
@@ -196,6 +201,12 @@ export default function StorageExplorerFilePanel({
                 }}
               >
                 <div className="storage-explorer-files__name-cell">
+                  {selectionIds ? <FormInput type="checkbox"
+                    aria-label={`${file.displayName} 선택`}
+                    checked={selectionIds.has(file.id)}
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => event.stopPropagation()}
+                    onChange={() => onToggleSelection?.(file.id)} /> : null}
                   <span className="storage-explorer-files__icon">{renderFileIcon(file)}</span>
                   <span className="storage-explorer-files__name-block">
                     <span className="storage-explorer-files__name" title={file.displayName}>

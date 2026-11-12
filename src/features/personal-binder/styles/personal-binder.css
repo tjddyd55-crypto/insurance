@@ -2617,3 +2617,13 @@
     gap: 4px;
   }
 }
+
+.personal-binder-page--pc .personal-binder-explorer-tree__binder-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.personal-binder-page--pc .personal-binder-explorer-tree__binder-row > .personal-binder-explorer-tree__binder {
+  flex: 1;
+  min-width: 0;
+}

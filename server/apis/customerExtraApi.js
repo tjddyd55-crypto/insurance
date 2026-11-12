@@ -1,3 +1,4 @@
+import { deleteStorageFileBatch } from '../lib/storageBatchDelete.js'
 import { safeQuery } from '../utils/dbSafeQuery.js'
 import { createDriveImport } from '../integrations/google/googleDriveImport.js'
 import { createDriveExport } from '../integrations/google/googleDriveExport.js'
@@ -2111,7 +2112,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
     const peekRow = peek.rows[0]
     const isPersonalStorage = peekRow.customer_id == null && peekRow.team_id == null
     const confirmBinderCleanup =
-      (req.body && typeof req.body === 'object' && req.body.confirmBinderCleanup === true) ||
+      (req.body && typeof req.body === 'object' && (req.body.confirmBinderCleanup === true || req.body.removeBinderReferences === true)) ||
       String(req.query?.confirmBinderCleanup ?? '').toLowerCase() === 'true'
     const acknowledgedBinderItemCount = parseAcknowledgedBinderItemCount(req)
     if (isPersonalStorage) {
@@ -2136,17 +2137,6 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
     const objectKey = /^https?:\/\//i.test(rawPath)
       ? parseStorageObjectKeyFromPublicUrl(rawPath)
       : rawPath
-    if (objectKey && assertStorageObjectKey(objectKey, [gaIdPath, String(gaId)], userId)) {
-      try {
-        await r2DeleteStorageObjectOrThrow(objectKey)
-      } catch (e) {
-        console.warn('[STORAGE_DELETE_R2_FAIL]', fileId, objectKey, e)
-        res.status(502).json({
-          message: '파일 저장소에서 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.',
-        })
-        return
-      }
-    }
 
     const sz = Number(peekRow.file_size) || 0
     const teamId = peekRow.team_id != null ? String(peekRow.team_id) : ''
@@ -2209,6 +2199,19 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         }
         await cleanupPersonalBinderRefsForDeletedStorageFile(client, { userId, gaId }, fileId)
       }
+      if (objectKey && assertStorageObjectKey(objectKey, [gaIdPath, String(gaId)], userId)) {
+        try {
+          await r2DeleteStorageObjectOrThrow(objectKey)
+        } catch (e) {
+          console.warn('[STORAGE_DELETE_R2_FAIL]', fileId, objectKey, e)
+          await client.query('ROLLBACK')
+          res.status(502).json({
+            message: '파일 저장소에서 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+          })
+          return
+        }
+      }
+
       await client.query('COMMIT')
       res.json({ ok: true })
     } catch (error) {
@@ -3311,6 +3314,29 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       const impact = await getPersonalStorageFileBinderDeleteImpact(pool, { userId, gaId }, fileId)
       res.json(impact)
     } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.delete('/storage/files/batch', requireAuth, async (req, res) => {
+    if (!req.user?.id) return res.status(401).json({ message: '로그인이 필요합니다.' })
+    if (requireGaIdFromUser(req, res) == null) return
+    try {
+      const result = await deleteStorageFileBatch(req.body?.fileIds, req.body?.removeBinderReferences,
+        async (fileId, removeBinderReferences) => {
+          const response = { status: 200, body: null }
+          const singleRes = {
+            status(code) { response.status = code; return this },
+            json(body) { response.body = body; return this },
+          }
+          await handleStorageDelete({
+            user: req.user, gaId: req.gaId, params: { fileId }, query: {}, body: { removeBinderReferences },
+          }, singleRes)
+          return response
+        })
+      res.json(result)
+    } catch (error) {
+      if (error.httpStatus === 400) return res.status(400).json({ message: error.message })
       handleDbError(error, req, res)
     }
   })

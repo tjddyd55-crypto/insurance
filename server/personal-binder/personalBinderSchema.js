@@ -25,6 +25,8 @@ export async function ensurePersonalBinderSchema(executor) {
       )
     )
   `)
+  await executor.query(`ALTER TABLE personal_binder_materials ADD COLUMN IF NOT EXISTS custom_title TEXT`)
+  await executor.query(`ALTER TABLE personal_binder_materials ADD COLUMN IF NOT EXISTS source_display_name TEXT`)
   await executor.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS personal_binder_material_owner_file_uk
     ON personal_binder_materials (owner_user_id, ga_id, file_id)
@@ -150,5 +152,29 @@ export async function ensurePersonalBinderSchema(executor) {
     CREATE INDEX IF NOT EXISTS personal_binder_binders_folder_idx
     ON personal_binders (folder_id)
     WHERE deleted_at IS NULL
+  `)
+  // Serialize reference creation with file soft-deletion, including duplicate/import paths.
+  await executor.query(`
+    CREATE OR REPLACE FUNCTION guard_personal_binder_item_source() RETURNS trigger AS $$
+    BEGIN
+      PERFORM f.id FROM files f
+      JOIN personal_binder_materials m ON m.file_id = f.id
+        AND m.owner_user_id = f.user_id AND m.ga_id = f.ga_id
+      JOIN personal_binder_sections s ON s.id = NEW.section_id
+      JOIN personal_binders b ON b.id = s.binder_id
+        AND b.owner_user_id = m.owner_user_id AND b.ga_id = m.ga_id
+      WHERE m.id = NEW.material_id AND m.deleted_at IS NULL
+        AND f.deleted_at IS NULL AND f.status = 'active' AND b.deleted_at IS NULL
+      FOR SHARE OF f;
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'Binder source file not found' USING ERRCODE = '23503';
+      END IF;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql
+  `)
+  await executor.query(`
+    CREATE OR REPLACE TRIGGER personal_binder_item_source_guard BEFORE INSERT OR UPDATE OF material_id, section_id
+    ON personal_binder_items FOR EACH ROW EXECUTE FUNCTION guard_personal_binder_item_source()
   `)
 }

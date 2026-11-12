@@ -179,6 +179,7 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
 | `CustomerWorkspaceLayout` | ✅ LayoutPC/LayoutMobile | — CSS scope 수요 없음 | 부분 분기(좌측 공통, 우측만 분기) |
 | `CustomerGaExcelPage` | ✅ PagePC/PageMobile | ✅ `.customer-ga-excel-page--pc/--mobile` | ✅ `ResponsiveLayout` + 전용 훅(`useGaCustomerExcelData`) |
 | `MemoRoutePage` | ✅ PCView/MobileView | ✅ `.memo-route-page--pc` 만 사용(Mobile 은 modifier 미부착: 분리 전과 1:1 동일 마크업 유지, [아래 예외 노트](#memo-mobile-modifier-exception) 참조) | ✅ `ResponsiveLayout` (placeholder — 훅 불필요) |
+| `PersonalBinderHomePage` | ✅ PCView/MobileView | ✅ `.personal-binder-page--pc/--mobile` | ✅ `ResponsiveLayout` (container 훅은 라우팅·미저장 확인 등 행동 분기 전용) |
 | 그 외 페이지(20+ 파일) | ❌ 단일 파일 내부에서 `useIsMobile` 분기 | ❌ 없음 | ❌ |
 
 - "CSS scope 수요 없음" = index.css에 `.<page>-page--pc/--mobile`·`.pc-root .<page>-page` 규칙이 0건. CSS가 생길 때 modifier를 부착한다(선제 추상화 금지).

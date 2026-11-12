@@ -436,3 +436,17 @@ export async function openStorageFile(token: string, fileId: number): Promise<vo
   const href = resolveAbsoluteApiUrl(openUrl)
   window.open(href, '_blank', 'noopener,noreferrer')
 }
+
+export type StorageBatchDeleteResult = {
+  deleted: number[]
+  failed: { id: number; reason: 'NOT_FOUND' | 'USED_IN_BINDER' | 'INTERNAL' }[]
+}
+
+export async function deleteStorageFilesBatch(
+  token: string, fileIds: number[], removeBinderReferences = false,
+): Promise<StorageBatchDeleteResult> {
+  assertToken(token)
+  return apiRequest('/api/storage/files/batch', {
+    method: 'DELETE', token, body: JSON.stringify({ fileIds, removeBinderReferences }),
+  })
+}

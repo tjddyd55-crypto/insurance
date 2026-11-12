@@ -1,3 +1,4 @@
+import { resolveBinderMaterialRows } from '../personal-binder/binderMaterialTitle.js'
 import { readStorageFileBufferFromPath } from '../lib/storageFileObjectKey.js'
 import {
   buildBinderMaterialPdfFromImages,
@@ -245,7 +246,7 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         `,
         [scope.userId, scope.gaId],
       )
-      res.json(result.rows.map(mapMaterial))
+      res.json((await resolveBinderMaterialRows(pool, result.rows, scope)).map(mapMaterial))
     } catch (error) {
       sendError(error, req, res, handleDbError)
     }
@@ -275,7 +276,7 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         `,
         [scope.userId, scope.gaId, checksum],
       )
-      res.json({ duplicate: result.rowCount > 0, material: result.rows[0] ? mapMaterial(result.rows[0]) : null })
+      res.json({ duplicate: result.rowCount > 0, material: result.rows[0] ? mapMaterial((await resolveBinderMaterialRows(pool, result.rows, scope))[0]) : null })
     } catch (error) {
       sendError(error, req, res, handleDbError)
     }
@@ -435,7 +436,7 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
         pool,
         `
         UPDATE personal_binder_materials
-        SET title = $1, updated_at = NOW()
+        SET title = $1, custom_title = $1, updated_at = NOW()
         WHERE id = $2 AND owner_user_id = $3 AND ga_id = $4 AND deleted_at IS NULL
         RETURNING *, (
           SELECT COUNT(DISTINCT b.id)::int
@@ -775,7 +776,7 @@ export function registerPersonalBinderApi(apiRouter, ctx) {
       await client.query('BEGIN')
       const result = await client.query(
         `
-        UPDATE personal_binders SET deleted_at = NOW(), updated_at = NOW()
+        UPDATE personal_binders SET deleted_at = NOW(), folder_id = NULL, updated_at = NOW()
         WHERE id = $1 AND owner_user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
         RETURNING id
         `,
