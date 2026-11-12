@@ -1,5 +1,5 @@
 import FormInput from '../../../components/form/FormInput'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { formatKstDateTimeDisplay } from '../../../utils/displayDateTime'
 import { StorageExplorerFileActionsMenu } from './StorageExplorerFileActionsMenu'
 import type { StorageFileDownloadLinkEntry, StorageFileRow, StorageFolderRow } from '../api/storageApi'
@@ -17,6 +17,7 @@ const EXPLORER_FILE_ACTION_DANGER_CLASS =
   'storage-explorer-file-action-button storage-explorer-file-action-button--danger'
 
 type StorageExplorerFilePanelProps = {
+  selectionToolbar?: ReactNode
   breadcrumb: string[]
   folders: StorageFolderRow[]
   selectionIds?: ReadonlySet<number>
@@ -94,6 +95,7 @@ function inferFileExtension(file: StorageFileRow): string {
 
 export default function StorageExplorerFilePanel({
   breadcrumb,
+  selectionToolbar,
   folders,
   files,
   selectionIds,
@@ -128,7 +130,7 @@ export default function StorageExplorerFilePanel({
       aria-label="파일 목록"
     >
       <nav
-        className="storage-explorer-chrome__breadcrumb-row storage-explorer-files__breadcrumb"
+        className={`storage-explorer-chrome__breadcrumb-row storage-explorer-files__breadcrumb${selectionToolbar ? ' storage-explorer-files__breadcrumb--with-selection' : ''}`}
         aria-label="현재 위치"
       >
         {breadcrumb.map((segment, index) => {
@@ -150,6 +152,7 @@ export default function StorageExplorerFilePanel({
             </span>
           )
         })}
+        {selectionToolbar}
       </nav>
 
       {loading ? (
