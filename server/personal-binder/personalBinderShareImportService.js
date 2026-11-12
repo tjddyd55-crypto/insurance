@@ -189,7 +189,7 @@ async function insertPersonalFileFromShareCopy(
       scope.gaId,
       folderId,
       originalName,
-      originalName,
+      String(shareFileRow.material_title || originalName),
       objectKey,
       fileSize,
       mimeType,

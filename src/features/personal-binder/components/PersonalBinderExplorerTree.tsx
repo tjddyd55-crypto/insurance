@@ -13,6 +13,7 @@ type Props = {
   binders: PersonalBinderSummary[]
   folders: PersonalBinderFolder[]
   selectedBinderId?: string
+  onDeleteBinder?: (binder: PersonalBinderSummary) => void
   onSelectBinder: (binderId: string) => void | Promise<void>
   onCreateBinder: () => void
   onCreateFolder: (name: string) => Promise<void>
@@ -30,6 +31,7 @@ export function PersonalBinderExplorerTree({
   folders,
   selectedBinderId,
   onSelectBinder,
+  onDeleteBinder,
   onCreateBinder,
   onCreateFolder,
   onRenameFolder,
@@ -124,8 +126,8 @@ export function PersonalBinderExplorerTree({
   const renderBinderRow = (binder: PersonalBinderSummary) => {
     const active = selectedBinderId === binder.id
     return (
+      <div key={binder.id} className="personal-binder-explorer-tree__binder-row">
       <button
-        key={binder.id}
         type="button"
         className={[
           'personal-binder-explorer-tree__binder',
@@ -140,6 +142,9 @@ export function PersonalBinderExplorerTree({
           {binder.title}
         </span>
       </button>
+      {onDeleteBinder ? <FormButton variant="danger" size="sm" disabled={disabled}
+        aria-label={`${binder.title} 삭제`} onClick={() => onDeleteBinder(binder)}>삭제</FormButton> : null}
+      </div>
     )
   }
 

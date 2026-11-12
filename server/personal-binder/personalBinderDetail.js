@@ -1,3 +1,4 @@
+import { resolveBinderMaterialTitle } from './binderMaterialTitle.js'
 import { safeQuery } from '../utils/dbSafeQuery.js'
 
 async function getOwnedBinder(executor, binderId, scope) {
@@ -38,6 +39,10 @@ export async function loadBinderDetail(executor, binderId, scope) {
       i.updated_at,
       m.file_id,
       m.title AS material_title,
+      m.custom_title,
+      m.source_display_name,
+      f.display_name AS file_display_name,
+      f.original_name AS file_original_name,
       m.original_file_name,
       m.mime_type,
       m.file_size,
@@ -45,10 +50,14 @@ export async function loadBinderDetail(executor, binderId, scope) {
     FROM personal_binder_items i
     INNER JOIN personal_binder_sections s ON s.id = i.section_id
     INNER JOIN personal_binder_materials m ON m.id = i.material_id
+    INNER JOIN files f ON f.id = m.file_id
+      AND f.user_id = m.owner_user_id AND f.ga_id = m.ga_id
+      AND f.deleted_at IS NULL AND f.status = 'active'
     WHERE s.binder_id = $1 AND m.deleted_at IS NULL
+      AND m.owner_user_id = $2 AND m.ga_id = $3
     ORDER BY s.sort_order ASC, i.sort_order ASC, i.id ASC
     `,
-    [binderId],
+    [binderId, scope.userId, scope.gaId],
   )
   const bySection = new Map()
   for (const item of items.rows) {
@@ -65,7 +74,7 @@ export async function loadBinderDetail(executor, binderId, scope) {
       material: {
         id: String(item.material_id),
         fileId: Number(item.file_id),
-        title: item.material_title,
+        title: resolveBinderMaterialTitle(item),
         originalFileName: item.original_file_name,
         mimeType: item.mime_type,
         fileSize: Number(item.file_size) || 0,

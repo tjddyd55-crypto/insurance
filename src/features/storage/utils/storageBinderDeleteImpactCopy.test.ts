@@ -31,6 +31,7 @@ describe('storageBinderDeleteImpactCopy', () => {
       ],
       materials: [],
     })
+    expect(lines).toContain('이 파일은 2개의 바인더에서 사용 중입니다.')
     expect(lines.some((line) => line.includes('2개의 바인더'))).toBe(true)
     expect(lines).toContain('· 암보험 상담 바인더 (2항목)')
     expect(lines).toContain('· 종합 상담 바인더')

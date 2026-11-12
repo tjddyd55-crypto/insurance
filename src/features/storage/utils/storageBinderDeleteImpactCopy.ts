@@ -11,7 +11,7 @@ export function hasStorageBinderDeleteImpact(
 export function buildStorageBinderDeleteImpactDescription(
   impact: StorageFileBinderDeleteImpact,
 ): string {
-  return `이 자료는 현재 ${impact.binderCount}개의 바인더에서 사용 중입니다.`
+  return `이 파일은 ${impact.binderCount}개의 바인더에서 사용 중입니다.`
 }
 
 /** StorageDeleteDialog detailLines — 순서·문구 SSOT */
@@ -33,7 +33,7 @@ export function buildStorageBinderDeleteImpactDetailLines(
   if (impact.binders.length > BINDER_LIST_LIMIT) {
     lines.push(`· 외 ${impact.binders.length - BINDER_LIST_LIMIT}개 바인더`)
   }
-  lines.push('삭제하면 해당 바인더에서 자료가 제거될 수 있습니다.')
+  lines.push('삭제하면 파일과 해당 바인더의 참조가 모두 삭제됩니다.')
   lines.push('그래도 삭제하시겠습니까?')
   return lines
 }
@@ -61,7 +61,7 @@ export function buildStorageBinderDeleteImpactConfirmMessage(
     '사용 바인더:',
     binderLines + overflow,
     '',
-    '삭제하면 해당 바인더에서 자료가 제거될 수 있습니다.',
+    '삭제하면 파일과 해당 바인더의 참조가 모두 삭제됩니다.',
     '그래도 삭제하시겠습니까?',
   ].join('\n')
 }
