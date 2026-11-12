@@ -25,6 +25,8 @@ export async function ensurePersonalBinderSchema(executor) {
       )
     )
   `)
+  await executor.query(`ALTER TABLE personal_binder_materials ADD COLUMN IF NOT EXISTS custom_title TEXT`)
+  await executor.query(`ALTER TABLE personal_binder_materials ADD COLUMN IF NOT EXISTS source_display_name TEXT`)
   await executor.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS personal_binder_material_owner_file_uk
     ON personal_binder_materials (owner_user_id, ga_id, file_id)
@@ -151,4 +153,7 @@ export async function ensurePersonalBinderSchema(executor) {
     ON personal_binders (folder_id)
     WHERE deleted_at IS NULL
   `)
+  // Remove the superseded database guard; application writes lock sources in their transaction.
+  await executor.query(`DROP TRIGGER IF EXISTS personal_binder_item_source_guard ON personal_binder_items`)
+  await executor.query(`DROP FUNCTION IF EXISTS guard_personal_binder_item_source()`)
 }

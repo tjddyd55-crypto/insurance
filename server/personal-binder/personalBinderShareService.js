@@ -362,7 +362,7 @@ export async function createPersonalBinderGaShare(pool, scope, gaCode, binderId)
           shareId,
           scope.gaId,
           destKey,
-          material.material_title,
+          detail.sections.flatMap((section) => section.items).find((item) => String(item.materialId) === String(material.material_id))?.material.title ?? material.material_title,
           material.original_file_name,
           mimeType,
           fileSize,

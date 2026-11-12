@@ -1,3 +1,4 @@
+import FormInput from '../../../components/form/FormInput'
 import { FormButton } from '../../../components/form'
 import {
   CUSTOMER_WORKSPACE_ACTION_SECONDARY_CLASS,
@@ -19,6 +20,8 @@ export type StorageActionVariant = 'storage' | 'workspace'
 
 type StorageFileListProps = {
   folders: StorageFolderRow[]
+  selectionIds?: ReadonlySet<number>
+  onToggleSelection?: (id: number) => void
   files: StorageFileRow[]
   loading: boolean
   /** 목록 조회 실패 시에만 설정 — 빈 목록 안내와 구분한다 */
@@ -71,6 +74,8 @@ function formatFileSize(bytes: number | null): string {
 export default function StorageFileList({
   folders,
   files,
+  selectionIds,
+  onToggleSelection,
   loading,
   listFetchError = '',
   selectedFileId,
@@ -135,6 +140,12 @@ export default function StorageFileList({
         }}
       >
         <div className="storage-file-list__main">
+                  {selectionIds ? <FormInput type="checkbox"
+                    aria-label={`${file.displayName} 선택`}
+                    checked={selectionIds.has(file.id)}
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => event.stopPropagation()}
+                    onChange={() => onToggleSelection?.(file.id)} /> : null}
           <span className="storage-file-list__icon">{renderFileIcon(file)}</span>
           <div className="storage-file-list__meta">
             <div className="storage-file-list__name">{file.displayName}</div>

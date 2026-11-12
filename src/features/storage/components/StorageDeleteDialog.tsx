@@ -5,6 +5,7 @@ import { CustomerWorkspaceFormModalFooter } from '../../customers/components/Cus
 import type { StorageActionVariant } from './StorageFileList'
 
 type StorageDeleteDialogProps = {
+  confirmLabel?: string
   open: boolean
   title: string
   description: string
@@ -17,6 +18,7 @@ type StorageDeleteDialogProps = {
 }
 
 export default function StorageDeleteDialog({
+  confirmLabel = '삭제',
   open,
   title,
   description,
@@ -34,7 +36,7 @@ export default function StorageDeleteDialog({
         취소
       </FormButton>
       <FormButton htmlType="button" variant="danger" onClick={onConfirm} disabled={loading}>
-        {loading ? '처리 중…' : '삭제'}
+        {loading ? '처리 중…' : confirmLabel}
       </FormButton>
     </div>
   )
@@ -46,6 +48,7 @@ export default function StorageDeleteDialog({
         onClose={onClose}
         ariaLabel={title}
         closeOnBackdrop={false}
+        onEscapeRequest={() => {}}
         usePortal
       >
         <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">{title}</div>
@@ -61,7 +64,7 @@ export default function StorageDeleteDialog({
           onCancel={onClose}
           onSave={onConfirm}
           busy={loading}
-          saveLabel="삭제"
+          saveLabel={confirmLabel}
           busySaveLabel="삭제 중…"
           confirmTone="danger"
         />
@@ -70,7 +73,7 @@ export default function StorageDeleteDialog({
   }
 
   return (
-    <Modal open={open} onClose={onClose} ariaLabel={title} panelClassName="max-w-md" closeOnBackdrop={false}>
+    <Modal open={open} onClose={onClose} ariaLabel={title} panelClassName="max-w-md" closeOnBackdrop={false} closeOnEsc={false}>
       <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">{title}</div>
       <p className="text-sm text-[var(--text-secondary)]">{description}</p>
       {detailLines.length > 0 ? (
