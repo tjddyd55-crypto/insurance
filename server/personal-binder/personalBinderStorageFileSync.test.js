@@ -46,6 +46,7 @@ test('getPersonalStorageFileBinderDeleteImpact scopes binder usage by owner and 
   }
   const impact = await getPersonalStorageFileBinderDeleteImpact(executor, scope, 5)
   assert.match(usageSql, /b\.owner_user_id = \$2/)
+  assert.match(usageSql, /b\.deleted_at IS NULL/)
   assert.match(usageSql, /b\.ga_id = \$3/)
   assert.match(usageSql, /m\.owner_user_id = \$2/)
   assert.match(usageSql, /m\.ga_id = \$3/)
@@ -124,6 +125,7 @@ test('cleanupPersonalBinderRefsForDeletedStorageFile removes items and soft-dele
       }
       if (String(sql).includes('DELETE FROM personal_binder_items')) {
         const deleteSql = String(sql)
+        assert.doesNotMatch(deleteSql, /b\.deleted_at IS NULL/)
         assert.match(deleteSql, /b\.ga_id = \$3/)
         assert.match(deleteSql, /b\.owner_user_id = \$2/)
         assert.doesNotMatch(deleteSql, /INNER JOIN personal_binder_sections s ON s\.id = i\.section_id/)
@@ -140,4 +142,29 @@ test('cleanupPersonalBinderRefsForDeletedStorageFile removes items and soft-dele
   assert.equal(result.removedItems, 3)
   assert.equal(result.removedMaterials, 2)
   assert.ok(calls.some((c) => c.startsWith('DELETE FROM personal_binder_items')))
+})
+
+
+test('impact and acknowledgement exclude deleted binders while cleanup includes them', async () => {
+  const executor = { async query(sql) {
+    if (sql.includes('SELECT m.id') || sql.includes('SELECT id FROM')) return { rows: [{ id: 10 }] }
+    if (sql.includes('FROM personal_binder_items i')) {
+      return { rows: sql.includes('b.deleted_at IS NULL')
+        ? [{ id: 1, title: 'active', item_count: 1 }]
+        : [{ id: 1, item_count: 1 }, { id: 2, item_count: 4 }] }
+    }
+    if (sql.includes('DELETE FROM personal_binder_items')) {
+      assert.doesNotMatch(sql, /b\.deleted_at/)
+      return { rowCount: 5 }
+    }
+    return { rowCount: 1, rows: [] }
+  } }
+  const preview = await getPersonalStorageFileBinderDeleteImpact(executor, scope, 5)
+  assert.equal(preview.binderItemCount, 1)
+  assert.equal(preview.binderCount, 1)
+  const validation = await validatePersonalStorageFileBinderDelete(executor, scope, 5, {
+    confirmBinderCleanup: true, acknowledgedBinderItemCount: preview.binderItemCount,
+  })
+  assert.equal(validation.allowed, true)
+  assert.equal((await cleanupPersonalBinderRefsForDeletedStorageFile(executor, scope, 5)).removedItems, 5)
 })
