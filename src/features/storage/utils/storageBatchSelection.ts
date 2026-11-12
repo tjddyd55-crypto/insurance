@@ -11,5 +11,5 @@ export function retainFailedSelection(ids: ReadonlySet<number>, deleted: number[
 }
 
 export function storageBatchDeleteSummary(deleted: number, failed: number): string {
-  return `${deleted}개 삭제 완료 / ${failed}개 삭제 실패`
+  return failed === 0 ? `${deleted}개 삭제 완료` : `${deleted}개 삭제 완료 / ${failed}개 삭제 실패`
 }

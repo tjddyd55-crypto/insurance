@@ -863,7 +863,7 @@ export default function StorageWorkspace({
           lines.push(`${name}: 이 파일은 ${impact.binderCount}개의 바인더에서 사용 중입니다.`)
         }
       }
-      if (lines.length) lines.unshift(`선택한 파일 중 ${lines.length}개 파일이 바인더에서 사용 중입니다.`)
+      if (lines.length) lines.unshift(`선택한 파일 중 ${lines.length}개가 바인더에서 사용 중입니다.`)
       setBatchImpactLines(lines)
       setBatchIds(ids)
     } catch (reason) {
@@ -975,6 +975,19 @@ export default function StorageWorkspace({
     />
   ) : null
 
+  const selectionToolbar = !binderPickMode ? <div className="storage-workspace__selection-toolbar" role="group" aria-label="파일 선택">
+        {selectionMode ? <>
+          <span role="status">{selectionIds.size}개 선택됨</span>
+          <FormButton variant="secondary" size="sm" disabled={batchBusy} onClick={() => setSelectionIds(new Set(filteredFiles.map((file) => file.id)))}>전체 선택</FormButton>
+          <FormButton variant="secondary" size="sm" disabled={batchBusy} onClick={() => setSelectionIds(new Set())}>선택 해제</FormButton>
+          <FormButton variant="danger" size="sm" disabled={batchBusy || selectionIds.size === 0} onClick={() => void prepareBatchDelete()}>선택 삭제</FormButton>
+        </> : null}
+        <FormButton variant="secondary" size="sm" disabled={batchBusy || submitting} onClick={() => {
+          setSelectionMode((value) => !value)
+          setSelectionIds(new Set())
+        }}>{selectionMode ? '선택 종료' : '선택'}</FormButton>
+      </div> : null
+
   return (
     <div
       className={[
@@ -986,18 +999,6 @@ export default function StorageWorkspace({
         .join(' ')}
     >
       {headerSlot}
-      {!binderPickMode ? <div className="user-modal-actions" role="group" aria-label="파일 선택">
-        <FormButton variant="secondary" disabled={batchBusy || submitting} onClick={() => {
-          setSelectionMode((value) => !value)
-          setSelectionIds(new Set())
-        }}>{selectionMode ? '선택 종료' : '선택'}</FormButton>
-        {selectionMode ? <>
-          <span role="status">{selectionIds.size}개 선택됨</span>
-          <FormButton variant="secondary" disabled={batchBusy} onClick={() => setSelectionIds(new Set(filteredFiles.map((file) => file.id)))}>전체 선택</FormButton>
-          <FormButton variant="secondary" disabled={batchBusy} onClick={() => setSelectionIds(new Set())}>선택 해제</FormButton>
-          <FormButton variant="danger" disabled={batchBusy || selectionIds.size === 0} onClick={() => void prepareBatchDelete()}>선택 삭제</FormButton>
-        </> : null}
-      </div> : null}
       {batchSummary ? <p role="status">{batchSummary}</p> : null}
       <div
         className={[
@@ -1108,6 +1109,7 @@ export default function StorageWorkspace({
             </div>
             <StorageExplorerFilePanel
               breadcrumb={explorerBreadcrumb}
+              selectionToolbar={selectionToolbar}
               folders={folders}
               files={filteredFiles}
               selectionIds={selectionMode ? selectionIds : undefined}
@@ -1193,10 +1195,13 @@ export default function StorageWorkspace({
           </div>
 
           <div className="storage-workspace__summary">
+            <span>
             표시 {filteredFiles.length}개 / 전체 {files.length}개 · 폴더 {folders.length}개
             {selectedFolderId !== null
               ? ` · 선택 폴더: ${folders.find((folder) => folder.id === selectedFolderId)?.name ?? '폴더'}`
               : ''}
+            </span>
+            {selectionToolbar}
           </div>
 
           {foldersLoadError ? (
