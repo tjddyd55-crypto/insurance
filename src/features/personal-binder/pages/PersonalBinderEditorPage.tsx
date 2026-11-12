@@ -1,3 +1,4 @@
+import { useBinderSourceRefresh } from '../hooks/useBinderSourceRefresh'
 import {
   useCallback,
   useEffect,
@@ -181,6 +182,26 @@ export default function PersonalBinderEditorPage({
       if (!signal?.aborted) setLoading(false)
     }
   }, [binderId, token])
+
+  // Refresh source data without resetting unsaved binder metadata or page-selection state.
+  const refreshSources = useCallback(async () => {
+    if (!token || !binderId) return
+    try {
+      const [nextBinder, nextMaterials] = await Promise.all([
+        getPersonalBinder(token, binderId), listPersonalBinderMaterials(token),
+      ])
+      setBinder(nextBinder)
+      setMaterials(nextMaterials)
+      setPageTarget((target) => {
+        if (!target) return target
+        const material = nextMaterials.find((row) => row.id === target.material.id)
+        return material ? { ...target, material } : target
+      })
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '바인더를 불러오지 못했습니다.')
+    }
+  }, [token, binderId])
+  useBinderSourceRefresh(refreshSources)
 
   useEffect(() => {
     const controller = new AbortController()

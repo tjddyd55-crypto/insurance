@@ -116,7 +116,7 @@ async function loadOwnedBinderMaterialWithBinderCount(executor, scope, materialI
   const result = await safeQuery(
     executor,
     `
-    SELECT m.*, COUNT(DISTINCT b.id)::int AS binder_count
+    SELECT m.*, (m.updated_at = m.created_at) AS material_untouched, COUNT(DISTINCT b.id)::int AS binder_count
     FROM personal_binder_materials m
     LEFT JOIN personal_binder_items i ON i.material_id = m.id
     LEFT JOIN personal_binder_sections s ON s.id = i.section_id

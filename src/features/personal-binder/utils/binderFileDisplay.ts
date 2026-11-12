@@ -36,17 +36,7 @@ export function splitBinderFileDisplayName(material: PersonalBinderMaterial): {
   baseName: string
   extension: string
 } {
-  const displayName = String(material.displayName ?? '').trim()
-  const originalFileName = String(material.originalFileName ?? '').trim()
-  const title = String(material.title ?? '').trim()
-  const raw =
-    (displayName.includes('.') ? displayName : '') ||
-    (originalFileName.includes('.') ? originalFileName : '') ||
-    (title.includes('.') ? title : '') ||
-    displayName ||
-    originalFileName ||
-    title ||
-    '자료'
+  const raw = String(material.title ?? '').trim() || '자료'
   const dot = raw.lastIndexOf('.')
   if (dot > 0 && dot < raw.length - 1) {
     return {
@@ -59,4 +49,12 @@ export function splitBinderFileDisplayName(material: PersonalBinderMaterial): {
   if (mime === 'image/png') return { baseName: raw, extension: 'PNG' }
   if (mime === 'image/jpeg') return { baseName: raw, extension: 'JPG' }
   return { baseName: raw, extension: 'FILE' }
+}
+
+/** The resolved title supplies the name; the original supplies only a missing suffix. */
+export function binderMaterialDownloadName(material: PersonalBinderMaterial): string {
+  const title = String(material.title ?? '').trim() || '자료'
+  if (/\.[^.]+$/.test(title)) return title
+  const extension = String(material.originalFileName ?? '').match(/\.[^.]+$/)?.[0]
+  return title + (extension || (material.mimeType === 'application/pdf' ? '.pdf' : ''))
 }

@@ -1,9 +1,16 @@
+/** Only exact database timestamp equality proves no subsequent edit. Folder detach also
+ * touches updated_at, so ambiguous legacy rows deliberately retain their title. */
+export function isUntouchedLegacyPickerMaterial(row) {
+  return row.custom_title == null && row.source_display_name == null
+    && row.source_type === 'my_file' && row.material_untouched === true
+}
+
 /** Inherited names follow files; unknown legacy names remain custom conservatively. */
 export function resolveBinderMaterialTitle(row) {
   if (row.custom_title != null) return row.custom_title
   const title = String(row.title ?? row.material_title ?? '')
   const originalStem = String(row.original_file_name ?? '').replace(/\.[^.]+$/, '')
-  const inherited = !title || title === row.original_file_name || title === originalStem || title === row.source_display_name
+  const inherited = isUntouchedLegacyPickerMaterial(row) || !title || title === row.original_file_name || title === originalStem || title === row.source_display_name
   return inherited
     ? String(row.file_display_name || row.file_original_name || title || row.original_file_name || '')
     : title

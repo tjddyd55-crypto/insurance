@@ -1,3 +1,4 @@
+import { BINDER_SOURCES_CHANGED } from '../../personal-binder/hooks/useBinderSourceRefresh'
 import FormButton from '../../../components/form/FormButton'
 import { toggleStorageSelection, retainFailedSelection, storageBatchDeleteSummary } from '../utils/storageBatchSelection'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
@@ -695,6 +696,7 @@ export default function StorageWorkspace({
     try {
       if (renameTarget.kind === 'file') {
         const updated = await renameStorageFile(token, renameTarget.file.id, value)
+        window.dispatchEvent(new Event(BINDER_SOURCES_CHANGED))
         setFiles((prev) => prev.map((file) => (file.id === updated.id ? updated : file)))
       } else {
         await renameStorageFolder(token, renameTarget.folder.id, value)
@@ -754,6 +756,7 @@ export default function StorageWorkspace({
         }
         await loadFolders()
       }
+      window.dispatchEvent(new Event(BINDER_SOURCES_CHANGED))
       setDeleteTarget(null)
       setDeleteDetailLines([])
       setDeleteBinderItemCountAck(null)
@@ -878,6 +881,7 @@ export default function StorageWorkspace({
     setBatchBusy(true)
     try {
       const result = await deleteStorageFilesBatch(token, batchIds, batchImpactLines.length > 0)
+      if (result.deleted.length) window.dispatchEvent(new Event(BINDER_SOURCES_CHANGED))
       const deleted = new Set(result.deleted)
       setFiles((rows) => rows.filter((row) => !deleted.has(row.id)))
       setSelectionIds((ids) => retainFailedSelection(ids, result.deleted))

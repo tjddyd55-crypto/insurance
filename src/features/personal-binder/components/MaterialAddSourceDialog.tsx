@@ -142,7 +142,7 @@ export function MaterialAddSourceDialog({
   const linkStorageFile = useCallback(
     async (file: StorageFileRow) => {
       if (!token?.trim() || linkingId) return
-      const title = String(file.displayName ?? file.originalName ?? '자료').replace(/\.[^.]+$/, '')
+      const title = String(file.displayName ?? file.originalName ?? '자료')
       setLinkingId(String(file.id))
       setStorageLinkError('')
       try {
@@ -163,7 +163,7 @@ export function MaterialAddSourceDialog({
 
   const linkTeamFile = async (file: TeamFileRow) => {
     if (!token?.trim() || linkingId) return
-    const title = file.fileName.replace(/\.[^.]+$/, '') || file.fileName
+    const title = file.fileName
     setLinkingId(file.id)
     setTeamError('')
     try {
