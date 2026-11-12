@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  binderMaterialDownloadName,
   isBinderImageMaterial,
   resolveBinderMaterialRenderKind,
   splitBinderFileDisplayName,
@@ -10,8 +11,8 @@ describe('splitBinderFileDisplayName', () => {
   it('splits extension from display name', () => {
     const result = splitBinderFileDisplayName({
       id: '1',
-      title: 't',
-      displayName: '상담자료.final.pdf',
+      title: '상담자료.final.pdf',
+      displayName: 'stale.pdf',
       originalFileName: 'x.pdf',
       mimeType: 'application/pdf',
       pageCount: 3,
@@ -70,7 +71,7 @@ describe('resolveBinderMaterialRenderKind', () => {
 })
 
 describe('splitBinderFileDisplayName — original file name', () => {
-  it('prefers originalFileName when title has no extension', () => {
+  it('uses resolved title when original upload name differs', () => {
     const result = splitBinderFileDisplayName({
       id: '1',
       title: '촬영 자료',
@@ -80,7 +81,13 @@ describe('splitBinderFileDisplayName — original file name', () => {
       fileId: 1,
       fileSize: 1,
     })
-    expect(result.baseName).toBe('1758065437402')
+    expect(result.baseName).toBe('촬영 자료')
     expect(result.extension).toBe('JPG')
   })
+})
+
+it('downloads with resolved title and preserves only the original extension', () => {
+  const material = { title: 'Current', originalFileName: 'Upload.pdf', mimeType: 'application/pdf' } as Parameters<typeof binderMaterialDownloadName>[0]
+  expect(binderMaterialDownloadName(material)).toBe('Current.pdf')
+  expect(binderMaterialDownloadName({ ...material, title: 'Custom.pdf' })).toBe('Custom.pdf')
 })

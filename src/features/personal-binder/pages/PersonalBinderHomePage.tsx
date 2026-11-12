@@ -1,3 +1,4 @@
+import { useBinderSourceRefresh } from '../hooks/useBinderSourceRefresh'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import PCOnlySection from '../../../components/PCOnlySection'
 import PersonalBinderHomePCView from './PersonalBinderHome/PersonalBinderHomePCView'
@@ -86,6 +87,8 @@ export default function PersonalBinderHomePage() {
       if (!signal?.aborted) setLoading(false)
     }
   }, [token])
+
+  useBinderSourceRefresh(load)
 
   useEffect(() => {
     const controller = new AbortController()
