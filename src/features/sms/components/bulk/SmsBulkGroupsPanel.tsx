@@ -5,6 +5,7 @@ import { useConfirmDialog } from '../../../../components/dialog'
 import type { SmsBulkRecipientState } from '../../hooks/useSmsBulkRecipientState'
 import { formatGroupLastSentAt } from '../../utils/smsRecipientEligibility'
 import SmsBulkPersonRow from './SmsBulkPersonRow'
+import SmsBulkGroupMemberSearch from './SmsBulkGroupMemberSearch'
 
 type SmsBulkGroupsPanelProps = {
   bulkState: SmsBulkRecipientState
@@ -123,7 +124,8 @@ export default function SmsBulkGroupsPanel({
     <div className={`sms-bulk-groups sms-bulk-groups--${layout}`}>
       <div className="sms-bulk-groups__header">
         <h2 className="sms-bulk-panel__title">{managing ? '그룹 관리' : '저장된 그룹'}</h2>
-        <FormButton type="button" variant="secondary" disabled={loadingCart} onClick={() => { setManaging(!managing); onManagementChange?.(!managing) }}>{managing ? '불러오기로 돌아가기' : '그룹 관리'}</FormButton>
+        {managing ? <FormButton htmlType="button" disabled={busy} onClick={() => setNewGroupModalOpen(true)}>새 그룹</FormButton> : null}
+        <FormButton htmlType="button" variant="secondary" disabled={loadingCart} onClick={() => { setManaging(!managing); onManagementChange?.(!managing) }}>{managing ? '불러오기로 돌아가기' : '그룹 관리'}</FormButton>
       </div>
 
       <label className="sms-bulk-groups__search">
@@ -173,24 +175,6 @@ export default function SmsBulkGroupsPanel({
         )}
       </div>
 
-      {managing ? <div>
-        <FormButton type="button" disabled={busy} onClick={() => setNewGroupModalOpen(true)}>
-          새 그룹
-        </FormButton>
-        {filteredGroups.map((group) => (
-          <FormButton
-            key={group.id}
-            type="button"
-            variant="secondary"
-            disabled={disabled || loadingCart}
-            onClick={() => void selectGroup(group.id).catch((error) => {
-              bulkState.setActionNotice(error instanceof Error ? error.message : '구성원 불러오기에 실패했습니다.')
-            })}
-          >
-            {group.name} 관리
-          </FormButton>
-        ))}
-      </div> : null}
         {selectedGroup ? (
           <div className="sms-bulk-groups__detail">
             <div className="sms-bulk-groups__detail-head">
@@ -204,21 +188,21 @@ export default function SmsBulkGroupsPanel({
             </div>
 
             {!managing ? <div className="sms-bulk-group-row__load-actions">
-              <FormButton type="button" disabled={busy} onClick={() => void loadGroup(selectedGroup.id, false)}>추가로 불러오기</FormButton>
-              <FormButton type="button" variant="secondary" disabled={busy} onClick={() => void loadGroup(selectedGroup.id, true)}>교체해서 불러오기</FormButton>
+              <FormButton htmlType="button" disabled={busy} onClick={() => void loadGroup(selectedGroup.id, false)}>추가로 불러오기</FormButton>
+              <FormButton htmlType="button" variant="secondary" disabled={busy} onClick={() => void loadGroup(selectedGroup.id, true)}>교체해서 불러오기</FormButton>
             </div> : <>
             <div
               className={`sms-bulk-groups__detail-actions sms-bulk-groups__detail-actions--${layout}`}
             >
               <FormButton
-                type="button"
+                htmlType="button"
                 disabled={busy || checkedCartCount === 0}
                 onClick={() => void appendCartToGroup(selectedGroup.id)}
               >
-                체크한 고객 추가
+                현재 발송 대상에서 추가
               </FormButton>
               <FormButton
-                type="button"
+                htmlType="button"
                 variant="secondary"
                 disabled={busy || selectedGroupMemberIds.size === 0}
                 onClick={() => void handleRemoveSelectedMembers()}
@@ -226,7 +210,7 @@ export default function SmsBulkGroupsPanel({
                 구성원 선택 제외
               </FormButton>
               <FormButton
-                type="button"
+                htmlType="button"
                 variant="secondary"
                 disabled={busy}
                 onClick={() => setGroupEditModalOpen(true)}
@@ -234,7 +218,7 @@ export default function SmsBulkGroupsPanel({
                 그룹명 수정
               </FormButton>
               <FormButton
-                type="button"
+                htmlType="button"
                 variant="secondary"
                 disabled={busy}
                 onClick={() => void handleCopyGroup()}
@@ -242,7 +226,7 @@ export default function SmsBulkGroupsPanel({
                 복사
               </FormButton>
               <FormButton
-                type="button"
+                htmlType="button"
                 variant="secondary"
                 disabled={busy}
                 onClick={() => void handleDeleteGroup()}
@@ -251,12 +235,14 @@ export default function SmsBulkGroupsPanel({
               </FormButton>
             </div>
 
+            <SmsBulkGroupMemberSearch key={selectedGroup.id} bulkState={bulkState} groupId={selectedGroup.id} disabled={Boolean(busy)} layout={layout} />
+
             <div className="sms-bulk-groups__members">
               <div className="sms-bulk-groups__members-head">
                 <h4>그룹 구성원</h4>
                 <div className="sms-bulk-groups__members-toolbar">
                   <FormButton
-                    type="button"
+                    htmlType="button"
                     variant="secondary"
                     disabled={busy || groupMembers.length === 0}
                     onClick={selectAllGroupMembers}
@@ -264,7 +250,7 @@ export default function SmsBulkGroupsPanel({
                     전체 선택
                   </FormButton>
                   <FormButton
-                    type="button"
+                    htmlType="button"
                     variant="secondary"
                     disabled={busy || selectedGroupMemberIds.size === 0}
                     onClick={clearGroupMemberSelection}
