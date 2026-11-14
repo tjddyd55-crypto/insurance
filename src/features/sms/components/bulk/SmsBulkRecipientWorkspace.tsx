@@ -640,6 +640,9 @@ export default function SmsBulkRecipientWorkspace({
   const selectedPanel = (
     <>
       <h2 className="sms-bulk-panel__title">2. 발송 대상</h2>
+      {bulkState.loadedGroupNames.length > 0 ? (
+        <p className="sms-module__muted">불러온 그룹: {bulkState.loadedGroupNames.join(', ')}</p>
+      ) : null}
       <SelectedRecipientsPanel
         bulkState={bulkState}
         disabled={panelBusy}
@@ -650,7 +653,8 @@ export default function SmsBulkRecipientWorkspace({
     </>
   )
 
-  const groupsPanel = <SmsBulkGroupsPanel bulkState={bulkState} disabled={panelBusy} layout={variant} />
+  // Keep group navigation available while member requests are pending.
+  const groupsPanel = <SmsBulkGroupsPanel bulkState={bulkState} disabled={busy || bulkState.searchBusy} layout={variant} />
 
   return (
     <section className={`sms-bulk-workspace sms-bulk-workspace--${variant}`}>

@@ -127,6 +127,9 @@ export default function SmsBulkGroupsPanel({
           filteredGroups.map((group) => (
             <div
               key={group.id}
+              onClick={(event) => {
+                if (!disabled && event.target === event.currentTarget) void loadGroup(group.id)
+              }}
               className={`sms-bulk-group-row sms-bulk-group-row--${layout}${
                 selectedGroupId === group.id ? ' sms-bulk-group-row--active' : ''
               }`}
@@ -134,20 +137,20 @@ export default function SmsBulkGroupsPanel({
               <button
                 type="button"
                 className="sms-bulk-group-row__content"
-                disabled={busy}
-                aria-label={`${group.name} 발송 대상에 추가`}
+                disabled={disabled}
+                aria-label={`${group.name} 추가로 불러오기`}
                 onClick={() => void loadGroup(group.id)}
               >
                 <span className="sms-bulk-group-row__name">{group.name}</span>
                 <span className="sms-bulk-group-row__count">{group.recipientCount}명</span>
                 <span className="sms-bulk-group-row__last">
-                  {formatGroupLastSentAt(group.lastSentAt)}
+                  추가로 불러오기 · {formatGroupLastSentAt(group.lastSentAt)}
                 </span>
               </button>
               <FormButton
                 type="button"
                 variant="secondary"
-                disabled={busy}
+                disabled={disabled}
                 onClick={() => void loadGroup(group.id, true)}
               >
                 불러오기(교체)
@@ -158,7 +161,7 @@ export default function SmsBulkGroupsPanel({
       </div>
 
       <p className="sms-module__muted">
-        그룹명을 누르면 발송 대상에 추가됩니다. 중복 고객은 한 번만 포함되며, 저장된 그룹은 변경되지
+        그룹명이나 카드를 누르면 추가로 불러옵니다. 중복 고객은 한 번만 포함되며, 저장된 그룹은 변경되지
         않습니다.
       </p>
       <details>
@@ -171,8 +174,10 @@ export default function SmsBulkGroupsPanel({
             key={group.id}
             type="button"
             variant="secondary"
-            disabled={busy}
-            onClick={() => void selectGroup(group.id)}
+            disabled={disabled}
+            onClick={() => void selectGroup(group.id).catch((error) => {
+              bulkState.setActionNotice(error instanceof Error ? error.message : '구성원 불러오기에 실패했습니다.')
+            })}
           >
             {group.name} 관리
           </FormButton>
@@ -258,7 +263,9 @@ export default function SmsBulkGroupsPanel({
               <div
                 className={`sms-bulk-groups__members-list sms-bulk-person-list sms-bulk-groups__members-list--${layout}`}
               >
-                {groupMembers.length === 0 ? (
+                {groupActionBusy ? (
+                  <p className="sms-module__muted">구성원을 불러오는 중입니다.</p>
+                ) : groupMembers.length === 0 ? (
                   <p className="sms-module__muted">이 그룹에 등록된 고객이 없습니다.</p>
                 ) : (
                   groupMembers.map((row) => (
