@@ -41,7 +41,7 @@ export default function SmsBulkGroupsPanel({
     removeSelectedGroupMembers,
   } = bulkState
 
-  const loadGroup = async (groupId: number, replace = false) => {
+  const loadGroup = async (groupId: number, replace: boolean) => {
     if (replace && bulkState.summary.total > 0) {
       const ok = await confirm({
         title: '발송 대상 교체',
@@ -52,7 +52,7 @@ export default function SmsBulkGroupsPanel({
       if (!ok) return
     }
     try {
-      if (replace || bulkState.summary.total === 0) await replaceCartWithGroup(groupId)
+      if (replace) await replaceCartWithGroup(groupId)
       else await appendGroupToCart(groupId)
     } catch (error) {
       bulkState.setActionNotice(
@@ -128,7 +128,9 @@ export default function SmsBulkGroupsPanel({
             <div
               key={group.id}
               onClick={(event) => {
-                if (!disabled && event.target === event.currentTarget) void loadGroup(group.id)
+                if (!disabled && event.target === event.currentTarget) void selectGroup(group.id).catch((error) => {
+                  bulkState.setActionNotice(error instanceof Error ? error.message : '구성원 불러오기에 실패했습니다.')
+                })
               }}
               className={`sms-bulk-group-row sms-bulk-group-row--${layout}${
                 selectedGroupId === group.id ? ' sms-bulk-group-row--active' : ''
@@ -138,31 +140,43 @@ export default function SmsBulkGroupsPanel({
                 type="button"
                 className="sms-bulk-group-row__content"
                 disabled={disabled}
-                aria-label={`${group.name} 추가로 불러오기`}
-                onClick={() => void loadGroup(group.id)}
+                aria-label={`${group.name} 선택`}
+                onClick={() => void selectGroup(group.id).catch((error) => {
+                  bulkState.setActionNotice(error instanceof Error ? error.message : '구성원 불러오기에 실패했습니다.')
+                })}
               >
                 <span className="sms-bulk-group-row__name">{group.name}</span>
                 <span className="sms-bulk-group-row__count">{group.recipientCount}명</span>
                 <span className="sms-bulk-group-row__last">
-                  추가로 불러오기 · {formatGroupLastSentAt(group.lastSentAt)}
+                  {formatGroupLastSentAt(group.lastSentAt)}
                 </span>
               </button>
-              <FormButton
-                type="button"
-                variant="secondary"
-                disabled={disabled}
-                onClick={() => void loadGroup(group.id, true)}
-              >
-                불러오기(교체)
-              </FormButton>
+              <div className="sms-bulk-group-row__load-actions">
+                <FormButton
+                  type="button"
+                  variant="secondary"
+                  disabled={disabled}
+                  onClick={() => void loadGroup(group.id, false)}
+                >
+                  추가로 불러오기
+                </FormButton>
+                <FormButton
+                  type="button"
+                  variant="secondary"
+                  disabled={disabled}
+                  onClick={() => void loadGroup(group.id, true)}
+                >
+                  교체해서 불러오기
+                </FormButton>
+              </div>
             </div>
           ))
         )}
       </div>
 
       <p className="sms-module__muted">
-        그룹명이나 카드를 누르면 추가로 불러옵니다. 중복 고객은 한 번만 포함되며, 저장된 그룹은 변경되지
-        않습니다.
+        그룹명이나 카드는 선택만 합니다. 아래 버튼으로 발송 대상에 추가하거나 교체해서 불러오세요.
+        중복 고객은 한 번만 포함되며, 저장된 그룹은 변경되지 않습니다.
       </p>
       <details>
         <summary>그룹 관리 · 구성원 수정</summary>
