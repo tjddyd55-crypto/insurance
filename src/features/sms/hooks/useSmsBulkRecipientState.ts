@@ -42,6 +42,25 @@ export function useSmsBulkRecipientState() {
   const [groups, setGroups] = useState<SmsRecipientGroupSummary[]>([])
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null)
   const [groupMembers, setGroupMembers] = useState<SmsBulkSearchCustomer[]>([])
+  const memberRequestRef = useRef(0)
+  const activeGroupRef = useRef<number | null>(null)
+  const [cartGroupSources, setCartGroupSources] = useState<{ id: number; name: string; customerIds: number[] }[]>([])
+  const loadedGroupNames = useMemo(() => {
+    const ids = new Set(selectedRecipients.map((row) => row.customerId))
+    return cartGroupSources
+      .filter((source) => source.customerIds.some((id) => ids.has(id)))
+      .map((source) => groups.find((group) => group.id === source.id)?.name ?? source.name)
+  }, [cartGroupSources, groups, selectedRecipients])
+
+  // Prune provenance after removals so re-adding a searched customer does not revive an old source.
+  useEffect(() => {
+    const ids = new Set(selectedRecipients.map((row) => row.customerId))
+    setCartGroupSources((prev) => prev.flatMap((source) => {
+      const customerIds = source.customerIds.filter((id) => ids.has(id))
+      return customerIds.length ? [{ ...source, customerIds }] : []
+    }))
+  }, [selectedRecipients])
+
   const [groupSearchQuery, setGroupSearchQuery] = useState('')
   const [searchBusy, setSearchBusy] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
@@ -270,6 +289,9 @@ export function useSmsBulkRecipientState() {
 
   const clearRecipients = useCallback(() => {
     setSelectedRecipients([])
+    setCartGroupSources([])
+    memberRequestRef.current += 1
+    setGroupActionBusy(false)
     setSelectedCartIds(new Set())
     setActionNotice(null)
   }, [])
@@ -281,22 +303,36 @@ export function useSmsBulkRecipientState() {
     const rows = await fetchSmsRecipientGroups(token)
     setGroups(rows)
     if (selectedGroupId != null && !rows.some((row) => row.id === selectedGroupId)) {
+      activeGroupRef.current = null
+      memberRequestRef.current += 1
       setSelectedGroupId(null)
       setGroupMembers([])
     }
   }, [selectedGroupId, token])
 
   const loadGroupMembers = useCallback(
-    async (groupId: number) => {
-      if (!token?.trim()) {
-        return
+    async (groupId: number, select = false) => {
+      if (!token?.trim()) return
+      if (select) {
+        activeGroupRef.current = groupId
+        setSelectedGroupId(groupId)
+        setGroupMembers([])
+        setSelectedGroupMemberIds(new Set())
       }
+      // A refresh from an older management action must not replace the latest selection.
+      if (activeGroupRef.current !== groupId) return
+      const requestId = ++memberRequestRef.current
       setGroupActionBusy(true)
       try {
         const data = await fetchSmsRecipientGroupMembers(token, groupId)
+        if (requestId !== memberRequestRef.current) return
         setGroupMembers(data.customers)
+        return data
+      } catch (error) {
+        if (requestId !== memberRequestRef.current) return
+        throw error
       } finally {
-        setGroupActionBusy(false)
+        if (requestId === memberRequestRef.current) setGroupActionBusy(false)
       }
     },
     [token],
@@ -333,6 +369,8 @@ export function useSmsBulkRecipientState() {
         await deleteSmsRecipientGroup(token, groupId)
       }
       if (selectedGroupId != null && ids.includes(selectedGroupId)) {
+        activeGroupRef.current = null
+        memberRequestRef.current += 1
         setSelectedGroupId(null)
         setGroupMembers([])
         setSelectedGroupMemberIds(new Set())
@@ -392,9 +430,7 @@ export function useSmsBulkRecipientState() {
 
   const selectGroup = useCallback(
     async (groupId: number) => {
-      setSelectedGroupId(groupId)
-      setSelectedGroupMemberIds(new Set())
-      await loadGroupMembers(groupId)
+      await loadGroupMembers(groupId, true)
     },
     [loadGroupMembers],
   )
@@ -452,44 +488,45 @@ export function useSmsBulkRecipientState() {
     [reloadGroups, selectGroup, selectedRecipients, token],
   )
 
+  const recordGroupSource = useCallback((groupId: number, customers: SmsBulkSearchCustomer[], replace: boolean) => {
+    const source = {
+      id: groupId,
+      name: groups.find((group) => group.id === groupId)?.name ?? String(groupId),
+      customerIds: customers.map((row) => row.customerId),
+    }
+    setCartGroupSources((prev) => replace ? [source] : [
+      ...prev.filter((entry) => entry.id !== groupId),
+      { ...source, customerIds: [...new Set([
+        ...(prev.find((entry) => entry.id === groupId)?.customerIds ?? []),
+        ...source.customerIds,
+      ])] },
+    ])
+  }, [groups])
+
   const appendGroupToCart = useCallback(
     async (groupId: number) => {
-      if (!token?.trim()) {
-        return
-      }
-      setGroupActionBusy(true)
-      try {
-        const data = await fetchSmsRecipientGroupMembers(token, groupId)
-        const { recipients, result } = mergeSmsRecipientSelections(selectedRecipients, data.customers)
-        setSelectedRecipients(recipients)
-        setActionNotice(
-          buildGroupAppendToCartMessage(data.customers.length, result.addedCount, result.skipped),
-        )
-        setMobileTab('selected')
-      } finally {
-        setGroupActionBusy(false)
-      }
+      const data = await loadGroupMembers(groupId, true)
+      if (!data) return
+      setSelectedRecipients((prev) => mergeSmsRecipientSelections(prev, data.customers).recipients)
+      const { result } = mergeSmsRecipientSelections(selectedRecipients, data.customers)
+      recordGroupSource(groupId, data.customers, false)
+      setActionNotice(buildGroupAppendToCartMessage(data.customers.length, result.addedCount, result.skipped))
+      setMobileTab('selected')
     },
-    [selectedRecipients, token],
+    [loadGroupMembers, recordGroupSource, selectedRecipients],
   )
 
   const replaceCartWithGroup = useCallback(
     async (groupId: number) => {
-      if (!token?.trim()) {
-        return false
-      }
-      setGroupActionBusy(true)
-      try {
-        const data = await fetchSmsRecipientGroupMembers(token, groupId)
-        setSelectedRecipients(data.customers)
-        setActionNotice(`그룹 고객 ${data.customers.length}명으로 장바구니를 교체했습니다.`)
-        setMobileTab('selected')
-        return true
-      } finally {
-        setGroupActionBusy(false)
-      }
+      const data = await loadGroupMembers(groupId, true)
+      if (!data) return false
+      setSelectedRecipients(data.customers)
+      recordGroupSource(groupId, data.customers, true)
+      setActionNotice(`그룹 고객 ${data.customers.length}명으로 장바구니를 교체했습니다.`)
+      setMobileTab('selected')
+      return true
     },
-    [token],
+    [loadGroupMembers, recordGroupSource],
   )
 
   const appendCartToGroup = useCallback(
@@ -592,6 +629,7 @@ export function useSmsBulkRecipientState() {
         const data = await fetchSmsRecipientGroupMembers(token, groupId)
         const { recipients } = mergeSmsRecipientSelections([], data.customers)
         setSelectedRecipients(recipients)
+        recordGroupSource(groupId, recipients, true)
         setGroupCopyPreset({
           name: `${group.name} 복사본`,
           description: group.description,
@@ -605,7 +643,7 @@ export function useSmsBulkRecipientState() {
         setGroupActionBusy(false)
       }
     },
-    [groups, token],
+    [groups, recordGroupSource, token],
   )
 
   const removeGroup = useCallback(
@@ -617,6 +655,8 @@ export function useSmsBulkRecipientState() {
       try {
         await deleteSmsRecipientGroup(token, groupId)
         if (selectedGroupId === groupId) {
+          activeGroupRef.current = null
+          memberRequestRef.current += 1
           setSelectedGroupId(null)
           setGroupMembers([])
         }
@@ -641,6 +681,7 @@ export function useSmsBulkRecipientState() {
     selectedGroupMemberIds,
     selectedRecipients,
     visibleRecipients,
+    loadedGroupNames,
     recipientViewFilter,
     setRecipientViewFilter,
     mobileTab,
