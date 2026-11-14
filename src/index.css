@@ -9763,23 +9763,35 @@ div.cta-button.customers-page__action-btn[role='button']{
  * 그때 not-allowed 가 입력·달력/시계 아이콘·피커 영역까지 따라간다.
  * 실제로 막힌 경우([readonly], :disabled)만 not-allowed 로 둔다.
  */
-.form-input[type='date']:not(:disabled):not([readonly]),
-.form-input[type='time']:not(:disabled):not([readonly]),
-.form-input[type='datetime-local']:not(:disabled):not([readonly]),
-.form-input[type='month']:not(:disabled):not([readonly]),
-.form-input[type='week']:not(:disabled):not([readonly]){
+input[type='date']:not(:disabled):not([readonly]),
+input[type='time']:not(:disabled):not([readonly]),
+input[type='datetime-local']:not(:disabled):not([readonly]),
+input[type='month']:not(:disabled):not([readonly]),
+input[type='week']:not(:disabled):not([readonly]){
   cursor: pointer;
 }
 
-.form-input[type='date']:not(:disabled):not([readonly])::-webkit-calendar-picker-indicator,
-.form-input[type='time']:not(:disabled):not([readonly])::-webkit-calendar-picker-indicator,
-.form-input[type='datetime-local']:not(:disabled):not([readonly])::-webkit-calendar-picker-indicator,
-.form-input[type='month']:not(:disabled):not([readonly])::-webkit-calendar-picker-indicator,
-.form-input[type='week']:not(:disabled):not([readonly])::-webkit-calendar-picker-indicator,
-.form-input[type='date']:not(:disabled):not([readonly])::-webkit-datetime-edit,
-.form-input[type='time']:not(:disabled):not([readonly])::-webkit-datetime-edit,
-.form-input[type='datetime-local']:not(:disabled):not([readonly])::-webkit-datetime-edit{
+input[type='date']:not(:disabled):not([readonly])::-webkit-calendar-picker-indicator,
+input[type='time']:not(:disabled):not([readonly])::-webkit-calendar-picker-indicator,
+input[type='datetime-local']:not(:disabled):not([readonly])::-webkit-calendar-picker-indicator,
+input[type='month']:not(:disabled):not([readonly])::-webkit-calendar-picker-indicator,
+input[type='week']:not(:disabled):not([readonly])::-webkit-calendar-picker-indicator,
+input[type='date']:not(:disabled):not([readonly])::-webkit-datetime-edit,
+input[type='time']:not(:disabled):not([readonly])::-webkit-datetime-edit,
+input[type='datetime-local']:not(:disabled):not([readonly])::-webkit-datetime-edit{
   cursor: pointer;
+}
+
+/* AppDateInput supports direct typing; its separate calendar button is the trigger. */
+.app-date-input__text:not(:disabled):not([readonly]){
+  cursor: text;
+}
+
+/* Native readonly pickers are locked, unlike editable picker triggers. */
+input:is([type='date'], [type='time'], [type='datetime-local'], [type='month'], [type='week']):is(:disabled, [readonly]),
+input:is([type='date'], [type='time'], [type='datetime-local'], [type='month'], [type='week']):is(:disabled, [readonly])::-webkit-calendar-picker-indicator,
+input:is([type='date'], [type='time'], [type='datetime-local'], [type='month'], [type='week']):is(:disabled, [readonly])::-webkit-datetime-edit{
+  cursor: not-allowed;
 }
 
 /* radio / checkbox — 텍스트 입력 SSOT 와 분리된 compact 선택 컨트롤 */
