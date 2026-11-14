@@ -1386,13 +1386,7 @@
   gap: 1rem;
 }
 
-.sms-bulk-workspace__notice {
-  background: var(--hint-bg);
-  border: 1px solid var(--hint-border);
-  border-radius: 10px;
-  padding: 0.65rem 0.85rem;
-  color: var(--hint-text);
-}
+
 
 .sms-bulk-workspace--pc .sms-bulk-workspace__grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3207,8 +3201,8 @@
 .sms-bulk-workspace--pc .sms-bulk-workspace__grid {
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.05fr) minmax(0, 1.05fr);
 }
-/* Columns own the outer scroll. Do not shrink an open details or a panel's
-   controls to make room for sibling content: they must retain their flow height. */
+/* Search and composer keep independent column scrolling. The recipient column
+   below instead reserves its header/footer and scrolls only the inner list. */
 .sms-bulk-workspace--pc .sms-bulk-workspace__column {
   display: block;
   max-height: calc(100dvh - 10rem);
@@ -3239,11 +3233,7 @@
 .sms-bulk-workspace--pc .sms-bulk-workspace__right .sms-module__grid {
   grid-template-columns: minmax(0, 1fr);
 }
-.sms-bulk-workspace--pc .sms-bulk-saved-groups {
-  margin-top: 1rem;
-  border-top: 1px solid var(--border-default);
-  padding-top: 0.75rem;
-}
+
 .sms-bulk-workspace--pc summary,
 .sms-bulk-workspace--mobile summary {
   cursor: pointer;
@@ -3321,3 +3311,55 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+/* Recipient header/footer stay in flow; only the list consumes scroll space. */
+.sms-bulk-workspace--pc .sms-bulk-workspace__grid {
+  grid-template-columns: minmax(0, .29fr) minmax(0, .33fr) minmax(0, .38fr);
+}
+.sms-bulk-workspace--pc .sms-bulk-workspace__center {
+  display: flex;
+  height: calc(100dvh - 10rem);
+  min-height: 0;
+  overflow: hidden;
+}
+.sms-bulk-workspace--pc .sms-bulk-selected,
+.sms-bulk-workspace--mobile .sms-bulk-selected {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.sms-bulk-workspace--mobile .sms-bulk-selected {
+  height: min(720px, calc(100dvh - 14rem));
+  flex: none;
+}
+.sms-bulk-selected__header,
+.sms-bulk-selected__footer { flex: none; background: #fff; }
+.sms-bulk-selected__header { overflow-wrap: anywhere; }
+.sms-bulk-selected__total { display: block; font-size: 1.5rem; }
+.sms-bulk-workspace--pc .sms-bulk-selected__list,
+.sms-bulk-workspace--mobile .sms-bulk-selected__list {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+}
+.sms-bulk-selected__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  padding-top: .75rem;
+  border-top: 1px solid var(--border-default);
+}
+.sms-bulk-selected__footer button { flex: 1 1 140px; white-space: normal; }
+.sms-bulk-group-modal { display: flex; flex-direction: column; min-height: 0; padding: 1rem; }
+.sms-bulk-group-modal > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.sms-bulk-group-modal__body { overflow-y: auto; min-height: 0; }
+.sms-bulk-group-modal button { max-width: 100%; white-space: normal; height: auto; }
+.sms-bulk-group-modal .sms-bulk-groups__list { max-height: 240px; overflow-y: auto; }
+.sms-bulk-toast { position: fixed; bottom: 2rem; left: 0; right: 0; z-index: 11000; display: flex; justify-content: center; pointer-events: none; padding: 0 1rem; }
+.sms-bulk-toast > span { background: #1f2937; color: white; border-radius: 10px; padding: .75rem 1rem; box-shadow: 0 4px 20px #0002; animation: sms-bulk-toast-fade 1.8s both; }
+@keyframes sms-bulk-toast-fade { 0% { opacity: 0; } 10%, 80% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sms-bulk-toast > span { animation: none; } }
