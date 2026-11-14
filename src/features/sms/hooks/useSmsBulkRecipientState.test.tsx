@@ -40,7 +40,7 @@ afterEach(async () => {
   vi.clearAllMocks()
 })
 
-async function mountState(renderPanel = false) {
+async function mountState(renderPanel: false | 'pc' | 'mobile' = false) {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
   let state: SmsBulkRecipientState
   function Harness() {
@@ -48,7 +48,7 @@ async function mountState(renderPanel = false) {
     useEffect(() => {
       state = current
     })
-    return renderPanel ? <SmsBulkGroupsPanel bulkState={current} layout="pc" /> : null
+    return renderPanel ? <SmsBulkGroupsPanel bulkState={current} layout={renderPanel} /> : null
   }
   host = document.createElement('div')
   document.body.append(host)
@@ -112,7 +112,7 @@ describe('group cart isolation', () => {
 
 describe('latest selected group and cart sources', () => {
   const members = { 10: [customer(1), customer(2)], 20: [customer(2), customer(3)] }
-  async function setup(renderPanel = false) {
+  async function setup(renderPanel: false | 'pc' | 'mobile' = false) {
     vi.mocked(groupApi.fetchSmsRecipientGroups).mockResolvedValue([
       { id: 10, name: 'A', description: '' },
       { id: 20, name: 'B', description: '' },
@@ -132,33 +132,67 @@ describe('latest selected group and cart sources', () => {
     expect(members[10].map((row) => row.customerId)).toEqual([1, 2])
     expect(members[20].map((row) => row.customerId)).toEqual([2, 3])
   }
-  it('name, card, management and confirmed replacement follow the latest group', async () => {
-    const state = await setup(true)
+  it.each(['pc', 'mobile'] as const)('name/card select only; explicit append and confirmed replace follow the latest group (%s)', async (layout) => {
+    const state = await setup(layout)
     const click = async (element: Element | null) => {
       expect(element).not.toBeNull()
       await act(async () => { (element as HTMLElement).click() })
     }
     const button = (text: string) => [...host!.querySelectorAll('button')].find((node) => node.textContent?.trim() === text) ?? null
     const activeName = () => host!.querySelector('.sms-bulk-group-row--active .sms-bulk-group-row__name')?.textContent
-    await click(host!.querySelector('[aria-label="A 추가로 불러오기"]'))
+    const rowButton = (index: number, text: string) =>
+      [...host!.querySelectorAll('.sms-bulk-group-row')[index].querySelectorAll('button')]
+        .find((node) => node.textContent?.trim() === text) ?? null
+    await click(host!.querySelector('[aria-label="A 선택"]'))
     expect(activeName()).toBe('A')
+    expect(state().selectedGroupId).toBe(10)
+    expect(state().groupMembers.map((row) => row.customerId)).toEqual([1, 2])
+    expect(state().sendableCustomerIds).toEqual([])
     await click(host!.querySelectorAll('.sms-bulk-group-row')[1])
     expect(activeName()).toBe('B')
+    expect(state().selectedGroupId).toBe(20)
+    expect(host!.querySelector('.sms-bulk-groups__detail h3')?.textContent).toBe('B')
+    expect(state().groupMembers.map((row) => row.customerId)).toEqual([2, 3])
+    expect(state().sendableCustomerIds).toEqual([])
+    expect(state().loadedGroupNames).toEqual([])
+    expect(host!.querySelector('.sms-bulk-group-row__last')?.textContent).not.toContain('불러오기')
+    await click(rowButton(0, '추가로 불러오기'))
+    expect(activeName()).toBe('A')
+    expect(state().sendableCustomerIds).toEqual([1, 2])
+    expect(state().loadedGroupNames).toEqual(['A'])
+    expect(state().actionNotice).toContain('2명이 추가')
+    await click(rowButton(1, '추가로 불러오기'))
+    expect(activeName()).toBe('B')
     expect(state().sendableCustomerIds).toEqual([1, 2, 3])
+    expect(state().loadedGroupNames).toEqual(['A', 'B'])
+    expect(state().actionNotice).toContain('1명이 추가')
+    expect(state().actionNotice).toContain('이미 추가된 고객 1명')
     await click(button('A 관리'))
     expect(activeName()).toBe('A')
     expect(state().sendableCustomerIds).toEqual([1, 2, 3])
-    await click(host!.querySelector('[aria-label="B 추가로 불러오기"]'))
+    await click(host!.querySelector('[aria-label="B 선택"]'))
     expect(activeName()).toBe('B')
-    expect(host!.querySelector('.sms-bulk-groups__detail h3')?.textContent).toBe('B')
-    expect(state().groupMembers.map((row) => row.customerId)).toEqual([2, 3])
-    await click(host!.querySelectorAll('.sms-bulk-group-row')[0].querySelectorAll('button')[1])
+    expect(state().sendableCustomerIds).toEqual([1, 2, 3])
+    await click(host!.querySelectorAll('.sms-bulk-group-row')[0])
+    expect(activeName()).toBe('A')
+    expect(state().sendableCustomerIds).toEqual([1, 2, 3])
+    expect(state().loadedGroupNames).toEqual(['A', 'B'])
+    await click(host!.querySelector('[aria-label="B 선택"]'))
+    await click(rowButton(0, '교체해서 불러오기'))
+    expect(state().sendableCustomerIds).toEqual([1, 2, 3])
     // The in-app confirmation must complete before replacing the cart or selection.
     expect(activeName()).toBe('B')
     await click([...document.querySelectorAll('button')].find((node) => node.textContent?.trim() === '교체') ?? null)
     expect(activeName()).toBe('A')
     expect(state().sendableCustomerIds).toEqual([1, 2])
     expect(state().loadedGroupNames).toEqual(['A'])
+    await act(async () => state().clearRecipients())
+    await click(rowButton(1, '교체해서 불러오기'))
+    // Empty carts load immediately without a confirmation.
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
+    expect(activeName()).toBe('B')
+    expect(state().sendableCustomerIds).toEqual([2, 3])
+    expect(state().loadedGroupNames).toEqual(['B'])
     expectNoMutation()
   })
   it('selects A then B without changing the cart', async () => {
