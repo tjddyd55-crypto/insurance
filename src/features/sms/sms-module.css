@@ -3189,7 +3189,10 @@
 .sms-bulk-workspace--pc .sms-bulk-workspace__grid {
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.05fr) minmax(0, 1.05fr);
 }
+/* Columns own the outer scroll. Do not shrink an open details or a panel's
+   controls to make room for sibling content: they must retain their flow height. */
 .sms-bulk-workspace--pc .sms-bulk-workspace__column {
+  display: block;
   max-height: calc(100dvh - 10rem);
   overflow-y: auto;
   position: static;
@@ -3199,8 +3202,21 @@
   display: block;
   min-width: 0;
 }
-.sms-bulk-workspace--pc .sms-bulk-workspace__right .sms-composer__main {
+.sms-bulk-workspace--pc .sms-bulk-workspace__right .sms-composer {
+  --sms-composer-editor-width: 100%;
   min-width: 0;
+}
+.sms-bulk-workspace--pc .sms-bulk-workspace__right .sms-composer__main {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.sms-bulk-workspace--pc .sms-bulk-workspace__right .sms-composer__setup-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+.sms-bulk-workspace--pc .sms-bulk-workspace__right .sms-composer__card {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .sms-bulk-workspace--pc .sms-bulk-workspace__right .sms-module__grid {
   grid-template-columns: minmax(0, 1fr);
@@ -3260,4 +3276,30 @@
 .sms-bulk-workspace--pc .sms-bulk-filter-field--age input {
   width: 100%;
   min-width: 0;
+}
+
+/* Keep panel controls in normal flow; only long recipient/member lists scroll. */
+.sms-bulk-workspace--pc .sms-bulk-selected,
+.sms-bulk-workspace--pc .sms-bulk-groups {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+.sms-bulk-workspace--pc .sms-bulk-person-list {
+  max-height: 360px;
+}
+.sms-bulk-workspace--pc .sms-bulk-selected__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.sms-bulk-workspace--pc .sms-bulk-groups__header {
+  flex-wrap: wrap;
+}
+.sms-bulk-workspace--pc .sms-bulk-workspace__column button {
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
