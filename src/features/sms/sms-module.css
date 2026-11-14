@@ -3205,7 +3205,8 @@
    below instead reserves its header/footer and scrolls only the inner list. */
 .sms-bulk-workspace--pc .sms-bulk-workspace__column {
   display: block;
-  max-height: calc(100dvh - 10rem);
+  min-height: 0;
+  max-height: 100%;
   overflow-y: auto;
   position: static;
   padding: 0.75rem;
@@ -3312,13 +3313,42 @@
   overflow-wrap: anywhere;
 }
 
+/* Groups alone fill the app outlet's remaining height. The tabs and optional
+   notices retain their natural height, so no viewport/header offset is needed. */
+.app-main-content--workspace-outlet-host:has(.sms-bulk-workspace--pc) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sms-module-page--pc:has(.sms-bulk-workspace--pc),
+.sms-module-page--pc:has(.sms-bulk-workspace--pc) > .sms-module__content,
+.sms-module-page--pc .sms-module__panel--bulk-select,
+.sms-module-page--pc .sms-bulk-workspace--pc {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.sms-module-page--pc:has(.sms-bulk-workspace--pc) > .sms-module__topbar,
+.sms-module-page--pc:has(.sms-bulk-workspace--pc) > .sms-module__content > :not(.sms-module__panel--bulk-select) {
+  flex: none;
+}
+.sms-module-page--pc .sms-bulk-workspace--pc .sms-bulk-workspace__grid {
+  flex: 1 1 0;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+}
+
 /* Recipient header/footer stay in flow; only the list consumes scroll space. */
 .sms-bulk-workspace--pc .sms-bulk-workspace__grid {
   grid-template-columns: minmax(0, .29fr) minmax(0, .33fr) minmax(0, .38fr);
 }
 .sms-bulk-workspace--pc .sms-bulk-workspace__center {
   display: flex;
-  height: calc(100dvh - 10rem);
+  height: auto;
   min-height: 0;
   overflow: hidden;
 }
