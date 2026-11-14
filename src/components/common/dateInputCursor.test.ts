@@ -29,6 +29,24 @@ describe('shared web date cursor CSS contract', () => {
     }
   })
 
+  it.each(['.field--readonly', '[readonly]'])('overrides readonly field specificity for active picker/time triggers (%s)', (lockedState) => {
+    // Each date selector has five class/attribute/pseudo-class terms (time has six),
+    // exceeding the four terms in .form-input:not(radio):not(checkbox)[readonly].
+    const date = `.app-date-input--picker .form-input.app-date-input__text${lockedState}:not(:disabled)`
+    const time = `.app-time-input:not(.app-time-input--disabled) .form-input.app-time-input__display${lockedState}:not(:disabled)`
+    expect(cursorForSelector(date)).toBe('pointer')
+    expect(cursorForSelector(time)).toBe('pointer')
+    expect(cursorForSelector(`.form-input:not([type='radio']):not([type='checkbox'])${lockedState}`)).toBe('not-allowed')
+  })
+
+  it('keeps disabled picker/time displays locked, including the time wrapper state', () => {
+    for (const selector of [
+      '.app-date-input--picker .form-input.app-date-input__text:disabled',
+      '.app-time-input .form-input.app-time-input__display:disabled',
+      '.app-time-input--disabled .form-input.app-time-input__display',
+    ]) expect(cursorForSelector(selector)).toBe('not-allowed')
+  })
+
   it('never uses the broad :read-only pseudo-class to assign a forbidden cursor', () => {
     for (const rule of rules) {
       if (/cursor:\s*not-allowed/.test(rule[2])) expect(rule[1]).not.toContain(':read-only')

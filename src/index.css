@@ -9912,6 +9912,22 @@ input[type='datetime-local']:not(:disabled):not([readonly])::-webkit-datetime-ed
   cursor: text;
 }
 
+/* main/PC still uses readonly date/time display inputs as active picker triggers.
+ * Specificity 0,5,0+ beats the shared readonly field cursor (0,4,0).
+ */
+.app-date-input--picker .form-input.app-date-input__text.field--readonly:not(:disabled),
+.app-date-input--picker .form-input.app-date-input__text[readonly]:not(:disabled),
+.app-time-input:not(.app-time-input--disabled) .form-input.app-time-input__display.field--readonly:not(:disabled),
+.app-time-input:not(.app-time-input--disabled) .form-input.app-time-input__display[readonly]:not(:disabled){
+  cursor: pointer;
+}
+
+.app-date-input--picker .form-input.app-date-input__text:disabled,
+.app-time-input .form-input.app-time-input__display:disabled,
+.app-time-input--disabled .form-input.app-time-input__display{
+  cursor: not-allowed;
+}
+
 /* Native readonly pickers are locked, unlike editable picker triggers. */
 input:is([type='date'], [type='time'], [type='datetime-local'], [type='month'], [type='week']):is(:disabled, [readonly]),
 input:is([type='date'], [type='time'], [type='datetime-local'], [type='month'], [type='week']):is(:disabled, [readonly])::-webkit-calendar-picker-indicator,
