@@ -2051,6 +2051,24 @@
   grid-column: 2;
 }
 
+/* Explicit load actions stay below the name and wrap within narrow group cards. */
+.sms-bulk-group-row--pc .sms-bulk-group-row__load-actions,
+.sms-bulk-group-row--mobile .sms-bulk-group-row__load-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+.sms-bulk-group-row--pc .sms-bulk-group-row__load-actions button,
+.sms-bulk-group-row--mobile .sms-bulk-group-row__load-actions button {
+  white-space: normal;
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  overflow-wrap: anywhere;
+}
+
 .sms-bulk-groups__detail {
   display: flex;
   flex-direction: column;
