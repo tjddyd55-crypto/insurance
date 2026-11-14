@@ -65,7 +65,13 @@ export function useSmsBulkRecipientState() {
   const [searchBusy, setSearchBusy] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [groupActionBusy, setGroupActionBusy] = useState(false)
-  const [actionNotice, setActionNotice] = useState<string | null>(null)
+  const [actionNotice, setActionNoticeValue] = useState<string | null>(null)
+  const [actionNoticeRevision, setActionNoticeRevision] = useState(0)
+  // Repeated identical notices restart the local overlay toast's lifetime.
+  const setActionNotice = useCallback((message: string | null) => {
+    setActionNoticeValue(message)
+    setActionNoticeRevision((revision) => revision + 1)
+  }, [])
   const [groupSaveModalOpen, setGroupSaveModalOpen] = useState(false)
   const [newGroupModalOpen, setNewGroupModalOpen] = useState(false)
   const [groupEditModalOpen, setGroupEditModalOpen] = useState(false)
@@ -697,6 +703,7 @@ export function useSmsBulkRecipientState() {
     hasSearched,
     groupActionBusy,
     actionNotice,
+    actionNoticeRevision,
     setActionNotice,
     groupSaveModalOpen,
     setGroupSaveModalOpen,
