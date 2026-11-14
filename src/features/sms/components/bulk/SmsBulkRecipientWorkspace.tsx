@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
 import Modal from '../../../../components/ui/Modal'
@@ -13,6 +13,7 @@ type SmsBulkRecipientWorkspaceProps = {
   bulkState: SmsBulkRecipientState
   /** 그룹설정 탭에서는 문자 작성 이동 버튼을 숨긴다 */
   groupsOnly?: boolean
+  composer?: ReactNode
   onProceedToCompose?: (customerIds: number[]) => void
 }
 
@@ -227,7 +228,7 @@ function SearchResultsPanel({
       <div className="sms-bulk-search__toolbar">
         <div className="sms-bulk-search__summary">
           <span>
-            검색 결과 {searchTotalCount}명 · 선택 {selectedSearchIds.size}명
+            검색 결과 {searchTotalCount}명 · 발송 가능 {searchResults.length}명 · 선택 {selectedSearchIds.size}명
           </span>
           <span className="sms-module__muted sms-bulk-search__policy">
             발송 가능한 고객만 표시됩니다. 연락처 없음, 전화번호 오류, 수신거부 고객은 제외됩니다.
@@ -241,7 +242,7 @@ function SearchResultsPanel({
             선택 해제
           </FormButton>
           <FormButton type="button" disabled={disabled || selectedSearchIds.size === 0} onClick={addSelectedToRecipients}>
-            추가
+            발송 대상에 추가
           </FormButton>
         </div>
       </div>
@@ -302,7 +303,7 @@ function SelectedRecipientsPanel({
     <div className="sms-bulk-selected">
       <div className="sms-bulk-selected__summary">
         <p>
-          총 선택 {summary.total}명 · 발송 가능 {summary.sendable}명 · 제외 {summary.excluded}명
+          총 {summary.total}명 / 발송 가능 {summary.sendable}명 / 제외 {summary.excluded}명
         </p>
         {Object.keys(summary.skipCounts).length > 0 ? (
           <p className="sms-module__muted">
@@ -360,7 +361,7 @@ function SelectedRecipientsPanel({
             disabled={disabled || summary.total === 0}
             onClick={() => setGroupSaveModalOpen(true)}
           >
-            그룹 저장
+            이 대상을 그룹으로 저장
           </FormButton>
         </div>
       </div>
@@ -597,8 +598,10 @@ export default function SmsBulkRecipientWorkspace({
   busy,
   bulkState,
   groupsOnly = false,
+  composer,
   onProceedToCompose,
 }: SmsBulkRecipientWorkspaceProps) {
+  const [composeMobile, setComposeMobile] = useState(false)
   const {
     actionNotice,
     groupSaveModalOpen,
@@ -628,7 +631,7 @@ export default function SmsBulkRecipientWorkspace({
 
   const searchPanel = (
     <>
-      <h2 className="sms-bulk-panel__title">고객 찾기</h2>
+      <h2 className="sms-bulk-panel__title">1. 고객 찾기</h2>
       <FilterFields bulkState={bulkState} disabled={panelBusy} layout={variant} />
       <SearchResultsPanel bulkState={bulkState} disabled={panelBusy} layout={variant} />
     </>
@@ -636,7 +639,7 @@ export default function SmsBulkRecipientWorkspace({
 
   const selectedPanel = (
     <>
-      <h2 className="sms-bulk-panel__title">선택된 발송 대상</h2>
+      <h2 className="sms-bulk-panel__title">2. 발송 대상</h2>
       <SelectedRecipientsPanel
         bulkState={bulkState}
         disabled={panelBusy}
@@ -657,37 +660,48 @@ export default function SmsBulkRecipientWorkspace({
           <div className="sms-bulk-mobile-tabs">
             <button
               type="button"
-              className={`sms-bulk-mobile-tabs__btn${mobileTab === 'search' ? ' sms-bulk-mobile-tabs__btn--active' : ''}`}
-              onClick={() => setMobileTab('search')}
+              className={`sms-bulk-mobile-tabs__btn${!composeMobile && mobileTab === 'search' ? ' sms-bulk-mobile-tabs__btn--active' : ''}`}
+              onClick={() => { setComposeMobile(false); setMobileTab('search') }}
             >
               고객 찾기
             </button>
             <button
               type="button"
-              className={`sms-bulk-mobile-tabs__btn${mobileTab === 'selected' ? ' sms-bulk-mobile-tabs__btn--active' : ''}`}
-              onClick={() => setMobileTab('selected')}
+              className={`sms-bulk-mobile-tabs__btn${!composeMobile && mobileTab === 'selected' ? ' sms-bulk-mobile-tabs__btn--active' : ''}`}
+              onClick={() => { setComposeMobile(false); setMobileTab('selected') }}
             >
               선택된 대상 {summary.total}
             </button>
             <button
               type="button"
-              className={`sms-bulk-mobile-tabs__btn${mobileTab === 'groups' ? ' sms-bulk-mobile-tabs__btn--active' : ''}`}
-              onClick={() => setMobileTab('groups')}
+              className={`sms-bulk-mobile-tabs__btn${!composeMobile && mobileTab === 'groups' ? ' sms-bulk-mobile-tabs__btn--active' : ''}`}
+              onClick={() => { setComposeMobile(false); setMobileTab('groups') }}
             >
               그룹
             </button>
+            {composer ? <FormButton htmlType="button" className={`sms-bulk-mobile-tabs__btn${composeMobile ? ' sms-bulk-mobile-tabs__btn--active' : ''}`} onClick={() => setComposeMobile(true)}>문자 발송</FormButton> : null}
           </div>
-          <div className="sms-bulk-mobile-panel">
+          <div className="sms-bulk-mobile-panel" hidden={composeMobile}>
             {mobileTab === 'search' ? searchPanel : null}
             {mobileTab === 'selected' ? selectedPanel : null}
             {mobileTab === 'groups' ? groupsPanel : null}
           </div>
+          {composer ? <div className="sms-bulk-mobile-panel" hidden={!composeMobile}><h2 className="sms-bulk-panel__title">3. 문자 발송</h2>{composer}</div> : null}
         </>
       ) : (
         <div className="sms-bulk-workspace__grid">
           <div className="sms-bulk-workspace__column sms-bulk-workspace__left">{searchPanel}</div>
-          <div className="sms-bulk-workspace__column sms-bulk-workspace__center">{selectedPanel}</div>
-          <div className="sms-bulk-workspace__column sms-bulk-workspace__groups">{groupsPanel}</div>
+          <div className="sms-bulk-workspace__column sms-bulk-workspace__center">
+            {selectedPanel}
+            <details className="sms-bulk-saved-groups" open>
+              <summary>저장된 그룹 불러오기</summary>
+              {groupsPanel}
+            </details>
+          </div>
+          <div className="sms-bulk-workspace__column sms-bulk-workspace__right">
+            <h2 className="sms-bulk-panel__title">3. 문자 발송</h2>
+            {composer}
+          </div>
         </div>
       )}
       <GroupSaveModal

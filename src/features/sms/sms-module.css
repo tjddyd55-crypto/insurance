@@ -3184,3 +3184,80 @@
   font-size: 0.875rem;
 }
 
+
+/* Group send flow: search → current audience → one-off campaign. */
+.sms-bulk-workspace--pc .sms-bulk-workspace__grid {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.05fr) minmax(0, 1.05fr);
+}
+.sms-bulk-workspace--pc .sms-bulk-workspace__column {
+  max-height: calc(100dvh - 10rem);
+  overflow-y: auto;
+  position: static;
+  padding: 0.75rem;
+}
+.sms-bulk-workspace--pc .sms-bulk-workspace__right .sms-composer__workspace {
+  display: block;
+  min-width: 0;
+}
+.sms-bulk-workspace--pc .sms-bulk-workspace__right .sms-composer__main {
+  min-width: 0;
+}
+.sms-bulk-workspace--pc .sms-bulk-workspace__right .sms-module__grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+.sms-bulk-workspace--pc .sms-bulk-saved-groups {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border-default);
+  padding-top: 0.75rem;
+}
+.sms-bulk-workspace--pc summary,
+.sms-bulk-workspace--mobile summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.5rem 0;
+}
+.sms-bulk-workspace--mobile .sms-bulk-mobile-panel[hidden] {
+  display: none;
+}
+.sms-bulk-workspace--mobile .sms-bulk-mobile-tabs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 1440px) {
+  .sms-bulk-workspace--pc .sms-bulk-person-row {
+    grid-template-columns: 20px minmax(40px, 1fr) 30px 44px;
+  }
+  .sms-bulk-workspace--pc .sms-bulk-person-row__phone {
+    grid-column: 2 / -1;
+  }
+  .sms-bulk-workspace--pc .sms-bulk-filter-row--search {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sms-bulk-workspace--pc .sms-bulk-filter-field--search {
+    grid-column: 1 / -1;
+  }
+}
+.sms-bulk-workspace--pc .sms-bulk-group-row,
+.sms-bulk-workspace--mobile .sms-bulk-group-row {
+  grid-template-columns: minmax(0, 1fr);
+  max-height: none;
+}
+.sms-bulk-workspace--pc .sms-bulk-group-row__content {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.sms-bulk-workspace--pc .sms-bulk-group-row__last {
+  grid-column: 1 / -1;
+  text-align: left;
+}
+
+.sms-bulk-workspace--pc .sms-bulk-filter-field--age {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  width: 100%;
+}
+.sms-bulk-workspace--pc .sms-bulk-filter-field--age .sms-bulk-filter-field__label {
+  grid-column: 1 / -1;
+}
+.sms-bulk-workspace--pc .sms-bulk-filter-field--age input {
+  width: 100%;
+  min-width: 0;
+}
