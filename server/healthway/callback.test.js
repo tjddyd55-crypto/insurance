@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { randomBytes, randomUUID, createHmac } from 'node:crypto'
+import { randomBytes, randomUUID, createHmac, createHash } from 'node:crypto'
 import { createServer } from 'node:http'
 import { spawnSync } from 'node:child_process'
 import express from 'express'
@@ -172,7 +172,6 @@ test('callback HTTP + PostgreSQL completion, replay, privacy and fail-closed gua
     try { await ensureHealthwaySchema(pool); await ensureHealthwaySchema(pool) }
     finally { if (prior == null) delete process.env.HEALTHWAY_MODULE_ENABLED; else process.env.HEALTHWAY_MODULE_ENABLED = prior }
     const app = express(), api = express.Router()
-    app.set('trust proxy', 'loopback')
     const requireAuth = (_req, res) => res.sendStatus(401)
     app.use(bypassHealthwayCallback(cors()))
     app.use(bypassHealthwayCallback(express.json()))
@@ -307,7 +306,7 @@ test('callback HTTP + PostgreSQL completion, replay, privacy and fail-closed gua
         assert.equal(response.status, 500); assert.equal((await getRow(r.id)).status, 'failed')
       } finally { adapter.sdk = original }
     })
-    await t.test('31st HTTP callback is 429 and repeated limited hits add only two DB rows', async () => {
+    await t.test('forwarded clients have separate buckets without trust proxy and limited hits log only once', async () => {
       const before = Number((await pool.query('SELECT COUNT(*) FROM healthway_callback_logs')).rows[0].count)
       const options = { headers: { 'X-Forwarded-For': '198.51.100.1' } }
       for (let i = 0; i < 30; i++) assert.equal((await call(null, options)).status, 400)
@@ -318,8 +317,15 @@ test('callback HTTP + PostgreSQL completion, replay, privacy and fail-closed gua
       for (const response of await Promise.all(Array.from({ length: 20 }, () => call(null, options)))) assert.equal(response.status, 429)
       const after = Number((await pool.query('SELECT COUNT(*) FROM healthway_callback_logs')).rows[0].count)
       assert.equal(after - before, 62) // 30 invalid requests + first limited hit: access + error each.
+      const otherOptions = { headers: { 'X-Forwarded-For': '198.51.100.2, 10.0.0.1' } }
+      for (let i = 0; i < 30; i++) assert.equal((await call(null, otherOptions)).status, 400)
+      assert.equal((await call(null, otherOptions)).status, 429)
+      assert.equal((await call(null, options)).status, 429)
       const limitedLogs = (await pool.query("SELECT * FROM healthway_callback_logs WHERE outcome='rate_limited'")).rows
-      assert.deepEqual(limitedLogs.map((row) => row.level).sort(), ['access', 'error'])
+      assert.deepEqual(limitedLogs.map((row) => row.level).sort(), ['access', 'access', 'error', 'error'])
+      const expectedHashes = ['198.51.100.1', '198.51.100.2'].map((ip) =>
+        createHash('sha256').update(deriveHealthwayKey(c.tokenKey, 'healthway:callback-log:ip:v1')).update(ip).digest('hex'))
+      assert.deepEqual([...new Set(limitedLogs.map((row) => row.client_ip_hash))].sort(), expectedHashes.sort())
       for (const row of limitedLogs) {
         assert.equal(row.error_code, 'rate_limited')
         assert.match(row.client_ip_hash, /^[a-f0-9]{64}$/)

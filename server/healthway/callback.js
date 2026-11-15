@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { getClientIp } from '../services/smsRequestIpLimit.js'
 import { assertConfigured, failure } from './config.js'
 import { deriveHealthwayKey, tokenHash } from './crypto.js'
 import { certificationCase, completeOfflineFlow } from './flow.js'
@@ -60,7 +61,7 @@ export function createCertificationCallback({ pool, adapter, config }) {
   const clients = new Map(), windowMs = 60_000, maxClients = 10_000
   return async (req, res) => {
     const started = performance.now(), receivedAt = new Date()
-    const ip = req.ip || req.socket?.remoteAddress
+    const ip = getClientIp(req)
     const ipHash = clientHash(ip, config, 'ip')
     const key = ipHash || tokenHash(String(ip || ''))
     const now = Date.now()
