@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs'
 import cors from 'cors'
 import express from 'express'
+import { bypassHealthwayCallback, safeRequestLogPath } from './healthway/requestPrivacy.js'
 import jwt from 'jsonwebtoken'
 import { randomUUID, randomBytes } from 'node:crypto'
 import fs from 'node:fs'
@@ -1032,7 +1033,7 @@ function handleDbError(error, req, res) {
       code: error?.code,
       detail: error?.detail,
       constraint: error?.constraint,
-      path: req?.originalUrl ?? req?.url,
+      path: safeRequestLogPath(req),
     })
     res.status(200).json({
       success: false,
@@ -1397,7 +1398,7 @@ function forbiddenResponse(req, res, message, extraMeta = {}) {
     action: 'FORBIDDEN_ACCESS',
     targetType: 'http',
     meta: {
-      path: String(req.originalUrl ?? req.path ?? '').slice(0, 500),
+      path: safeRequestLogPath(req).slice(0, 500),
       method: req.method,
       ...extraMeta,
     },
@@ -1558,12 +1559,12 @@ function buildCustomerAppNativeDeepLink(linkCode) {
 
 const app = express()
 app.use(
-  cors({
+  bypassHealthwayCallback(cors({
     origin: '*',
     credentials: true,
-  }),
+  })),
 )
-app.use(express.json({ limit: '12mb' }))
+app.use(bypassHealthwayCallback(express.json({ limit: '12mb' })))
 
 const apiRouter = express.Router()
 

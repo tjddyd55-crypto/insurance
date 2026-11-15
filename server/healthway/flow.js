@@ -40,7 +40,8 @@ export async function completeOfflineFlow(pool, adapter, config, request) {
   let cert, certCase
   try {
     // SDK offline 0201 ignores encrypted input and returns its official static sample. Its dealings number
-    // is NOT this request's binding. Node already validated OUR nonce + dealings before claiming callback.
+    // is NOT this request's binding. Node already validated OUR nonce + dealings (mock-auth) or
+    // signed DEV callback + dealings (callback/cert) before claiming the request.
     const decoded = await adapter.sdk('0201', [`MOCK-${newToken()}`, `MOCK-${newToken()}`])
     cert = decoded.data; certCase = certificationCase(cert)
     if (certCase === 'CASE2' || certCase === 'CASE4') throw failure(409, 'mock_certification_failed')

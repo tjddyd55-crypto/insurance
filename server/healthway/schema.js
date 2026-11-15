@@ -10,6 +10,12 @@ export async function ensureHealthwaySchema(db) {
       consents JSONB, timeline JSONB NOT NULL DEFAULT '[]', revoked_at TIMESTAMPTZ, cancelled_at TIMESTAMPTZ,
       completed_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
     CREATE INDEX IF NOT EXISTS healthway_requests_scope ON healthway_requests(owner_user_id, ga_id, customer_id);
+    CREATE INDEX IF NOT EXISTS healthway_requests_dealings ON healthway_requests(demand_dealings_no);
+    CREATE TABLE IF NOT EXISTS healthway_callback_logs (
+      id TEXT PRIMARY KEY, received_at TIMESTAMPTZ NOT NULL, level TEXT NOT NULL CHECK(level IN ('access','error')),
+      outcome TEXT NOT NULL, case_code TEXT, error_code TEXT, request_id TEXT,
+      result_data_sha256 TEXT, result_data_length INTEGER NOT NULL,
+      client_ip_hash TEXT, user_agent_hash TEXT, duration_ms INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS healthway_connections (
       id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL, ga_id BIGINT NOT NULL, customer_id BIGINT NOT NULL,
       credentials_encrypted TEXT NOT NULL, source_status JSONB NOT NULL DEFAULT '{}',
