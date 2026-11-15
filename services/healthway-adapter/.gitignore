@@ -1,0 +1,6 @@
+/lib/
+/sample-data/
+/build/
+/runtime/
+*.jar
+mymd.properties
