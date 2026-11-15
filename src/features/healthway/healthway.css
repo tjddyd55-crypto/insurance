@@ -1,0 +1,50 @@
+:is(.healthway-page--pc,.healthway-page--mobile,.health-connect-page--pc,.health-connect-page--mobile) {
+  color: var(--text-main); background: var(--bg-surface, var(--bg-card)); min-width: 0; box-sizing: border-box;
+  --hw-border: var(--border-default, #dce3ed); line-height: 1.6;
+}
+:is(.healthway-page--pc,.healthway-page--mobile) { padding: 20px; }
+:is(.health-connect-page--pc,.health-connect-page--mobile) { max-width: 800px; margin: 24px auto; padding: 28px; border: 1px solid var(--hw-border); border-radius: 20px; }
+:is(.healthway-page--pc,.healthway-page--mobile,.health-connect-page--pc,.health-connect-page--mobile) :is(h1,h2,h3,h4,p) { margin: 0 0 10px; }
+:is(.healthway-page--pc,.healthway-page--mobile,.health-connect-page--pc,.health-connect-page--mobile) :is(h2,h3) { margin-top: 16px; }
+:is(.healthway-page--pc,.healthway-page--mobile,.health-connect-page--pc,.health-connect-page--mobile) .hw-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+:is(.healthway-page--pc,.healthway-page--mobile,.health-connect-page--pc,.health-connect-page--mobile) .hw-badge { display: inline-block; font-size: 12px; border-radius: 8px; padding: 3px 8px; background: var(--bg-muted, #edf1f8); color: var(--text-main); white-space: normal; }
+:is(.healthway-page--pc,.healthway-page--mobile,.health-connect-page--pc,.health-connect-page--mobile) .hw-badge--mock { background: #fff2d4; color: #714300; font-weight: 700; }
+:is(.healthway-page--pc,.healthway-page--mobile,.health-connect-page--pc,.health-connect-page--mobile) .hw-notice { padding: 14px; border: 1px solid var(--hw-border); border-radius: 12px; font-size: 13px; }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-request { border: 1px solid var(--hw-border); border-radius: 12px; padding: 14px; margin-bottom: 20px; }
+:is(.healthway-page--pc,.healthway-page--mobile) :is(.hw-controls,.hw-segments) { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-segments { padding: 10px; border-radius: 12px; background: var(--bg-muted, #f1f4f9); }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-segments > * { flex: 1; min-width: 110px; }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,280px),1fr)); gap: 14px; margin: 14px 0; }
+:is(.healthway-page--pc,.healthway-page--mobile,.health-connect-page--pc,.health-connect-page--mobile) .hw-card { padding: 16px; border-radius: 12px; border: 1px solid var(--hw-border); min-width: 0; overflow-wrap: anywhere; }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-card small { font-size: 11px; opacity: .75; }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-items { margin: 0; }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-items > div { display: grid; grid-template-columns: minmax(0,1fr) minmax(60px,auto); gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--hw-border); font-size: 13px; }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-items dd { margin: 0; text-align: right; }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-coverage { padding: 12px 0; font-size: 13px; }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-table-wrap { max-width: 100%; overflow-x: auto; }
+:is(.healthway-page--pc,.healthway-page--mobile) table { width: 100%; border-collapse: collapse; min-width: 720px; font-size: 13px; }
+:is(.healthway-page--pc,.healthway-page--mobile) :is(th,td) { padding: 10px 8px; text-align: left; border-bottom: 1px solid var(--hw-border); }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-request-row { display: flex; justify-content: space-between; gap: 10px; padding: 12px 0; border-top: 1px solid var(--hw-border); }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-timeline { display: flex; flex-wrap: wrap; gap: 8px 20px; padding-left: 20px; font-size: 12px; }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-sms { white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; border: 1px dashed var(--hw-border); font-size: 13px; }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-link { display: grid; gap: 8px; }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-status--DETECTED { background: #fff0d1; color: #754500; }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-status--NOT_DETECTED { background: #e4f5ed; color: #186244; }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-status--INSUFFICIENT_DATA { background: #fff0eb; color: #963a1c; }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-status--UNSUPPORTED { background: #ebedf3; color: #454b60; }
+:is(.healthway-page--pc,.healthway-page--mobile).hw-evidence-shell { display: flex; flex-direction: column; max-height: 80vh; padding: 24px; }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-evidence-body { overflow-y: auto; min-height: 0; flex: 1; }
+:is(.healthway-page--pc,.healthway-page--mobile) .hw-evidence-row { border-bottom: 1px solid var(--hw-border); padding: 12px 0; list-style: none; }
+:is(.healthway-page--pc,.healthway-page--mobile).hw-evidence-shell footer { flex-shrink: 0; padding-top: 16px; }
+:is(.healthway-page--pc,.healthway-page--mobile,.health-connect-page--pc,.health-connect-page--mobile) .hw-error { padding: 12px; color: var(--danger, #a02b29); border: 1px solid currentColor; border-radius: 8px; }
+:is(.health-connect-page--pc,.health-connect-page--mobile) .hw-brand { color: var(--primary); font-weight: 800; letter-spacing: .08em; }
+:is(.health-connect-page--pc,.health-connect-page--mobile) .hw-steps { display: flex; gap: 28px; flex-wrap: wrap; margin: 20px 0; padding-left: 20px; font-size: 13px; }
+:is(.health-connect-page--pc,.health-connect-page--mobile) .hw-consents { display: grid; gap: 14px; }
+:is(.health-connect-page--pc,.health-connect-page--mobile) .hw-consents label { display: flex; align-items: flex-start; gap: 8px; padding: 12px; border: 1px solid var(--hw-border); border-radius: 10px; }
+:is(.health-connect-page--pc,.health-connect-page--mobile) .hw-terms { white-space: pre-wrap; max-height: 260px; overflow-y: auto; padding: 12px; font-size: 13px; }
+:is(.health-connect-page--pc,.health-connect-page--mobile) .hw-public-footer { position: sticky; bottom: 0; padding: 16px 0; background: var(--bg-surface, var(--bg-card)); border-top: 1px solid var(--hw-border); }
+:is(.health-connect-page--pc,.health-connect-page--mobile) .hw-public-footer > button { width: 100%; min-height: 48px; }
+.healthway-page--mobile { padding: 14px; }
+.healthway-page--mobile .hw-segments { gap: 6px; }
+.healthway-page--mobile .hw-cards { grid-template-columns: 1fr; }
+.health-connect-page--mobile { margin: 0; padding: 20px 16px; border: none; border-radius: 0; }

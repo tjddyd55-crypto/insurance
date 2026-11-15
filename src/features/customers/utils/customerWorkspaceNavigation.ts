@@ -1,6 +1,7 @@
 import { resolveCustomerListScrollContainer } from './resolveCustomerListScrollContainer'
 
 export const WORKSPACE_SIDE_DETAIL_TABS = [
+  'healthway',
   'map',
   'files',
   'consultations',
@@ -53,6 +54,7 @@ export function parseWorkspaceCustomerIdFromPath(pathname: string): number | nul
  * - /customers/123            → consultations
  */
 export function resolveCustomerWorkspaceTab(pathname: string): CustomerWorkspaceTab {
+  if (pathname.includes('/healthway')) return 'healthway'
   if (pathname.includes('/claim-requests')) {
     return 'claim-requests'
   }

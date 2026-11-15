@@ -1,4 +1,6 @@
-﻿import { Navigate, Outlet, createBrowserRouter } from 'react-router-dom'
+﻿import HealthwayPage from './features/healthway/pages/HealthwayPage'
+import HealthConnectPage from './features/healthway/pages/HealthConnectPage'
+import { Navigate, Outlet, createBrowserRouter } from 'react-router-dom'
 import { AppLayout } from './AppLayout'
 import { PublicHomeEntry } from './HomeRedirect'
 import { ApplicationFormPage } from './features/application/pages/ApplicationFormPage'
@@ -214,6 +216,8 @@ import { CoverageScenarioTemplateEditorPage } from './features/coverage-simulato
 import { CoverageSharePublicPage } from './features/coverage-simulator/pages/CoverageSharePublicPage'
 
 export const appRouter = createBrowserRouter([
+  { path: '/health-connect/:token', element: <HealthConnectPage /> },
+  { path: '/health-connect/:token/mock-auth', element: <HealthConnectPage /> },
   {
     path: '/',
     element: <AppLayout />,
@@ -518,6 +522,7 @@ export const appRouter = createBrowserRouter([
                   },
                   { path: ':customerId/ga-excel', element: <CustomerGaExcelPage /> },
                   { path: ':customerId/memos', element: <CustomerMemosPage /> },
+                  { path: ':customerId/healthway', element: <HealthwayPage /> },
                   { path: ':customerId/todos', element: <CustomerTodosPage /> },
                   { path: ':customerId/auto-form', element: <CustomerAutoFormPage /> },
                   { path: ':customerId/application-documents', element: <PdfDocumentListPage /> },

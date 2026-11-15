@@ -1,5 +1,6 @@
+import { useHealthwayEnabled } from '../../../healthway/useHealthwayEnabled'
 import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useNavigate } from 'react-router-dom'
 import { EmptyState } from '../../../../components/feedback'
 import type { CustomerRecord } from '../../domain/types'
 import { CustomerWorkspacePageShell } from '../../components/workspace/CustomerWorkspacePageShell'
@@ -9,6 +10,7 @@ import { CustomerGenderText } from '../../components/CustomerGenderText'
 import './CustomerWorkspaceLayoutPC.css'
 
 type WorkspaceActiveTab =
+  | 'healthway'
   | 'map'
   | 'files'
   | 'consultations'
@@ -135,6 +137,7 @@ export default function CustomerWorkspaceLayoutPC({
   openRelatedCustomerRef,
   workspaceSessionKey,
 }: CustomerWorkspaceLayoutPCProps) {
+  const healthwayEnabled = useHealthwayEnabled(), navigate = useNavigate()
   const genderUnknown = !selectedCustomer?.gender
   const insuranceAgeLabel =
     selectedCustomer?.insuranceAge != null && Number.isFinite(selectedCustomer.insuranceAge)
@@ -166,6 +169,7 @@ export default function CustomerWorkspaceLayoutPC({
       }),
       tab('files', '고객 파일', onClickFiles),
       tab('consultations', '상담 이력', onClickConsultations),
+      ...(healthwayEnabled ? [tab('healthway', '건강정보', () => navigate(`/customers/${selectedCustomerId}/healthway`))] : []),
       tab('todos', '할 일', onClickTodos),
       tab('pdf-documents', '신청서', onClickCarForm, { hidden: !showCarInsuranceInWorkspace }),
       tab('signatures', '전자서명', onClickSignatures, {
@@ -181,7 +185,7 @@ export default function CustomerWorkspaceLayoutPC({
       tab('coverage-simulations', '시뮬레이션', onClickCoverageSimulations),
     ]
   }, [
-    customerSelected,
+    customerSelected, healthwayEnabled, navigate, selectedCustomerId,
     gaExcelMenuTitleHint,
     onClickCarForm,
     onClickClaims,

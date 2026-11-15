@@ -1848,6 +1848,7 @@ registerPlatformAdminApi(apiRouter, { pool, requireAuth, requireSuperAdmin, hand
 registerGaGroupApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 registerCrmCustomerTemplateAdminApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 registerSmsModuleApi(apiRouter, { pool, requireAuth, handleDbError })
+;(await import('./healthway/registerHealthwayApi.js')).registerHealthwayApi(apiRouter, { pool, requireAuth })
 registerCrmUserBulkSmsApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 const smsStartup = validateSmsModuleStartupConfig()
 if (!smsStartup.ok) {
