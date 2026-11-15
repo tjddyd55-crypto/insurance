@@ -4633,6 +4633,7 @@ export async function initDb() {
   await ensureGoogleAutoSyncSchema(pool)
   const { ensureCrmUserBulkSmsSchema } = await import('./lib/crmUserBulkSmsSchema.js')
   await ensureCrmUserBulkSmsSchema(pool)
+  await (await import('./healthway/schema.js')).ensureHealthwaySchema(pool)
   console.log('[initDb][crm-user-bulk-sms] schema ensure 완료')
   await ensureNewsletterBoardScopeSchema(pool)
 
