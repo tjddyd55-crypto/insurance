@@ -3,12 +3,15 @@ import { deriveHealthwayKey } from './crypto.js'
 import { failure } from './config.js'
 
 const label = 'healthway:mock-callback:v1'
+const MAX_LIFETIME_SECONDS = 600
+// Allow a signing machine to be up to one minute ahead of the server.
+const FORWARD_CLOCK_SKEW_SECONDS = 60
 const cases = new Set(['CASE1', 'CASE2', 'CASE3', 'CASE4'])
-function validPayload(payload, now) {
+function validPayload(payload, now, forwardSkew = 0) {
   return payload && typeof payload === 'object' && !Array.isArray(payload) &&
     Object.keys(payload).length === 3 && Object.keys(payload).every((k) => ['demandDealingsNo', 'exp', 'case'].includes(k)) &&
     typeof payload.demandDealingsNo === 'string' && payload.demandDealingsNo.length > 0 &&
-    Number.isSafeInteger(payload.exp) && payload.exp > now && payload.exp <= now + 600 && cases.has(payload.case)
+    Number.isSafeInteger(payload.exp) && payload.exp > now && payload.exp <= now + MAX_LIFETIME_SECONDS + forwardSkew && cases.has(payload.case)
 }
 const signature = (message, secret) => createHmac('sha256', deriveHealthwayKey(secret, label)).update(message).digest()
 
@@ -28,7 +31,7 @@ export function verifyMockCallback(resultData, config, now = Math.floor(Date.now
     const bytes = Buffer.from(parts[1], 'base64url')
     if (bytes.toString('base64url') !== parts[1]) throw new Error()
     const payload = JSON.parse(bytes.toString('utf8'))
-    if (!validPayload(payload, now)) throw new Error()
+    if (!validPayload(payload, now, FORWARD_CLOCK_SKEW_SECONDS)) throw new Error()
     return { demandDealingsNo: payload.demandDealingsNo, caseCode: payload.case }
   } catch { throw failure(400, 'verify_failed') }
 }
