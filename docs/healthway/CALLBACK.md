@@ -61,7 +61,7 @@ node scripts/healthway/sign-mock-callback.mjs "$HEALTHWAY_DEV_DEMAND_DEALINGS_NO
 
 출력은 `/api/healthway/callback/cert?resultData=...` 상대 경로 하나다. 해당 로컬 앱 호스트에 붙여 브라우저로 연다. **출력 URL도 민감값으로 취급**하여 로그·이슈·커밋에 남기지 않는다. 스크립트는 키나 입력값이 포함된 오류 메시지를 출력하지 않는다.
 
-형식은 `MOCKCB.<base64url(JSON)>.<hex HMAC-SHA256>`이다. JSON의 허용 필드는 `demandDealingsNo`, `exp`(Unix 초), `case` 세 개뿐이며 nonceHash 등 추가 필드는 거부한다. 키는 전용 tokenKey를 디코딩한 뒤 `HMAC-SHA256(tokenKey, "healthway:mock-callback:v1")`로 도메인을 분리하여 얻는다. 서명 대상은 `MOCKCB.<base64url(JSON)>` 전체다. 검증은 `timingSafeEqual`을 사용하며 만료는 검증 시점 이후, 최대 600초 이내여야 한다. 서명자는 600초로 발급한다. 비오프라인에서는 이 형식을 허용하지 않는다.
+형식은 `MOCKCB.<base64url(JSON)>.<hex HMAC-SHA256>`이다. JSON의 허용 필드는 `demandDealingsNo`, `exp`(Unix 초), `case` 세 개뿐이며 nonceHash 등 추가 필드는 거부한다. 키는 전용 tokenKey를 디코딩한 뒤 `HMAC-SHA256(tokenKey, "healthway:mock-callback:v1")`로 도메인을 분리하여 얻는다. 서명 대상은 `MOCKCB.<base64url(JSON)>` 전체다. 검증은 `timingSafeEqual`을 사용하며 만료는 검증 시점 이후여야 하며, 최대 유효기간 600초에 서명 기기의 빠른 시계 오차 60초를 허용한다(`exp <= now + 660`). 이미 만료된 값에는 오차를 허용하지 않는다. DEV 서명 스크립트는 300초(5분)로 발급한다. 비오프라인에서는 이 형식을 허용하지 않는다.
 
 ## 로그
 

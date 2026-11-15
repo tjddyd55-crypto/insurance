@@ -51,7 +51,7 @@ test('mock callback domain-separated HMAC, cases and bounded expiry', () => {
     assert.deepEqual(verifyMockCallback(signed, c, now), { demandDealingsNo: p.demandDealingsNo, caseCode })
     assert.throws(() => verifyMockCallback(signed, { ...c, offline: false }, now), /verify_failed/)
     assert.throws(() => verifyMockCallback(signed, c, now + 600), /verify_failed/)
-    assert.throws(() => verifyMockCallback(signed, c, now - 1), /verify_failed/)
+    assert.throws(() => verifyMockCallback(signed, c, now - 61), /verify_failed/)
     assert.throws(() => verifyMockCallback(signed, { ...c, tokenKey: randomBytes(32).toString('hex') }, now), /verify_failed/)
   }
   assert.deepEqual(deriveHealthwayKey(c.tokenKey, 'healthway:mock-callback:v1'), createHmac('sha256', Buffer.from(c.tokenKey, 'base64')).update('healthway:mock-callback:v1').digest())
@@ -61,8 +61,24 @@ test('mock callback domain-separated HMAC, cases and bounded expiry', () => {
   const signedExtra = `${raw}.${createHmac('sha256', deriveHealthwayKey(c.tokenKey, 'healthway:mock-callback:v1')).update(raw).digest('hex')}`
   assert.throws(() => verifyMockCallback(signedExtra, c, now), /verify_failed/)
 })
+test('mock callback tolerates forward clock skew without accepting expired or overlong expiry', () => {
+  const c = config(), now = 1_800_000_000
+  for (const lifetime of [300, 600]) {
+    const p = { demandDealingsNo: 'TEST-SKEW', exp: now + 30 + lifetime, case: 'CASE1' }
+    const signed = signMockCallback(p, c.tokenKey, now + 30)
+    assert.deepEqual(verifyMockCallback(signed, c, now), { demandDealingsNo: p.demandDealingsNo, caseCode: p.case })
+  }
+  const p = { demandDealingsNo: 'TEST-BOUNDARY', exp: now + 660, case: 'CASE1' }
+  const boundary = signMockCallback(p, c.tokenKey, now + 60)
+  assert.deepEqual(verifyMockCallback(boundary, c, now), { demandDealingsNo: p.demandDealingsNo, caseCode: p.case })
+  const overlong = signMockCallback({ ...p, exp: now + 661 }, c.tokenKey, now + 61)
+  assert.throws(() => verifyMockCallback(overlong, c, now), /verify_failed/)
+  const expired = signMockCallback({ ...p, exp: now - 1 }, c.tokenKey, now - 301)
+  assert.throws(() => verifyMockCallback(expired, c, now), /verify_failed/)
+})
 test('DEV signer prints only a verifiable relative callback URL; errors never echo inputs', () => {
   const c = config(), demandDealingsNo = randomUUID()
+  const before = Math.floor(Date.now() / 1000)
   const signed = spawnSync(process.execPath, ['scripts/healthway/sign-mock-callback.mjs', demandDealingsNo, 'CASE4'], {
     encoding: 'utf8', env: { ...process.env, HEALTHWAY_TOKEN_SECRET_KEY: c.tokenKey },
   })
@@ -70,6 +86,8 @@ test('DEV signer prints only a verifiable relative callback URL; errors never ec
   assert.equal(signed.stdout.includes(c.tokenKey), false)
   const url = new URL(signed.stdout.trim(), 'https://example.invalid')
   assert.equal(url.pathname, '/api/healthway/callback/cert')
+  const { exp } = JSON.parse(Buffer.from(url.searchParams.get('resultData').split('.')[1], 'base64url').toString('utf8'))
+  assert.ok(exp >= before + 300 && exp <= Math.floor(Date.now() / 1000) + 300)
   assert.deepEqual(verifyMockCallback(url.searchParams.get('resultData'), c), { demandDealingsNo, caseCode: 'CASE4' })
   const bad = spawnSync(process.execPath, ['scripts/healthway/sign-mock-callback.mjs', demandDealingsNo, unsafeValues[0]], {
     encoding: 'utf8', env: { ...process.env, HEALTHWAY_TOKEN_SECRET_KEY: unsafeValues[4] },
