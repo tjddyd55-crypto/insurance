@@ -6,7 +6,7 @@ export function formatSmsPersonBirthDisplay(
     return '-'
   }
   if (compactBirth) {
-    return birthDate.slice(0, 4)
+    return `${birthDate.slice(0, 4)}년생`
   }
   return birthDate
 }
