@@ -134,7 +134,7 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
 
   const isMobileDetailRoute = useMemo(
     () =>
-      /^\/customers\/\d+\/(?:map|files|consultations|premium-payments|coverage-simulations|ga-excel|memos|todos|auto-form|application-documents|signatures|claim-requests)(?:\/|$)/.test(
+      /^\/customers\/\d+\/(?:healthway|map|files|consultations|premium-payments|coverage-simulations|ga-excel|memos|todos|auto-form|application-documents|signatures|claim-requests)(?:\/|$)/.test(
         location.pathname,
       ),
     [location.pathname],
@@ -208,6 +208,8 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
         open
         onClose={handleClose}
         ariaLabel={title}
+        closeOnBackdrop={!location.pathname.includes('/healthway')}
+        closeOnEsc={!location.pathname.includes('/healthway')}
         panelClassName="workspace-mobile-outlet-modal"
       >
         <div className="workspace-mobile-outlet-modal__header">

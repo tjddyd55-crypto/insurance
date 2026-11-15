@@ -11,7 +11,7 @@ const noop = vi.fn()
 function controller(): HealthwayController {
   return { enabled: true, tab: 'NHIS', setTab: noop, requests: [], data: { records: [{ id: 'test-v', source: 'NHIS_PUBLIC', datasetCode: '2002', kind: 'visit', date: '2024-01-01', institution: { name: 'TEST FACILITY' }, visitType: 'institutional' }], coverage: [{ datasetCode: '2002', source: 'NHIS_PUBLIC', availableFrom: '2023-06-01', availableTo: '2024-06-01', basis: 'official-rule', basisLabel: '공식 조회 규칙', offlineAsOfDate: '2024-08-01', hasData: true }], offlineAsOfDate: '2024-08-01', mock: true },
     results: [], evidence: null, setEvidence: noop, linkPath: '', sms: '', busy: false, error: '', nhis: true, setNhis: noop, hira: true, setHira: noop, medical: false, setMedical: noop,
-    confirm: null, setConfirm: noop, perform: noop, load: noop, create: noop, preview: noop, cancel: noop, revoke: noop }
+    dirty: false, confirm: null, setConfirm: noop, perform: noop, load: noop, create: noop, preview: noop, cancel: noop, revoke: noop }
 }
 describe('Healthway views', () => {
   it.each([HealthwayPCView, HealthwayMobileView])('separates NHIS / HIRA, labels sample coverage, no fabricated diagnosis', (View) => {

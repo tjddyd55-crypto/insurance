@@ -23,7 +23,7 @@ export function diseaseGroupFor(record, master, groups = []) {
 // Public EOB identifiers lack an authoritative system; medical sample serviceProvider Organization is missing.
 // No shared Encounter/claim identifier is documented between these profiles. Never mark a candidate confirmed.
 export function diagnosisCandidates(visit, conditions) {
-  return conditions.filter((r) => r.kcdCodeRaw && (isoDay(r.encounterPeriod?.start || r.date) === isoDay(visit.date) ||
+  return conditions.filter((r) => r.kcdCodeRaw && ((visit.date && isoDay(r.encounterPeriod?.start || r.date) === isoDay(visit.date)) ||
     (visit.institution?.name && r.institution?.name === visit.institution.name))).map((r) => ({ evidenceId: r.id, relationship: 'candidate', label: '관련 진단 후보' }))
 }
 function isoDay(value) { return value ? value.slice(0, 10) : null }

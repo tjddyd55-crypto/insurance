@@ -118,6 +118,31 @@ test('healthway HTTP + PostgreSQL lifecycle/security', { skip: !dbUrl }, async (
       assert.equal((await open(request)).status, 410); assert.equal((await call('/customers/1/records')).data.records.length, 0)
       assert.equal((await pool.query('SELECT COUNT(*) FROM healthway_connections')).rows[0].count, '0')
     })
+    await t.test('concurrent callbacks complete once', async () => {
+      const r = await create(); await open(r); const b = await start(r)
+      const outcomes = await Promise.all([finish(r, b.data), finish(r, b.data)])
+      assert.deepEqual(outcomes.map((r) => r.status).sort(), [200, 409])
+    })
+    await t.test('cancellation during SDK retrieval cannot restore a connection snapshot', async () => {
+      const r = await create(); await open(r); const b = await start(r)
+      const original = fixtureAdapter.sdk
+      let release, entered
+      const gate = new Promise((resolve) => { release = resolve }), started = new Promise((resolve) => { entered = resolve })
+      fixtureAdapter.sdk = async (id, args) => { if (id === '0201') { entered(); await gate } return original(id, args) }
+      try {
+        const pending = finish(r, b.data); await started
+        assert.equal((await call(`/customers/1/requests/${r.request.id}/cancel`, {})).status, 200)
+        release(); assert.equal((await pending).status, 409)
+        assert.equal((await call(`/customers/1/requests/${r.request.id}`)).data.request.status, 'cancelled')
+      } finally { release(); fixtureAdapter.sdk = original }
+    })
+    await t.test('start rotation invalidates old binding and enforces DB attempt cap', async () => {
+      const r = await create(); await open(r)
+      const first = await start(r); assert.equal(first.status, 200)
+      assert.equal((await start(r)).status, 200)
+      assert.equal((await finish(r, first.data)).status, 403)
+      assert.equal((await start(r)).status, 200); assert.equal((await start(r)).status, 409)
+    })
     await t.test('rate limit returns 429 for repeated bearer-link access', async () => {
       let last
       for (let i = 0; i < 91; i++) last = await call(`/public/${randomBytes(32).toString('base64url')}`)

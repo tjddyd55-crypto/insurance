@@ -84,3 +84,14 @@ test('analysis is versioned and never mutates records', () => {
   const records = [visit('a', '2024-12-01')], before = structuredClone(records), r = run('VISIT_3M', records)
   assert.deepEqual(records, before); assert.equal(r.analysisRuleVersion, 'offline-dev-1')
 })
+test('repeat grouping tries exact KCD then documented parent then admin group', () => {
+  const master = [{ code_normalized: 'I10.1', parent_code: 'I10', active: true }, { code_normalized: 'I10.2', parent_code: 'I10', active: true }, { code_normalized: 'I10', active: true }]
+  const records = ['2024-01-15', '2024-02-01', '2024-03-01'].map((date, i) => ({ id: `c${i}`, datasetCode: '1004', kind: 'condition', date, kcdCodeRaw: i === 0 ? 'I101' : 'I102' }))
+  const rule = { ...DEFAULT_RULES.find((r) => r.rule_code === 'REPEAT_1Y'), required_sources: ['1004'] }
+  const r = analyze({ records, coverage, asOf: '2024-12-31', rules: [rule], kcdMaster: master })[0]
+  assert.equal(r.status, 'DETECTED'); assert.equal(r.count, 3)
+})
+test('received-only date extents never establish a complete negative window', () => {
+  const c = coverage.map((r) => ({ ...r, completeness: 'received-only' }))
+  assert.equal(run('MEDICATION_30D', [], { coverage: c }).status, 'INSUFFICIENT_DATA')
+})

@@ -57,3 +57,8 @@ test('0201 official cases 1–4 supported without inventing success', () => {
   assert.equal(certificationCase({ match: true, joinUtilizationService: true }), 'CASE3')
   assert.equal(certificationCase({ match: false }), 'CASE4')
 })
+test('invalid date/key and production aliases fail closed', () => {
+  const base = { HEALTHWAY_MODULE_ENABLED: 'true', HEALTHWAY_ADAPTER_URL: 'http://localhost:8080', HEALTHWAY_ADAPTER_SHARED_SECRET: randomBytes(32).toString('hex'), HEALTHWAY_TOKEN_SECRET_KEY: randomBytes(32).toString('base64'), HEALTHWAY_OFFLINE_AS_OF_DATE: '2024-08-07' }
+  assert.doesNotThrow(() => assertConfigured(healthwayConfig(base)))
+  for (const extra of [{ HEALTHWAY_OFFLINE_AS_OF_DATE: '2024-99-99' }, { HEALTHWAY_TOKEN_SECRET_KEY: 'invalid' }, { APP_ENV: 'prod' }, { RAILWAY_ENVIRONMENT: 'production' }, { HEALTHWAY_ADAPTER_URL: 'http://user:pass@localhost:8080' }]) assert.throws(() => assertConfigured(healthwayConfig({ ...base, ...extra })))
+})

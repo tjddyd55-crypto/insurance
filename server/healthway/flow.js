@@ -91,6 +91,8 @@ export async function completeOfflineFlow(pool, adapter, config, request) {
       }
     }
     await transaction(pool, async (db) => {
+      // Serialize connection replacement per owner+GA+customer, including first insert.
+      await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [context])
       const current = await requestById(db, scope, request.id, true)
       if (current.status !== 'processing' || current.cancelled_at || current.revoked_at) throw failure(409, 'request_no_longer_active')
       const existing = await db.query(`SELECT id FROM healthway_connections WHERE ${SCOPE} FOR UPDATE`, scopeValues(scope))
