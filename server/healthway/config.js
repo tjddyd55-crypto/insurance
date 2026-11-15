@@ -9,6 +9,7 @@ export function healthwayConfig(env = process.env) {
     adapterUrl: env.HEALTHWAY_ADAPTER_URL,
     sharedSecret: env.HEALTHWAY_ADAPTER_SHARED_SECRET,
     tokenKey: env.HEALTHWAY_TOKEN_SECRET_KEY,
+    decryptionKey: env.HEALTHWAY_DECRYPTION_KEY,
   }
 }
 export function assertConfigured(config) {

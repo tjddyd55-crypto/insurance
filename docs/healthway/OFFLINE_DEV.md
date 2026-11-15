@@ -1,5 +1,7 @@
 # Healthway OFFLINE DEV
 
+추가된 브라우저 인증결과전송 경로와 DEV 서명 절차는 [CALLBACK.md](./CALLBACK.md)를 참조한다. 기존 mock-auth의 nonce 검증은 유지한다.
+
 상태: **오프라인 개발 구현 / 실제 연계 UNVERIFIED**. `feat/healthway-offline-t746` 전용. main/develop push, Railway 변경, 실제 건강정보 조회, 실제 SMS, 공식 마스터 적재는 수행하지 않았다. 네이티브 앱은 후속 범위다.
 
 ## 구조와 경계

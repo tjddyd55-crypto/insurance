@@ -9,10 +9,14 @@ import { bootstrap, completeOfflineFlow, revokeConnection, termsAgreements } fro
 import { healthwaySmsPreview } from './smsAdapter.js'
 import { analyze } from './rules.js'
 import { lookupKcd, searchKcd, diagnosisCandidates } from './kcd.js'
+import { createCertificationCallback } from './callback.js'
 
 /** No payloads, URLs, PII or secrets are logged by this module, including on unexpected DB/SDK errors. */
 export function registerHealthwayApi(apiRouter, { pool, requireAuth, config = healthwayConfig(), adapter = createAdapterClient(config) }) {
   const router = express.Router(), buckets = new Map()
+  // Public browser redirect, ahead of JSON parsing/auth/rate-limit middleware. The callback owns
+  // its configuration gate, HTML errors, rate limit and bounded access/error logs.
+  router.all('/callback/cert', createCertificationCallback({ pool, adapter, config }))
   router.use((req, res, next) => {
     res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff' })
     if (!config.enabled) return res.status(404).json({ code: 'module_disabled' })

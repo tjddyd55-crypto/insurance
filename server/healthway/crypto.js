@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'node:crypto'
+import { createCipheriv, createDecipheriv, randomBytes, createHash, createHmac } from 'node:crypto'
 import { failure } from './config.js'
 export const tokenHash = (token) => createHash('sha256').update(String(token)).digest('hex')
 export const newToken = () => randomBytes(32).toString('base64url')
@@ -7,6 +7,8 @@ function key(secret) {
   if (bytes.length !== 32) throw failure(503, 'healthway_dedicated_key_required')
   return bytes
 }
+// Domain-separated keys: callback signing/logging never reuse the AES key directly.
+export const deriveHealthwayKey = (secret, label) => createHmac('sha256', key(secret)).update(label).digest()
 export function encrypt(value, secret, context) {
   const iv = randomBytes(12)
   const cipher = createCipheriv('aes-256-gcm', key(secret), iv)
