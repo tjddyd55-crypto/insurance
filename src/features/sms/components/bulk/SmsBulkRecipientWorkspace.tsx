@@ -702,7 +702,7 @@ export default function SmsBulkRecipientWorkspace({
       )}
       <Modal usePortal open={groupsOpen} onClose={() => setGroupsOpen(false)} closeOnBackdrop={!groupManaging} onEscapeRequest={() => {
         if (document.querySelectorAll('[role="dialog"], [role="alertdialog"]').length === 1) setGroupsOpen(false)
-      }} ariaLabel="저장된 그룹 불러오기" panelPreset="largeForm">
+      }} ariaLabel="저장된 그룹 불러오기" panelClassName="sms-bulk-group-modal-panel">
         <div className={`sms-bulk-group-modal sms-bulk-workspace--${variant}`}>
           <header><h2>저장된 그룹 불러오기</h2><FormButton type="button" variant="secondary" aria-label="닫기" onClick={() => setGroupsOpen(false)}>×</FormButton></header>
           <div className="sms-bulk-group-modal__body">{groupsPanel}</div>
