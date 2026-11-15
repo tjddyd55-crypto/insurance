@@ -23,9 +23,12 @@ try {
   stage = 'FC healthway page'
   await page.goto(new URL(`/customers/${customerId}/healthway`, base).href)
   await page.locator('.healthway-page h2').filter({ hasText: /^건강정보$/ }).waitFor()
-  await page.getByText('공식 조회 가능 기간', { exact: false }).first().waitFor(); checks++
+  // Existing CRM notice popups (unrelated to Healthway) can cover the page on shared DEV data.
+  await page.waitForTimeout(1500)
+  for (const close of await page.getByRole('button', { name: '닫기', exact: true }).all()) { if (await close.isVisible()) await close.click() }
+  await page.getByText(/공식 조회 가능 기간|출처별 조회 가능 기간/).first().waitFor(); checks++
   stage = 'request creation'
-  await page.locator('.hw-request summary').click()
+  await page.evaluate(() => { document.querySelector('.hw-request').open = true }) // Panel may start open or closed.
   await page.getByLabel('의료기관 진단·수술 (확장)', { exact: true }).check()
   await page.getByRole('button', { name: '요청 생성', exact: true }).click()
   const link = page.getByRole('link', { name: '고객 테스트 링크 열기' }); await link.waitFor(); const publicUrl = await link.getAttribute('href'); checks++
@@ -70,7 +73,9 @@ try {
   const mobile = await mobileContext.newPage(); await mobile.goto(new URL(`/customers/${customerId}/healthway`, base).href)
   await mobile.locator('.healthway-page--mobile .hw-segments').waitFor(); await mobile.screenshot({ path: `${artifacts}/fc-mobile.png`, fullPage: true }); checks++
   stage = 'mobile unsaved-request guard'
-  await mobile.locator('.hw-request summary').click()
+  const notice = mobile.locator('div', { hasText: '오늘 하루 보지 않기' }).getByRole('button', { name: '닫기', exact: true })
+  for (const close of await notice.all()) { if (await close.isVisible()) await close.click().catch(() => {}) }
+  await mobile.evaluate(() => { document.querySelector('.hw-request').open = true })
   await mobile.getByLabel('의료기관 진단·수술 (확장)', { exact: true }).check()
   await mobile.keyboard.press('Escape'); assert.ok(await mobile.locator('.healthway-page--mobile').isVisible()); checks++
   await mobile.getByRole('button', { name: '닫기', exact: true }).click()
