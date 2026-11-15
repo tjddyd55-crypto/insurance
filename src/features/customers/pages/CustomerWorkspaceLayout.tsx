@@ -27,6 +27,7 @@ function parseSelectedCustomerId(raw: string | null): number | null {
 }
 
 export type CustomerWorkspaceTab =
+  | 'healthway'
   | 'map'
   | 'files'
   | 'consultations'
@@ -50,6 +51,7 @@ export type CustomerWorkspaceTab =
  *   path 규약만 추가하면 자동으로 layout·버튼 하이라이트·스크롤 복원이 일관되게 따라온다.
  */
 function resolveWorkspacePathTab(pathname: string): CustomerWorkspaceTab | null {
+  if (pathname.includes('/healthway')) return 'healthway'
   if (pathname.includes('/claim-requests')) {
     return 'claims'
   }

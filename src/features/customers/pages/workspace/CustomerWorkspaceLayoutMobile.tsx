@@ -32,6 +32,7 @@ function shouldShowMobileOutletMapButton(pathname: string): boolean {
 }
 
 function resolveMobileSheetTitle(pathname: string, search: string): string {
+  if (pathname.includes('/healthway')) return '건강정보'
   if (/\/customers\/\d+\/map(?:\/|$)/.test(pathname)) {
     return '지도'
   }

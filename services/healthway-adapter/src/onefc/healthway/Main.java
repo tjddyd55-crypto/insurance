@@ -14,10 +14,10 @@ public final class Main {
         boolean localTest="true".equals(env.get("HEALTHWAY_LOCAL_TEST_MODE"));
         if(secret==null && localTest && "offline".equals(env.getOrDefault("HEALTHWAY_PROVIDER","offline")))secret="LOCAL-TEST-"+UUID.randomUUID();
         HmacAuth auth=new HmacAuth(secret); // Fail before loading SDK.
+        HealthwayProvider provider=Providers.select(env);
         // SDK prints URLs and exceptions itself. Drop SDK stdout/stderr; HTTP exposes only sanitized errors.
         System.setOut(new PrintStream(OutputStream.nullOutputStream()));
         System.setErr(new PrintStream(OutputStream.nullOutputStream()));
-        HealthwayProvider provider=Providers.select(env);
         HttpServer server=HttpServer.create(new InetSocketAddress(InetAddress.getByName("::"),Integer.parseInt(env.getOrDefault("PORT","8080"))),64);
         server.createContext("/",e->handle(e,auth,provider));
         server.setExecutor(new ThreadPoolExecutor(2,8,30,TimeUnit.SECONDS,new ArrayBlockingQueue<Runnable>(128),new ThreadPoolExecutor.AbortPolicy()));
@@ -32,7 +32,7 @@ public final class Main {
     static void handle(HttpExchange e,HmacAuth auth,HealthwayProvider provider) throws IOException {
         String path=e.getRequestURI().getRawPath();
         if(path.equals("/healthz") && e.getRequestMethod().equals("GET")) {
-            ObjectNode status=Json.M.createObjectNode(); status.put("ok",true);status.put("mode",provider.name());status.put("provider",provider.name());status.put("sdkVersion","0.2.8-SNAPSHOT");reply(e,200,status);return;
+            ObjectNode status=Json.M.createObjectNode(); status.put("ok",provider.name().equals("offline"));status.put("mode",provider.name());status.put("provider",provider.name());status.put("sdkVersion","0.2.8-SNAPSHOT");reply(e,provider.name().equals("offline")?200:503,status);return;
         }
         byte[] body=e.getRequestBody().readNBytes(1024*1024+1);
         if(body.length>1024*1024){reply(e,413,error("body_too_large"));return;}

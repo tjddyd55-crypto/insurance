@@ -1,3 +1,4 @@
+import { HealthwayCustomerEntry } from '../../healthway/components/HealthwayCustomerEntry'
 import { FormButton } from '../../../components/form'
 import CustomerHeaderAppLinkCompact from '../pages/workspace/CustomerHeaderAppLinkCompact'
 
@@ -64,6 +65,7 @@ export function CustomerWorkspaceActions({
           />
         </div>
         <div className="customer-detail-feature-actions customer-detail-feature-actions--mobile-priority customer-detail-feature-actions--mobile-grid-8">
+          <HealthwayCustomerEntry customerId={customerId} />
           <FormButton
             htmlType="button"
             variant="secondary"

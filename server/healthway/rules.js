@@ -39,7 +39,7 @@ export function medicationIntervals(records, from = -Infinity, to = Infinity) {
 }
 function sufficient(coverage, datasets, from, to) {
   return datasets.every((code) => coverage.some((c) => c.datasetCode === code && c.hasData &&
-    epoch(c.availableFrom) != null && epoch(c.availableTo) != null && epoch(c.availableFrom) <= from && epoch(c.availableTo) >= to))
+    c.completeness !== 'received-only' && epoch(c.availableFrom) != null && epoch(c.availableTo) != null && epoch(c.availableFrom) <= from && epoch(c.availableTo) >= to))
 }
 export function analyze({ records, coverage, asOf, rules = DEFAULT_RULES, kcdMaster = [], diseaseGroups = [] }) {
   const to = epoch(asOf)
@@ -58,12 +58,16 @@ export function analyze({ records, coverage, asOf, rules = DEFAULT_RULES, kcdMas
           for (const row of rows) {
             const disease = diseaseGroupFor(row, kcdMaster, diseaseGroups)
             if (rule.disease_group && ![disease?.exact, disease?.parent, disease?.admin].includes(rule.disease_group)) continue
-            const key = disease ? (rule.disease_group || disease.exact) : JSON.stringify([row.institution?.identifiers || [], row.institution?.name, row.visitType])
             if (!disease && row.kind !== 'visit') continue
-            const group = groups.get(key) || []; group.push(row); groups.set(key, group)
+            const keys = disease ? (rule.disease_group ? [`0:${rule.disease_group}`] :
+              [`0:${disease.exact}`, ...(disease.parent ? [`1:${disease.parent}`] : []), ...(disease.admin ? [`2:${disease.admin}`] : [])]) :
+              [`0:${JSON.stringify([row.institution?.identifiers || [], row.institution?.name, row.visitType])}`]
+            for (const key of keys) { const group = groups.get(key) || []; group.push(row); groups.set(key, group) }
           }
-          const winner = [...groups.values()].sort((a, b) => new Set(b.map((r) => isoDate(r.date))).size - new Set(a.map((r) => isoDate(r.date))).size)[0] || []
-          count = new Set(winner.map((r) => isoDate(r.date))).size; evidenceIds = winner.map((r) => r.id)
+          const rank = (group) => new Set(group.map((r) => isoDate(r.date))).size
+          const candidates = [...groups.entries()].sort((a, b) => a[0][0].localeCompare(b[0][0]) || rank(b[1]) - rank(a[1]))
+          const winner = (candidates.find(([, g]) => rank(g) >= rule.min_visit_days) || candidates[0])?.[1] || []
+          count = rank(winner); evidenceIds = winner.map((r) => r.id)
           note = winner.some((r) => r.kcdCodeRaw) ? '공식 KCD/설정 그룹 기준' : '동일 기관·진료형태 반복 (질환 반복으로 확정하지 않음)'; break
         }
         case 'treatment': {
