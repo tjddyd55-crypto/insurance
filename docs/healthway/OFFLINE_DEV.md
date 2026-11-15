@@ -235,3 +235,17 @@ fetch E2E: 실제 앱 로그인 → 고객 → 요청 → 공개 SPA → 약관 
 - 성인 2001 및 실제 1004 Organization/1010 응답으로 파서/coverage 재검증. 강한 연결 키가 입증되기 전에는 후보 표시 유지.
 - 내부 서비스 HMAC/secret rotation/로그 redaction/데이터 보존·파기를 검토. 웹 public exposure 없이 내부 네트워크로만 연결.
 - production 반영은 별도 명시 승인 + develop 검증 후 검증 커밋 cherry-pick만 허용. 이 문서는 배포 승인이나 실조회 승인이 아니다.
+
+### 최종 회귀 비교 (2026-11-15, 격리 로컬 DB)
+
+| 검증 | 3645f9ba 기준 | Healthway 적용 후 |
+|---|---|---|
+| npm test | 2,186 PASS / 27 FAIL (2,213) | 2,229 PASS / 27 FAIL (2,256) |
+| npm run test:web (Vitest 단계) | 1,227 PASS / 28 FAIL / 1 SKIP | 1,234 PASS / 28 FAIL / 1 SKIP |
+| npm run lint | 721 errors / 42 warnings | 721 errors / 42 warnings |
+| 신규 모듈 lint | 해당 없음 | 0 errors |
+| npm run build | — | PASS |
+
+서버 실패 제목의 multiset 비교 결과 신규 실패 0개였다. 웹은 기존 15개 파일 실패(일부 suite 오류 포함)가 두 버전에서 동일하게 재현되어 runner의 후속 node:test 단계는 실행되지 않았다. 신규 웹 7개는 별도로도 모두 통과했다. TypeScript 전체 검사도 기존 오류로 실패하며 신규 Healthway 경로의 진단은 0건이었다. 이 결과는 전체 저장소 테스트가 green이라는 뜻이 아니다.
+
+최종 보강에는 같은 요청에 대한 동시 callback 단일 완료, SDK 조회 도중 취소한 요청의 snapshot 복원 금지, nonce 교체 및 DB 시도 횟수 상한, FC 계정 전환 시 화면 state 분리, 모바일 미저장 요청 설정 취소 확인이 포함된다. SDK JAR·공식 샘플·가이드·키 material이 tracked 파일에 포함되지 않았는지도 확인했다.
