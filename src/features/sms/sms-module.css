@@ -1386,13 +1386,7 @@
   gap: 1rem;
 }
 
-.sms-bulk-workspace__notice {
-  background: var(--hint-bg);
-  border: 1px solid var(--hint-border);
-  border-radius: 10px;
-  padding: 0.65rem 0.85rem;
-  color: var(--hint-text);
-}
+
 
 .sms-bulk-workspace--pc .sms-bulk-workspace__grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1610,10 +1604,10 @@
 
 .sms-bulk-person-row {
   display: grid;
-  grid-template-columns: 20px minmax(64px, 0.9fr) 30px 44px 100px;
+  grid-template-columns: 20px minmax(0, 1fr);
   align-items: center;
   justify-items: start;
-  gap: 7px;
+  gap: 4px 7px;
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -1662,32 +1656,38 @@
 
 .sms-bulk-person-row__name {
   min-width: 0;
+  max-width: 100%;
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sms-bulk-person-row__gender,
-.sms-bulk-person-row__birth {
-  white-space: nowrap;
-  font-weight: 500;
-  color: var(--text-secondary, #475569);
+.sms-bulk-person-row__details {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  width: 100%;
+  min-width: 0;
   font-size: 0.875rem;
+  color: var(--text-secondary, #475569);
+}
+
+.sms-bulk-person-row__meta {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-weight: 500;
 }
 
 .sms-bulk-person-row__phone {
-  justify-self: end;
-  width: 100px;
-  min-width: 100px;
-  max-width: 100px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  overflow: visible;
-  text-align: right;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: var(--text-secondary, #475569);
-  font-size: 0.875rem;
 }
 
 .sms-bulk-compact-row__check {
@@ -2049,6 +2049,24 @@
 .sms-bulk-group-row--mobile .sms-bulk-group-row__last {
   grid-row: 2;
   grid-column: 2;
+}
+
+/* Explicit load actions stay below the name and wrap within narrow group cards. */
+.sms-bulk-group-row--pc .sms-bulk-group-row__load-actions,
+.sms-bulk-group-row--mobile .sms-bulk-group-row__load-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+.sms-bulk-group-row--pc .sms-bulk-group-row__load-actions button,
+.sms-bulk-group-row--mobile .sms-bulk-group-row__load-actions button {
+  white-space: normal;
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  overflow-wrap: anywhere;
 }
 
 .sms-bulk-groups__detail {
@@ -3184,3 +3202,224 @@
   font-size: 0.875rem;
 }
 
+
+/* Group send flow: search → current audience → one-off campaign. */
+.sms-bulk-workspace--pc .sms-bulk-workspace__grid {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.05fr) minmax(0, 1.05fr);
+}
+/* Search and composer keep independent column scrolling. The recipient column
+   below instead reserves its header/footer and scrolls only the inner list. */
+.sms-bulk-workspace--pc .sms-bulk-workspace__column {
+  display: block;
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  position: static;
+  padding: 0.75rem;
+}
+.sms-bulk-workspace--pc .sms-bulk-workspace__right .sms-composer__workspace {
+  display: block;
+  min-width: 0;
+}
+.sms-bulk-workspace--pc .sms-bulk-workspace__right .sms-composer {
+  --sms-composer-editor-width: 100%;
+  min-width: 0;
+}
+.sms-bulk-workspace--pc .sms-bulk-workspace__right .sms-composer__main {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.sms-bulk-workspace--pc .sms-bulk-workspace__right .sms-composer__setup-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+.sms-bulk-workspace--pc .sms-bulk-workspace__right .sms-composer__card {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sms-bulk-workspace--pc .sms-bulk-workspace__right .sms-module__grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sms-bulk-workspace--pc summary,
+.sms-bulk-workspace--mobile summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.5rem 0;
+}
+.sms-bulk-workspace--mobile .sms-bulk-mobile-panel[hidden] {
+  display: none;
+}
+.sms-bulk-workspace--mobile .sms-bulk-mobile-tabs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 1440px) {
+  .sms-bulk-workspace--pc .sms-bulk-filter-row--search {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sms-bulk-workspace--pc .sms-bulk-filter-field--search {
+    grid-column: 1 / -1;
+  }
+}
+.sms-bulk-workspace--pc .sms-bulk-group-row,
+.sms-bulk-workspace--mobile .sms-bulk-group-row {
+  grid-template-columns: minmax(0, 1fr);
+  max-height: none;
+}
+.sms-bulk-workspace--pc .sms-bulk-group-row__content {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.sms-bulk-workspace--pc .sms-bulk-group-row__last {
+  grid-column: 1 / -1;
+  text-align: left;
+}
+
+.sms-bulk-workspace--pc .sms-bulk-filter-field--age {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  width: 100%;
+}
+.sms-bulk-workspace--pc .sms-bulk-filter-field--age .sms-bulk-filter-field__label {
+  grid-column: 1 / -1;
+}
+.sms-bulk-workspace--pc .sms-bulk-filter-field--age input {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Keep panel controls in normal flow; only long recipient/member lists scroll. */
+.sms-bulk-workspace--pc .sms-bulk-selected,
+.sms-bulk-workspace--pc .sms-bulk-groups {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+.sms-bulk-workspace--pc .sms-bulk-person-list {
+  max-height: 360px;
+}
+.sms-bulk-workspace--pc .sms-bulk-selected__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.sms-bulk-workspace--pc .sms-bulk-groups__header {
+  flex-wrap: wrap;
+}
+.sms-bulk-workspace--pc .sms-bulk-workspace__column button {
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Groups alone fill the app outlet's remaining height. The tabs and optional
+   notices retain their natural height. Below the grid's height floor, let the
+   flex ancestors grow with their contents and scroll the outlet instead. */
+.app-main-content--workspace-outlet-host:has(.sms-bulk-workspace--pc) {
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.sms-module-page--pc:has(.sms-bulk-workspace--pc),
+.sms-module-page--pc:has(.sms-bulk-workspace--pc) > .sms-module__content,
+.sms-module-page--pc .sms-module__panel--bulk-select,
+.sms-module-page--pc .sms-bulk-workspace--pc {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: auto;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.sms-module-page--pc:has(.sms-bulk-workspace--pc) > .sms-module__topbar,
+.sms-module-page--pc:has(.sms-bulk-workspace--pc) > .sms-module__content > :not(.sms-module__panel--bulk-select) {
+  flex: none;
+}
+.sms-module-page--pc .sms-bulk-workspace--pc .sms-bulk-workspace__grid {
+  flex: 1 1 0;
+  min-height: 420px;
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+}
+
+/* Recipient header/footer stay in flow; only the list consumes scroll space. */
+.sms-bulk-workspace--pc .sms-bulk-workspace__grid {
+  grid-template-columns: minmax(0, .29fr) minmax(0, .33fr) minmax(0, .38fr);
+}
+.sms-bulk-workspace--pc .sms-bulk-workspace__center {
+  display: flex;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.sms-bulk-workspace--pc .sms-bulk-selected,
+.sms-bulk-workspace--mobile .sms-bulk-selected {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.sms-bulk-workspace--mobile .sms-bulk-selected {
+  height: min(720px, calc(100dvh - 14rem));
+  flex: none;
+}
+.sms-bulk-selected__header,
+.sms-bulk-selected__footer { flex: none; background: #fff; }
+.sms-bulk-selected__header { overflow-wrap: anywhere; }
+.sms-bulk-selected__total { display: block; font-size: 1.5rem; }
+.sms-bulk-workspace--pc .sms-bulk-selected__list,
+.sms-bulk-workspace--mobile .sms-bulk-selected__list {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+}
+.sms-bulk-selected__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  padding-top: .75rem;
+  border-top: 1px solid var(--border-default);
+}
+.sms-bulk-selected__footer button { flex: 1 1 140px; white-space: normal; }
+/* Local flex shell: SMS groups use a narrower panel than largeForm. */
+.customer-ui-modal-panel.sms-bulk-group-modal-panel {
+  width: min(640px, 92vw) !important;
+  max-width: none !important;
+  max-height: 86vh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+.sms-bulk-group-modal { display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; padding: 1rem; }
+.sms-bulk-group-modal > header { flex: 0 0 auto; flex-wrap: wrap; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.sms-bulk-group-modal__body { overflow-y: auto; overflow-x: hidden; min-height: 0; min-width: 0; }
+.sms-bulk-group-modal button { max-width: 100%; white-space: normal; height: auto; }
+.sms-bulk-group-modal .sms-bulk-groups__list { max-height: 240px; overflow-y: auto; }
+.sms-bulk-toast { position: fixed; bottom: 2rem; left: 0; right: 0; z-index: 11000; display: flex; justify-content: center; pointer-events: none; padding: 0 1rem; }
+.sms-bulk-toast > span { background: #1f2937; color: white; border-radius: 10px; padding: .75rem 1rem; box-shadow: 0 4px 20px #0002; animation: sms-bulk-toast-fade 1.8s both; }
+@keyframes sms-bulk-toast-fade { 0% { opacity: 0; } 10%, 80% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sms-bulk-toast > span { animation: none; } }
+
+:is(.sms-bulk-groups--pc, .sms-bulk-groups--mobile) .sms-bulk-groups__member-search {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+:is(.sms-bulk-groups--pc, .sms-bulk-groups--mobile) .sms-bulk-groups__member-search .sms-bulk-person-list {
+  flex: 0 1 auto;
+  max-height: 240px;
+}
+:is(.sms-bulk-groups--pc, .sms-bulk-groups--mobile) .sms-bulk-groups__member-search .form-input {
+  flex: 1 1 200px;
+  min-width: 0;
+  width: auto;
+}
+:is(.sms-bulk-groups--pc, .sms-bulk-groups--mobile) .sms-bulk-groups__header {
+  flex-wrap: wrap;
+}

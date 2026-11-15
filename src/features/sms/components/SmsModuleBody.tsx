@@ -1,7 +1,8 @@
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import FormButton from '../../../components/form/FormButton'
 import FormInput from '../../../components/form/FormInput'
 import { useAuth } from '../../auth/AuthProvider'
+import SmsBulkCartComposer from './bulk/SmsBulkCartComposer'
 import SmsBulkRecipientWorkspace from './bulk/SmsBulkRecipientWorkspace'
 import SmsSendWorkspace from './send/SmsSendWorkspace'
 import SmsHistoryWorkspace from './history/SmsHistoryWorkspace'
@@ -192,12 +193,6 @@ export default function SmsModuleBody(props: Props) {
   const defaultSenderDisplay = formatKrMobileDisplay(
     settings?.defaultSender || sendForm.senderNumber || bulkForm.senderNumber,
   )
-
-  useEffect(() => {
-    if (tab === 'groups') {
-      void bulkRecipientState.reloadGroups()
-    }
-  }, [tab, bulkRecipientState])
 
   return (
     <>
@@ -400,7 +395,20 @@ export default function SmsModuleBody(props: Props) {
 
       {!loading && !moduleDisabled && !authRequired && tab === 'groups' ? (
         <section className="sms-module__panel sms-module__panel--bulk-select">
-          <SmsBulkRecipientWorkspace variant={variant} busy={busy} bulkState={bulkRecipientState} groupsOnly />
+          <SmsBulkRecipientWorkspace
+            variant={variant}
+            busy={busy}
+            bulkState={bulkRecipientState}
+            groupsOnly
+            composer={
+              <SmsBulkCartComposer
+                variant={variant}
+                module={props}
+                bulkState={bulkRecipientState}
+                adDisplayName={resolvedAdDisplayName}
+              />
+            }
+          />
         </section>
       ) : null}
 

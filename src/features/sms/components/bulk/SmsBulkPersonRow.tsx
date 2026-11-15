@@ -45,9 +45,12 @@ export default function SmsBulkPersonRow({
         aria-label={`${name || '고객'} 선택`}
       />
       <span className="sms-bulk-person-row__name">{name || '-'}</span>
-      <span className="sms-bulk-person-row__gender">{formatCompactGender(gender, genderLabel)}</span>
-      <span className="sms-bulk-person-row__birth">{formatSmsPersonBirthDisplay(birthDate, true)}</span>
-      <span className="sms-bulk-person-row__phone">{phoneDisplay}</span>
+      <span className="sms-bulk-person-row__details">
+        <span className="sms-bulk-person-row__meta">
+          {formatCompactGender(gender, genderLabel)} · {formatSmsPersonBirthDisplay(birthDate, true)}
+        </span>
+        <span className="sms-bulk-person-row__phone">{phoneDisplay}</span>
+      </span>
     </div>
   )
 }
