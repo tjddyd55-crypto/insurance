@@ -535,6 +535,30 @@ export function useSmsBulkRecipientState() {
     [loadGroupMembers, recordGroupSource],
   )
 
+  // Search additions update only the saved group; cart contents and checks stay intact.
+  const appendCustomersToGroup = useCallback(
+    async (groupId: number, customerIds: number[]) => {
+      if (!token?.trim() || customerIds.length === 0) return false
+      setGroupActionBusy(true)
+      try {
+        const data = await fetchSmsRecipientGroupMembers(token, groupId)
+        const ids = [...new Set(customerIds)]
+        const { mergedIds, addedCount, alreadyInGroup } = mergeCustomerIdsForGroup(data.customerIds, ids)
+        await updateSmsRecipientGroup(token, groupId, { customerIds: mergedIds })
+        await reloadGroups()
+        await loadGroupMembers(groupId)
+        setActionNotice(buildCartAppendToGroupMessage(ids.length, addedCount, alreadyInGroup))
+        return true
+      } catch (error) {
+        setActionNotice(error instanceof Error ? error.message : '구성원 추가에 실패했습니다.')
+        return false
+      } finally {
+        setGroupActionBusy(false)
+      }
+    },
+    [loadGroupMembers, reloadGroups, token, setActionNotice],
+  )
+
   const appendCartToGroup = useCallback(
     async (groupId: number) => {
       if (!token?.trim() || selectedCartIds.size === 0) {
@@ -742,6 +766,7 @@ export function useSmsBulkRecipientState() {
     appendGroupToCart,
     replaceCartWithGroup,
     appendCartToGroup,
+    appendCustomersToGroup,
     replaceGroupWithCart,
     updateGroupMeta,
     copyGroupToDraft,

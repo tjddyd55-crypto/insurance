@@ -3395,3 +3395,20 @@
 .sms-bulk-toast > span { background: #1f2937; color: white; border-radius: 10px; padding: .75rem 1rem; box-shadow: 0 4px 20px #0002; animation: sms-bulk-toast-fade 1.8s both; }
 @keyframes sms-bulk-toast-fade { 0% { opacity: 0; } 10%, 80% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .sms-bulk-toast > span { animation: none; } }
+
+:is(.sms-bulk-groups--pc, .sms-bulk-groups--mobile) .sms-bulk-groups__member-search {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+:is(.sms-bulk-groups--pc, .sms-bulk-groups--mobile) .sms-bulk-groups__member-search .sms-bulk-person-list {
+  flex: 0 1 auto;
+  max-height: 240px;
+}
+:is(.sms-bulk-groups--pc, .sms-bulk-groups--mobile) .sms-bulk-groups__member-search .form-input {
+  flex: 1 1 200px;
+  min-width: 0;
+  width: auto;
+}
+:is(.sms-bulk-groups--pc, .sms-bulk-groups--mobile) .sms-bulk-groups__header {
+  flex-wrap: wrap;
+}
