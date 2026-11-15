@@ -56,10 +56,31 @@ async function writeLogs(pool, record) {
 }
 
 export function createCertificationCallback({ pool, adapter, config }) {
+  // Fixed windows preserve insertion/expiry order, so pruning only visits expired keys.
+  const clients = new Map(), windowMs = 60_000, maxClients = 10_000
   return async (req, res) => {
     const started = performance.now(), receivedAt = new Date()
+    const ip = req.ip || req.socket?.remoteAddress
+    const ipHash = clientHash(ip, config, 'ip')
+    const key = ipHash || tokenHash(String(ip || ''))
+    const now = Date.now()
+    for (const [expiredKey, entry] of clients) {
+      if (entry.expiresAt > now) break
+      clients.delete(expiredKey)
+    }
+    let client = clients.get(key)
+    if (!client && clients.size < maxClients) {
+      client = { expiresAt: now + windowMs, count: 0, limitedLogged: false }
+      clients.set(key, client)
+    }
+    const limited = !client || client.count >= 30
+    // Mark synchronously before any await: concurrent excess requests cannot flood logs.
+    const logRequest = !limited || (client && !client.limitedLogged)
+    if (limited && client) client.limitedLogged = true
+    if (!limited) client.count++
     let resultData, caseCode = null, requestId = null, outcome = 'internal_error', errorCode = 'internal_error', status = 500
     try {
+      if (limited) throw failure(429, 'rate_limited')
       const query = new URLSearchParams(req.url.includes('?') ? req.url.slice(req.url.indexOf('?') + 1) : '')
       resultData = query.get('resultData')
       if (req.method !== 'GET') { res.set('Allow', 'GET'); throw failure(405, 'method_not_allowed') }
@@ -85,14 +106,14 @@ export function createCertificationCallback({ pool, adapter, config }) {
       status = 200
     } catch (err) {
       // Never use untrusted SDK/DB error codes, messages or stacks in a response or log.
-      const known = ['invalid_input', 'verify_failed', 'provider_not_configured', 'replay', 'method_not_allowed', 'module_disabled'].includes(err?.code)
+      const known = ['invalid_input', 'verify_failed', 'provider_not_configured', 'replay', 'method_not_allowed', 'module_disabled', 'rate_limited'].includes(err?.code)
       outcome = known ? err.code : err?.status === 409 ? 'replay' : 'internal_error'
       errorCode = outcome
       status = known ? err.status : outcome === 'replay' ? 409 : 500
     }
     const hash = typeof resultData === 'string' ? tokenHash(resultData) : null, length = typeof resultData === 'string' ? resultData.length : 0
-    await writeLogs(pool, { receivedAt, outcome, caseCode, errorCode, requestId, hash, length,
-      ipHash: clientHash(req.ip || req.socket?.remoteAddress, config, 'ip'), agentHash: clientHash(req.get('user-agent'), config, 'ua'),
+    if (logRequest) await writeLogs(pool, { receivedAt, outcome, caseCode, errorCode, requestId, hash, length,
+      ipHash, agentHash: clientHash(req.get('user-agent'), config, 'ua'),
       duration: Math.max(0, Math.round(performance.now() - started)) })
     console.log(`[healthway-callback] outcome=${outcome} case=${caseCode || '-'} len=${length} rid=${hash?.slice(0, 8) || '-'}`)
     return sendPage(res, status, outcome)

@@ -31,13 +31,21 @@ PG-SDK-0201(p.59–60)의 공식 메서드는 `findDecryptDataBySubscriptionCert
 
 CASE3의 DEV 결과는 이미 가입한 이용자도 연결·자료 수집을 진행하는 기존 offline 동작에 맞췄다. 기존 `completeOfflineFlow`는 **별도로 static SDK 0201 샘플을 읽는다**. 그 샘플의 거래번호나 CASE를 신규 콜백의 바인딩으로 사용하지 않으며, 서명된 DEV CASE와 샘플 CASE가 같다고 주장하지 않는다. 샘플 identity는 기존 흐름이 사용하는 범위에서만 암호화 저장한다. 기존 `/public/:token/mock-auth`의 nonce 검증·동작은 유지한다.
 
-사용 처리는 외부 어댑터 호출 전에 커밋되므로 동시 콜백은 한 번만 완료할 수 있다. 완료 중 오류는 기존 흐름대로 `failed`가 되어 새 요청이 필요하다. `/start`의 DB 시도 상한(3회)도 유지한다. 기존 bearer 경로의 rate limit을 새 콜백에는 적용하지 않아 모든 도달한 콜백의 결과를 기록한다.
+사용 처리는 외부 어댑터 호출 전에 커밋되므로 동시 콜백은 한 번만 완료할 수 있다. 완료 중 오류는 기존 흐름대로 `failed`가 되어 새 요청이 필요하다. `/start`의 DB 시도 상한(3회)도 유지한다. 기존 bearer 경로의 rate limit과 별도로 콜백 전용 제한을 적용한다.
 
 페이지는 고정된 한국어 HTML만 반환하며 입력값·SDK 메시지·토큰을 출력하지 않는다. 성공 안내는 “연결 완료, 창을 닫고 설계사에게 알려주세요.”다. 처리 불가 페이지는 입력 오류 `400`, 상태 오류 `409`, provider 미설정 `503`, 예상치 못한 내부 오류 `500`에 사용한다. 공통 헤더는 `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`이며 CSP는 다음과 같다.
 
 ```text
 default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
 ```
+
+## Rate limit
+
+콜백은 메서드·입력 검증 및 DB/어댑터 작업 전에 클라이언트 IP 해시별로 60초 고정 창에서 최대 30개 요청을 허용한다. 31번째부터 `429 rate_limited`와 기존 HTML 스타일의 “처리 불가” 및 일반 안내 문구를 반환한다. GET 외 메서드와 잘못된 입력도 한도에 포함한다. Express의 `req.ip`(없으면 socket 주소)를 사용하며 프록시 헤더를 직접 신뢰하지 않는다.
+
+인프로세스 Map은 최대 10,000키만 보관하며 만료 항목을 요청 시 제거한다. 키는 기존 IP 로그 해시를 재사용하고, 키 설정 오류 시에도 SHA-256 해시로 제한을 유지한다. 원본 IP는 Map에 저장하지 않는다. 가득 찬 경우 새 클라이언트는 `429`로 거부하고 DB 로그도 생략한다(미추적 키의 로그 폭증 방지). 기존 키의 남은 요청 한도는 유지된다.
+
+동일 키·창에서 첫 제한 요청만 access 1행 + error 1행을 기록하며 이후 제한 요청은 DB에 기록하지 않는다. 따라서 한 키의 한 창에서 콜백 로그는 최대 62행이다. 콘솔은 제한 요청에도 기존 한 줄 형식을 유지한다. 제한 상태는 서버 재시작 시 초기화되며 다중 인스턴스 사이에 공유되지 않는다.
 
 ## DEV mock 절차
 
@@ -64,7 +72,7 @@ node scripts/healthway/sign-mock-callback.mjs "$HEALTHWAY_DEV_DEMAND_DEALINGS_NO
 | id | TEXT, 로그용 UUID PK |
 | received_at | TIMESTAMPTZ, 수신 시각 |
 | level | TEXT, access 또는 error |
-| outcome | TEXT, success / already_joined / retry_join_failed / retry_auth_failed / invalid_input / replay / provider_not_configured / verify_failed / internal_error / method_not_allowed / module_disabled |
+| outcome | TEXT, success / already_joined / retry_join_failed / retry_auth_failed / invalid_input / replay / provider_not_configured / verify_failed / internal_error / method_not_allowed / module_disabled / rate_limited |
 | case_code | TEXT, 검증된 CASE1–CASE4 또는 NULL |
 | error_code | TEXT, 고정된 내부 코드 또는 NULL. 외부 예외 내용은 사용하지 않음 |
 | request_id | TEXT, 우리 요청 ID 또는 NULL. 거래번호를 저장하지 않음 |
@@ -74,7 +82,7 @@ node scripts/healthway/sign-mock-callback.mjs "$HEALTHWAY_DEV_DEMAND_DEALINGS_NO
 | user_agent_hash | TEXT, 별도 UA용 라벨로 파생한 salt + User-Agent의 SHA-256 hex |
 | duration_ms | INTEGER, 검증·완료 처리 시간(로그 INSERT 시간 제외) |
 
-각 콜백은 access 1행을 기록한다. 실패(재시도 CASE2/CASE4 포함)는 error 1행을 추가하며 두 행을 하나의 INSERT로 기록한다. 로그 DB 장애·테이블 미생성 시에는 응답을 유지한다. 키 설정이 잘못되어 client hash를 계산할 수 없으면 해당 hash는 NULL이다. 모듈 비활성 상태에서는 스키마가 생성되지 않으므로 로그 저장은 보장하지 않는다.
+위 rate limit의 로그 생략 대상 외에는 각 콜백이 access 1행을 기록한다. 실패(재시도 CASE2/CASE4 포함)는 error 1행을 추가하며 두 행을 하나의 INSERT로 기록한다. 로그 DB 장애·테이블 미생성 시에는 응답을 유지한다. 키 설정이 잘못되어 client hash를 계산할 수 없으면 해당 hash는 NULL이다. 모듈 비활성 상태에서는 스키마가 생성되지 않으므로 로그 저장은 보장하지 않는다.
 
 콘솔은 다음 고정 형태의 한 줄만 출력한다. rid는 resultData 해시 앞 8자리이며 원문·고객정보·거래번호가 아니다.
 

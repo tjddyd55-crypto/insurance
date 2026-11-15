@@ -9,7 +9,7 @@ import pg from 'pg'
 import { healthwayConfig, assertConfigured } from './config.js'
 import { deriveHealthwayKey, tokenHash } from './crypto.js'
 import { signMockCallback, verifyMockCallback } from './mockCallback.js'
-import { validateResultData, verifyCallbackResult } from './callback.js'
+import { createCertificationCallback, validateResultData, verifyCallbackResult } from './callback.js'
 import { registerHealthwayApi } from './registerHealthwayApi.js'
 import { ensureHealthwaySchema } from './schema.js'
 import { bypassHealthwayCallback, isHealthwayCallbackPath, safeRequestLogPath } from './requestPrivacy.js'
@@ -100,6 +100,63 @@ test('callback log paths strip all query values across mounts and preserve unrel
   assert.equal(safeRequestLogPath({ originalUrl: '/api/other?q=test' }), '/api/other?q=test')
 })
 
+// Exercise the public handler without a DB; fail fast if throttled traffic reaches an adapter.
+function limitFixture(t, c = config()) {
+  let writes = 0
+  const lines = []
+  t.mock.method(console, 'log', (line) => lines.push(line))
+  const callback = createCertificationCallback({ config: c,
+    pool: { query: async () => { writes++; return { rows: [] } } },
+    adapter: { sdk: () => assert.fail('limited request reached adapter') },
+  })
+  return { lines, get writes() { return writes }, async call(ip = '192.0.2.1') {
+    const res = { set() { return this }, status(value) { this.statusCode = value; return this },
+      type() { return this }, send(body) { this.body = body; return this } }
+    await callback({ ip, method: 'GET', url: '/callback/cert', get: () => 'test-agent' }, res)
+    return res
+  } }
+}
+test('callback limits request 31, logs only the first excess hit, and resets at 60s', async (t) => {
+  let now = 100_000
+  t.mock.method(Date, 'now', () => now)
+  const f = limitFixture(t)
+  for (let i = 0; i < 30; i++) assert.equal((await f.call()).statusCode, 400)
+  assert.equal(f.writes, 30)
+  const limited = await f.call()
+  assert.equal(limited.statusCode, 429); assert.match(limited.body, /처리 불가/)
+  assert.match(limited.body, /요청을 처리할 수 없습니다/)
+  await Promise.all(Array.from({ length: 40 }, () => f.call()))
+  assert.equal(f.writes, 31)
+  assert.equal(f.lines.filter((line) => line.includes('outcome=rate_limited')).length, 41)
+  assert.match(f.lines.at(-1), /^\[healthway-callback\] outcome=rate_limited case=- len=0 rid=-$/)
+  now += 59_999
+  assert.equal((await f.call()).statusCode, 429); assert.equal(f.writes, 31)
+  assert.equal((await f.call('192.0.2.2')).statusCode, 400)
+  now++
+  assert.equal((await f.call()).statusCode, 400)
+  assert.equal(f.writes, 33)
+})
+test('callback caps clients at 10000, skips overflow DB logs and prunes expired keys', async (t) => {
+  let now = 100_000
+  t.mock.method(Date, 'now', () => now)
+  const f = limitFixture(t)
+  for (let i = 0; i < 10_000; i++) assert.equal((await f.call(`client-${i}`)).statusCode, 400)
+  for (let i = 0; i < 10; i++) assert.equal((await f.call(`overflow-${i}`)).statusCode, 429)
+  assert.equal(f.writes, 10_000)
+  // Existing clients can still use their allowance while the map is full.
+  assert.equal((await f.call('client-0')).statusCode, 400)
+  now += 60_000
+  assert.equal((await f.call('overflow-0')).statusCode, 400)
+  assert.equal(f.writes, 10_002)
+})
+test('callback still rate limits when client log hashing is unavailable', async (t) => {
+  const f = limitFixture(t, { ...config(), tokenKey: '' })
+  for (let i = 0; i < 30; i++) assert.equal((await f.call()).statusCode, 400)
+  assert.equal((await f.call()).statusCode, 429)
+  assert.equal((await f.call()).statusCode, 429)
+  assert.equal(f.writes, 31)
+})
+
 const dbUrl = process.env.HEALTHWAY_TEST_DATABASE_URL
 test('callback HTTP + PostgreSQL completion, replay, privacy and fail-closed guards', { skip: !dbUrl }, async (t) => {
   const schema = `hw_callback_${randomBytes(8).toString('hex')}`
@@ -115,6 +172,7 @@ test('callback HTTP + PostgreSQL completion, replay, privacy and fail-closed gua
     try { await ensureHealthwaySchema(pool); await ensureHealthwaySchema(pool) }
     finally { if (prior == null) delete process.env.HEALTHWAY_MODULE_ENABLED; else process.env.HEALTHWAY_MODULE_ENABLED = prior }
     const app = express(), api = express.Router()
+    app.set('trust proxy', 'loopback')
     const requireAuth = (_req, res) => res.sendStatus(401)
     app.use(bypassHealthwayCallback(cors()))
     app.use(bypassHealthwayCallback(express.json()))
@@ -135,10 +193,11 @@ test('callback HTTP + PostgreSQL completion, replay, privacy and fail-closed gua
       for (const field of ['callback_used_at', 'cancelled_at', 'revoked_at']) if (extra[field]) await pool.query(`UPDATE healthway_requests SET ${field}=NOW() WHERE id=$1`, [id])
       return { id, resultData: signMockCallback(p, c.tokenKey), p }
     }
+    let clientNumber = 0
     async function call(resultData, options = {}) {
       const { mount = '/api', query = '', ...fetchOptions } = options
       const r = await fetch(`${root}${mount}/healthway/callback/cert?${resultData == null ? '' : `resultData=${encodeURIComponent(resultData)}`}${query}`, {
-        ...fetchOptions, headers: { 'User-Agent': 'TEST-CALLBACK-UA', ...fetchOptions.headers },
+        ...fetchOptions, headers: { 'User-Agent': 'TEST-CALLBACK-UA', 'X-Forwarded-For': `192.0.2.${++clientNumber}`, ...fetchOptions.headers },
       })
       return { status: r.status, body: await r.text(), headers: r.headers }
     }
@@ -247,6 +306,25 @@ test('callback HTTP + PostgreSQL completion, replay, privacy and fail-closed gua
         const response = await checkLogs(() => call(r.resultData), 'internal_error', 1, r.resultData)
         assert.equal(response.status, 500); assert.equal((await getRow(r.id)).status, 'failed')
       } finally { adapter.sdk = original }
+    })
+    await t.test('31st HTTP callback is 429 and repeated limited hits add only two DB rows', async () => {
+      const before = Number((await pool.query('SELECT COUNT(*) FROM healthway_callback_logs')).rows[0].count)
+      const options = { headers: { 'X-Forwarded-For': '198.51.100.1' } }
+      for (let i = 0; i < 30; i++) assert.equal((await call(null, options)).status, 400)
+      const limited = await call(null, options)
+      assert.equal(limited.status, 429); assert.match(limited.body, /처리 불가/)
+      assert.equal(limited.headers.get('cache-control'), 'no-store')
+      assert.match(limited.headers.get('content-security-policy'), /default-src 'none'/)
+      for (const response of await Promise.all(Array.from({ length: 20 }, () => call(null, options)))) assert.equal(response.status, 429)
+      const after = Number((await pool.query('SELECT COUNT(*) FROM healthway_callback_logs')).rows[0].count)
+      assert.equal(after - before, 62) // 30 invalid requests + first limited hit: access + error each.
+      const limitedLogs = (await pool.query("SELECT * FROM healthway_callback_logs WHERE outcome='rate_limited'")).rows
+      assert.deepEqual(limitedLogs.map((row) => row.level).sort(), ['access', 'error'])
+      for (const row of limitedLogs) {
+        assert.equal(row.error_code, 'rate_limited')
+        assert.match(row.client_ip_hash, /^[a-f0-9]{64}$/)
+        assert.equal(JSON.stringify(row).includes('198.51.100.1'), false)
+      }
     })
     await t.test('log insert failure preserves callback response and one sanitized console line', async () => {
       await pool.query('ALTER TABLE healthway_callback_logs RENAME TO temporarily_unavailable_logs')

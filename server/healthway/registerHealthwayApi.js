@@ -15,7 +15,7 @@ import { createCertificationCallback } from './callback.js'
 export function registerHealthwayApi(apiRouter, { pool, requireAuth, config = healthwayConfig(), adapter = createAdapterClient(config) }) {
   const router = express.Router(), buckets = new Map()
   // Public browser redirect, ahead of JSON parsing/auth/rate-limit middleware. The callback owns
-  // its configuration gate, HTML errors and one access log for every method/outcome.
+  // its configuration gate, HTML errors, rate limit and bounded access/error logs.
   router.all('/callback/cert', createCertificationCallback({ pool, adapter, config }))
   router.use((req, res, next) => {
     res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff' })
