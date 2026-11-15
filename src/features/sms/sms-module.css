@@ -1604,10 +1604,10 @@
 
 .sms-bulk-person-row {
   display: grid;
-  grid-template-columns: 20px minmax(64px, 0.9fr) 30px 44px 100px;
+  grid-template-columns: 20px minmax(0, 1fr);
   align-items: center;
   justify-items: start;
-  gap: 7px;
+  gap: 4px 7px;
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -1656,32 +1656,38 @@
 
 .sms-bulk-person-row__name {
   min-width: 0;
+  max-width: 100%;
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sms-bulk-person-row__gender,
-.sms-bulk-person-row__birth {
-  white-space: nowrap;
-  font-weight: 500;
-  color: var(--text-secondary, #475569);
+.sms-bulk-person-row__details {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  width: 100%;
+  min-width: 0;
   font-size: 0.875rem;
+  color: var(--text-secondary, #475569);
+}
+
+.sms-bulk-person-row__meta {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-weight: 500;
 }
 
 .sms-bulk-person-row__phone {
-  justify-self: end;
-  width: 100px;
-  min-width: 100px;
-  max-width: 100px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  overflow: visible;
-  text-align: right;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: var(--text-secondary, #475569);
-  font-size: 0.875rem;
 }
 
 .sms-bulk-compact-row__check {
@@ -3248,12 +3254,6 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 @media (max-width: 1440px) {
-  .sms-bulk-workspace--pc .sms-bulk-person-row {
-    grid-template-columns: 20px minmax(40px, 1fr) 30px 44px;
-  }
-  .sms-bulk-workspace--pc .sms-bulk-person-row__phone {
-    grid-column: 2 / -1;
-  }
   .sms-bulk-workspace--pc .sms-bulk-filter-row--search {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3386,9 +3386,20 @@
   border-top: 1px solid var(--border-default);
 }
 .sms-bulk-selected__footer button { flex: 1 1 140px; white-space: normal; }
-.sms-bulk-group-modal { display: flex; flex-direction: column; min-height: 0; padding: 1rem; }
-.sms-bulk-group-modal > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.sms-bulk-group-modal__body { overflow-y: auto; min-height: 0; }
+/* Local flex shell: SMS groups use a narrower panel than largeForm. */
+.customer-ui-modal-panel.sms-bulk-group-modal-panel {
+  width: min(640px, 92vw) !important;
+  max-width: none !important;
+  max-height: 86vh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+.sms-bulk-group-modal { display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; padding: 1rem; }
+.sms-bulk-group-modal > header { flex: 0 0 auto; flex-wrap: wrap; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.sms-bulk-group-modal__body { overflow-y: auto; overflow-x: hidden; min-height: 0; min-width: 0; }
 .sms-bulk-group-modal button { max-width: 100%; white-space: normal; height: auto; }
 .sms-bulk-group-modal .sms-bulk-groups__list { max-height: 240px; overflow-y: auto; }
 .sms-bulk-toast { position: fixed; bottom: 2rem; left: 0; right: 0; z-index: 11000; display: flex; justify-content: center; pointer-events: none; padding: 0 1rem; }
