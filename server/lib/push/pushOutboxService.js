@@ -7,6 +7,12 @@ import { getFirebaseMessaging, isFirebasePushConfigured } from './fcmClient.js'
 import { listActivePushDevicesForUser, revokePushDeviceByToken } from './pushDeviceService.js'
 
 const MAX_ATTEMPTS = 8
+export const NO_ACTIVE_PUSH_DEVICES_ERROR = 'no_active_push_devices'
+export const PUSH_OUTBOX_STATUS = Object.freeze({
+  SENT: 'SENT',
+  NO_DEVICE: 'NO_DEVICE',
+  FAILED: 'FAILED',
+})
 
 /**
  * App Push(FCM) is allowed under QA_SAFE_MODE.
@@ -66,7 +72,7 @@ export async function enqueuePushOutbox(db, input) {
  */
 export async function processPendingPushOutbox(pool, opts = {}) {
   if (!isFirebasePushConfigured()) {
-    return { processed: 0, skipped: true, reason: 'firebase_not_configured' }
+    return { processed: 0, noDevice: 0, skipped: true, reason: 'firebase_not_configured' }
   }
   const limitPerGa = Math.min(Math.max(Number(opts.limit) || 20, 1), 100)
 
@@ -77,6 +83,7 @@ export async function processPendingPushOutbox(pool, opts = {}) {
   })
 
   let processed = 0
+  let noDevice = 0
   for (const gaId of gaIds) {
     const due = await safeQuery(
       pool,
@@ -109,17 +116,30 @@ export async function processPendingPushOutbox(pool, opts = {}) {
       if (!claimed.rows[0]) continue
 
       try {
-        await deliverOutboxRow(pool, { ...row, ga_id: gaId })
-        await safeQuery(
-          pool,
-          `
-          UPDATE notification_push_outbox
-          SET status = 'SENT', sent_at = NOW(), last_error = NULL, updated_at = NOW()
-          WHERE id = $1 AND ga_id = $2
-          `,
-          [row.id, gaId],
-        )
-        processed += 1
+        const { delivered } = await deliverOutboxRow(pool, { ...row, ga_id: gaId })
+        if (delivered > 0) {
+          await safeQuery(
+            pool,
+            `
+            UPDATE notification_push_outbox
+            SET status = 'SENT', sent_at = NOW(), last_error = NULL, updated_at = NOW()
+            WHERE id = $1 AND ga_id = $2
+            `,
+            [row.id, gaId],
+          )
+          processed += 1
+        } else {
+          await safeQuery(
+            pool,
+            `
+            UPDATE notification_push_outbox
+            SET status = 'NO_DEVICE', sent_at = NULL, last_error = $3, updated_at = NOW()
+            WHERE id = $1 AND ga_id = $2
+            `,
+            [row.id, gaId, NO_ACTIVE_PUSH_DEVICES_ERROR],
+          )
+          noDevice += 1
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         const attempt = Number(row.attempt_count ?? 0) + 1
@@ -140,7 +160,7 @@ export async function processPendingPushOutbox(pool, opts = {}) {
       }
     }
   }
-  return { processed, skipped: false, gaCount: gaIds.length }
+  return { processed, noDevice, skipped: false, gaCount: gaIds.length }
 }
 
 /**
@@ -174,8 +194,9 @@ async function deliverOutboxRow(pool, row) {
 
   const devices = await listActivePushDevicesForUser(pool, recipientUserId, gaId)
   if (devices.length === 0) {
-    return
+    return { attempted: 0, delivered: 0 }
   }
+  let delivered = 0
 
   const payload = row.payload_json && typeof row.payload_json === 'object' ? row.payload_json : {}
   const title = String(payload.title ?? '새로운 보험 청구가 접수되었습니다.')
@@ -216,6 +237,7 @@ async function deliverOutboxRow(pool, row) {
         }
       }
       await messaging.send(message)
+      delivered += 1
     } catch (error) {
       const code = error?.code || error?.errorInfo?.code || ''
       if (
@@ -229,6 +251,7 @@ async function deliverOutboxRow(pool, row) {
       throw error
     }
   }
+  return { attempted: devices.length, delivered }
 }
 
 /** Backfill helper for existing rows (additive migration). */
