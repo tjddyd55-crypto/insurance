@@ -89,30 +89,17 @@ export async function registerUserPushDevice(db, input) {
     throw err
   }
 
-  // device_token UNIQUE — clear any other row (other user/installation, including inactive)
-  if (gaId != null) {
-    await safeQuery(
-      db,
-      `
-      DELETE FROM user_push_devices
-      WHERE device_token = $1
-        AND ga_id = $2
-        AND NOT (user_id = $3 AND installation_id = $4)
-      `,
-      [deviceToken, gaId, userId, installationId],
-    )
-  } else {
-    await safeQuery(
-      db,
-      `
-      DELETE FROM user_push_devices
-      WHERE device_token = $1
-        AND ga_id IS NOT NULL
-        AND NOT (user_id = $2 AND installation_id = $3)
-      `,
-      [deviceToken, userId, installationId],
-    )
-  }
+  // device_token UNIQUE is global — clear any other row globally, including inactive rows.
+  await safeQuery(
+    db,
+    `
+    DELETE FROM user_push_devices
+    WHERE device_token = $1
+      AND NOT (user_id = $2 AND installation_id = $3)
+    `,
+    [deviceToken, userId, installationId],
+    { allowUnscoped: true },
+  )
 
   const r = await safeQuery(
     db,
