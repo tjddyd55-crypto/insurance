@@ -15,6 +15,11 @@ const PRESETS = [
   { name: 'EXTRA_COMPACT', fontSize: 8, rowHeight: 20 },
 ] as const
 
+export function getAccountPrintPadding(fontSize: number) {
+  const left = Math.max(2, fontSize * 0.5)
+  return { left, right: Math.round(left * 0.6 * 10) / 10 }
+}
+
 export function selectPrintDensity(rowCount: number, orientation: PrintOrientation = 'landscape') {
   const rowsHeight = PRINT_ROWS_HEIGHT[orientation]
   const count = Math.max(0, rowCount)

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { AccountPrintLayout } from './AccountPrintLayout'
 import { getAccountPrintCss } from './accountPrintStyles'
-import { buildAccountPrintData, PRINT_ROWS_HEIGHT, selectPrintDensity } from './accountPrintLayout'
+import { buildAccountPrintData, getAccountPrintPadding, PRINT_ROWS_HEIGHT, selectPrintDensity } from './accountPrintLayout'
 import { fitAccountPrintSheet } from './fitAccountPrintSheet'
 import { PRINT_HEIGHT, PRINT_WIDTH } from './accountPrintLayout'
 import type { UserInsurerAccountRow } from '../api/userInsurerAccountsApi'
@@ -11,6 +11,21 @@ const row = (category: string, companyName: string, loginId = '', loginPassword 
   ({ category, companyName, loginId, loginPassword }) as UserInsurerAccountRow
 
 describe('account A4 print', () => {
+  it.each([
+    [10, 5, 3],
+    [9, 4.5, 2.7],
+    [8, 4, 2.4],
+    [6.25, 3.125, 1.9],
+    [3, 2, 1.2],
+  ])('computes cell padding for font size %s', (fontSize, left, right) => {
+    expect(getAccountPrintPadding(fontSize)).toEqual({ left, right })
+  })
+  it.each(['landscape', 'portrait'] as const)('uses separate cell padding in %s', orientation => {
+    const markup = renderToStaticMarkup(<AccountPrintLayout life={[]} nonlife={[]} orientation={orientation} />)
+    expect(markup).toContain('--account-print-pad-left:5px')
+    expect(markup).toContain('--account-print-pad-right:3px')
+    expect(getAccountPrintCss(orientation)).toContain('padding: 0 var(--account-print-pad-right) 0 var(--account-print-pad-left)')
+  })
   it.each(['landscape', 'portrait'] as const)('chooses density boundaries for %s', (orientation) => {
     const rowsHeight = PRINT_ROWS_HEIGHT[orientation]
     const normal = Math.floor(rowsHeight / 26)

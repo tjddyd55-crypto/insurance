@@ -1,12 +1,14 @@
 import type { CSSProperties } from 'react'
-import { selectPrintDensity, type AccountPrintData } from './accountPrintLayout'
+import { getAccountPrintPadding, selectPrintDensity, type AccountPrintData } from './accountPrintLayout'
 
 /** Pure layout: fake rows can be rendered without auth, API, or application shell. */
 export function AccountPrintLayout({ life, nonlife, orientation = 'landscape' }: AccountPrintData) {
   const density = selectPrintDensity(Math.max(life.length, nonlife.length), orientation)
+  const padding = getAccountPrintPadding(density.fontSize)
   const style = {
     '--account-print-width': orientation === 'portrait' ? '196mm' : '283mm',
-    '--account-print-padding': orientation === 'portrait' ? '1px' : '2px',
+    '--account-print-pad-left': `${padding.left}px`,
+    '--account-print-pad-right': `${padding.right}px`,
     '--account-print-font': `${density.fontSize}px`,
     '--account-print-row': `${density.rowHeight}px`,
   } as CSSProperties
