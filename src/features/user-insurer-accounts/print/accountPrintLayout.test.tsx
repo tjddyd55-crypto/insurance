@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { AccountPrintLayout } from './AccountPrintLayout'
 import { getAccountPrintCss } from './accountPrintStyles'
-import { buildAccountPrintData, getAccountPrintPadding, PRINT_ROWS_HEIGHT, selectPrintDensity } from './accountPrintLayout'
+import { buildAccountPrintData, getAccountPrintPadding, createPrintDensity, getPrintNominalHeight, selectPrintDensity } from './accountPrintLayout'
 import { fitAccountPrintSheet } from './fitAccountPrintSheet'
 import { PRINT_HEIGHT, PRINT_WIDTH } from './accountPrintLayout'
 import type { UserInsurerAccountRow } from '../api/userInsurerAccountsApi'
@@ -22,27 +22,30 @@ describe('account A4 print', () => {
   })
   it.each(['landscape', 'portrait'] as const)('uses separate cell padding in %s', orientation => {
     const markup = renderToStaticMarkup(<AccountPrintLayout life={[]} nonlife={[]} orientation={orientation} />)
-    expect(markup).toContain('--account-print-pad-left:5px')
-    expect(markup).toContain('--account-print-pad-right:3px')
+    expect(markup).toContain('--account-print-pad-left:10px')
+    expect(markup).toContain('--account-print-pad-right:6px')
     expect(getAccountPrintCss(orientation)).toContain('padding: 0 var(--account-print-pad-right) 0 var(--account-print-pad-left)')
   })
-  it.each(['landscape', 'portrait'] as const)('chooses density boundaries for %s', (orientation) => {
-    const rowsHeight = PRINT_ROWS_HEIGHT[orientation]
-    const normal = Math.floor(rowsHeight / 26)
-    const compact = Math.floor(rowsHeight / 23)
-    const extra = Math.floor(rowsHeight / 20)
-    expect(selectPrintDensity(0, orientation).name).toBe('NORMAL')
-    expect(selectPrintDensity(normal, orientation).name).toBe('NORMAL')
-    expect(selectPrintDensity(normal + 1, orientation).name).toBe('COMPACT')
-    expect(selectPrintDensity(compact, orientation).name).toBe('COMPACT')
-    expect(selectPrintDensity(compact + 1, orientation).name).toBe('EXTRA_COMPACT')
-    expect(selectPrintDensity(extra, orientation).name).toBe('EXTRA_COMPACT')
-    for (const count of [extra + 1, 100, 1000]) {
+  it.each(['landscape', 'portrait'] as const)('maximizes nominal density for %s', orientation => {
+    expect(selectPrintDensity(19, orientation).fontSize).toBe(orientation === 'landscape' ? 13 : 19.5)
+    let previous = 20
+    for (let count = 1; count <= 80; count++) {
       const density = selectPrintDensity(count, orientation)
-      expect(density.name).toBe('FALLBACK')
-      expect(density.rowHeight * count).toBeLessThanOrEqual(rowsHeight + 0.00001)
-      expect(density.fontSize).toBeLessThan(8)
+      expect(density.fontSize).toBeLessThanOrEqual(previous)
+      expect(getPrintNominalHeight(count, density)).toBeLessThanOrEqual(PRINT_HEIGHT[orientation] + 1e-8)
+      if (density.name === 'AUTO' && density.fontSize < 20) {
+        expect(getPrintNominalHeight(count, createPrintDensity(density.fontSize + 0.5))).toBeGreaterThan(PRINT_HEIGHT[orientation])
+      }
+      previous = density.fontSize
     }
+    expect(selectPrintDensity(1000, orientation).name).toBe('FALLBACK')
+    expect(selectPrintDensity(1000, orientation).fontSize).toBeLessThan(8)
+  })
+  it('caps typography and fills portrait height with larger text', () => {
+    expect(selectPrintDensity(19, 'portrait').fontSize).toBeGreaterThanOrEqual(18)
+    expect(selectPrintDensity(1).fontSize).toBe(20)
+    expect(createPrintDensity(20)).toMatchObject({ fontSize: 20, rowHeight: 50, titleFontSize: 27, sectionFontSize: 24, headerFontSize: 21 })
+    expect(createPrintDensity(30)).toMatchObject({ titleFontSize: 28, sectionFontSize: 24 })
   })
   it('defaults to landscape and carries selected portrait through data and markup', () => {
     expect(buildAccountPrintData([]).orientation).toBe('landscape')
@@ -61,7 +64,8 @@ describe('account A4 print', () => {
   })
   it.each(['landscape', 'portrait'] as const)('fits wrapped height and overflowing width for %s', orientation => {
     for (const [width, height] of [[PRINT_WIDTH[orientation], PRINT_HEIGHT[orientation] * 2], [PRINT_WIDTH[orientation] * 2, 100]]) {
-      const sheet = { style: {}, offsetWidth: width, scrollWidth: width, offsetHeight: height, scrollHeight: height }
+      const sheet = { querySelectorAll: () => [],
+      dataset: { printRows: '19' }, style: { setProperty() {} }, offsetWidth: width, scrollWidth: width, offsetHeight: height, scrollHeight: height }
       const root = { querySelector: () => sheet } as unknown as HTMLElement
       fitAccountPrintSheet(root, orientation)
       const scale = Number((sheet.style as { transform: string }).transform.match(/scale\((.*)\)/)?.[1])
@@ -70,6 +74,67 @@ describe('account A4 print', () => {
       fitAccountPrintSheet(root, orientation)
       expect((sheet.style as { transform: string }).transform).toBe(`scale(${scale})`)
     }
+  })
+  it('reflows in half-pixel steps before scaling and resets on repeat fits', () => {
+    let font = 0
+    const applied: number[] = []
+    const sheet = {
+      querySelectorAll: () => [],
+      dataset: { printRows: '19' },
+      style: { setProperty(key: string, value: string) {
+        if (key === '--account-print-font') { font = parseFloat(value); applied.push(font) }
+      } },
+      offsetWidth: 700, scrollWidth: 700,
+      get offsetHeight() { return font > 12 ? 1200 : 900 },
+      get scrollHeight() { return this.offsetHeight },
+    }
+    const root = { querySelector: () => sheet } as unknown as HTMLElement
+    expect(fitAccountPrintSheet(root, 'portrait')?.scale).toBe(1)
+    expect(applied).toEqual(Array.from({ length: 16 }, (_, i) => 19.5 - i * 0.5))
+    applied.length = 0
+    fitAccountPrintSheet(root, 'portrait')
+    expect(applied[0]).toBe(19.5)
+  })
+  it.each([false, true])('fits natural column widths and wraps only at minimum (long=%s)', long => {
+    let font = 0
+    const columns = ['28%', '32%', '40%'].map(width => ({
+      style: { width },
+      getAttribute: () => null,
+      setAttribute() {},
+    }))
+    const cells = [7, 9, 11].map(length => ({
+      style: { whiteSpace: '' },
+      ownerDocument: { createRange: () => ({
+        selectNodeContents() {},
+        getBoundingClientRect: () => ({ width: font * length * (long ? 10 : 1) }),
+      }) },
+    }))
+    const table = {
+      rows: [{ cells }],
+      getBoundingClientRect: () => ({ width: 365 }),
+      querySelectorAll: () => columns,
+    }
+    const sheet = {
+      dataset: { printRows: '19' },
+      style: { setProperty(key: string, value: string) { if (key === '--account-print-font') font = parseFloat(value) } },
+      querySelectorAll: (selector: string) => selector === 'table' ? [table] : selector === 'col' ? columns : cells,
+      offsetWidth: 741, scrollWidth: 741, offsetHeight: 900, scrollHeight: 900,
+    }
+    vi.stubGlobal('getComputedStyle', () => ({ paddingLeft: '4', paddingRight: '2.4', borderLeftWidth: '0.5', borderRightWidth: '0.5' }))
+    try {
+      const result = fitAccountPrintSheet({ querySelector: () => sheet } as unknown as HTMLElement, 'portrait')
+      if (long) {
+        expect(result?.density.fontSize).toBe(8)
+        expect(cells.every(cell => cell.style.whiteSpace === 'normal')).toBe(true)
+        expect(columns.map(column => column.style.width)).toEqual(['28%', '32%', '40%'])
+      } else {
+        expect(result?.density.fontSize).toBe(12.5)
+        expect(cells.every(cell => cell.style.whiteSpace === 'pre')).toBe(true)
+        const widths = columns.map(column => parseFloat(column.style.width))
+        expect(widths.reduce((sum, width) => sum + width, 0)).toBeCloseTo(364)
+        widths.forEach((width, index) => expect(width).toBeGreaterThanOrEqual(font * [7, 9, 11][index] + 8.4))
+      }
+    } finally { vi.unstubAllGlobals() }
   })
   it('excludes general/unknown before reading passwords and preserves screen order', () => {
     const general = row('GENERAL', 'excluded')
