@@ -1,3 +1,4 @@
+import { useAccountPrintFlow } from '../../print/useAccountPrintFlow'
 import { FormButton } from '../../../../components/form'
 import { AccountVaultShareLinkActions } from '../../components/AccountVaultShareLinkActions'
 import { AccountShareVisibilityToggle } from '../../components/AccountShareVisibilityToggle'
@@ -26,6 +27,7 @@ export function PersonalAccountVaultWorkspace({
   shareVisibility,
 }: PersonalAccountVaultWorkspaceProps) {
   const vaultState = useAccountVaultState(adapter)
+  const { printing, openPrint, printFlow } = useAccountPrintFlow(vaultState.accounts)
   const addDisabled = vaultState.loading || vaultState.pendingId === 'new'
 
   return (
@@ -43,6 +45,15 @@ export function PersonalAccountVaultWorkspace({
           >
             {USER_INSURER_ACCOUNT_GENERAL_ADD_TOOLBAR_LABEL}
           </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            size="sm"
+            disabled={vaultState.loading || Boolean(vaultState.error) || printing}
+            onClick={openPrint}
+          >
+            A4 출력
+          </FormButton>
           <AccountShareVisibilityToggle {...shareVisibility} />
           <AccountVaultShareLinkActions {...shareLink} />
         </div>
@@ -53,6 +64,7 @@ export function PersonalAccountVaultWorkspace({
         showCategoryAddButtons={false}
       />
       {vaultState.confirmDialog}
+      {printFlow}
     </>
   )
 }
