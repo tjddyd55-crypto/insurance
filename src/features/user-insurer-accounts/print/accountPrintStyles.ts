@@ -5,12 +5,12 @@ export const ACCOUNT_PRINT_CSS = `
 #account-a4-print-root { position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; }
 .account-a4-sheet { width: var(--account-print-width); background: white; color: black; font-family: Arial, sans-serif; }
 .account-a4-sheet * { box-sizing: border-box; color: black; }
-.account-a4-sheet h1 { height: 36px; margin: 0; font-size: 17px; line-height: 28px; font-weight: bold; }
+.account-a4-sheet h1 { height: var(--account-print-title-height); margin: 0; font-size: var(--account-print-title-font); line-height: 1.3; font-weight: bold; }
 .account-a4-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
-.account-a4-sheet h2 { height: 28px; margin: 0; font-size: 14px; line-height: 22px; font-weight: bold; }
+.account-a4-sheet h2 { height: var(--account-print-section-height); margin: 0; font-size: var(--account-print-section-font); line-height: 1.3; font-weight: bold; }
 .account-a4-sheet table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .account-a4-sheet table, .account-a4-sheet tr { break-inside: avoid; page-break-inside: avoid; page-break-before: avoid; page-break-after: avoid; }
-.account-a4-sheet th { height: 26px; font-size: 11px; font-weight: bold; }
+.account-a4-sheet th { height: var(--account-print-row); font-size: var(--account-print-header-font); line-height: 1.05; font-weight: bold; }
 .account-a4-sheet td { height: var(--account-print-row); font-size: var(--account-print-font); line-height: 1.05; }
 .account-a4-sheet td, .account-a4-sheet th { border: 0.5px solid black; padding: 0 var(--account-print-pad-right) 0 var(--account-print-pad-left); letter-spacing: -0.2px; word-break: break-all; overflow-wrap: anywhere; white-space: normal; vertical-align: middle; }
 @media print {

@@ -1,19 +1,15 @@
 import type { CSSProperties } from 'react'
-import { getAccountPrintPadding, selectPrintDensity, type AccountPrintData } from './accountPrintLayout'
+import { getAccountPrintVariables, selectPrintDensity, type AccountPrintData } from './accountPrintLayout'
 
 /** Pure layout: fake rows can be rendered without auth, API, or application shell. */
 export function AccountPrintLayout({ life, nonlife, orientation = 'landscape' }: AccountPrintData) {
   const density = selectPrintDensity(Math.max(life.length, nonlife.length), orientation)
-  const padding = getAccountPrintPadding(density.fontSize)
   const style = {
     '--account-print-width': orientation === 'portrait' ? '196mm' : '283mm',
-    '--account-print-pad-left': `${padding.left}px`,
-    '--account-print-pad-right': `${padding.right}px`,
-    '--account-print-font': `${density.fontSize}px`,
-    '--account-print-row': `${density.rowHeight}px`,
+    ...getAccountPrintVariables(density),
   } as CSSProperties
   return (
-    <article className="account-a4-sheet" style={style}>
+    <article className="account-a4-sheet" data-print-rows={Math.max(life.length, nonlife.length)} style={style}>
       <h1>ONE FC 보험사 계정 목록</h1>
       <div className="account-a4-columns">
         {([{ title: '생명보험', rows: life }, { title: '손해보험', rows: nonlife }]).map(({ title, rows }) => (

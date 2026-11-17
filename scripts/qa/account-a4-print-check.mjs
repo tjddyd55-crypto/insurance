@@ -1,5 +1,5 @@
 /** Dev-only: node scripts/qa/account-a4-print-check.mjs
- * Open http://localhost:3099/__account-a4-check?rows=33&long=1&orient=portrait
+ * Open http://localhost:3099/__account-a4-check?life=19&non=12&long=1&orient=portrait
  * Uses ONLY fake data and the production print component/CSS. Browser print
  * preview (Ctrl+P) verifies the chosen orientation, one page, full wrapping and no app shell.
  * Not imported by any application route or production entry.
@@ -22,11 +22,12 @@ const http = createHttpServer(async (req, res) => {
     const params = new URLSearchParams(location.search);
     const orientation = params.get('orient') === 'portrait' ? 'portrait' : 'landscape';
     const count = Math.max(0, Math.min(1000, Number(params.get('rows') || 24)));
-    const rows = Array.from({length:count}, (_, i) => ({company:'가상 보험사 '+(i+1),loginId:'fake-id-'+i,password:params.has('long')?'FAKE-LONG-PASSWORD-'.repeat(12):'fake-password-'+i}));
+    const getCount = (key, fallback) => { const n = Number(params.get(key) ?? fallback); return Number.isFinite(n) ? Math.max(0, Math.min(1000, Math.floor(n))) : fallback; };
+    const makeRows = (length) => Array.from({length}, (_, i) => ({company:'가상 보험사 '+(i+1),loginId:'fake-id-'+i,password:params.has('long')?'FAKE-LONG-PASSWORD-'.repeat(12):'fake-password-'+i}));
     const style = document.createElement('style');
     style.textContent = getAccountPrintCss(orientation) + '#account-a4-print-root { visibility:visible; }';
     document.head.append(style);
-    createRoot(document.getElementById('account-a4-print-root')).render(React.createElement(AccountPrintLayout,{orientation,life:rows,nonlife:rows.slice(0,Math.max(0,count-3))}));
+    createRoot(document.getElementById('account-a4-print-root')).render(React.createElement(AccountPrintLayout,{orientation,life:makeRows(getCount('life',count)),nonlife:makeRows(getCount('non',Math.max(0,count-3)))}));
     await document.fonts.ready;
     requestAnimationFrame(() => requestAnimationFrame(() => {
       fitAccountPrintSheet(document.getElementById('account-a4-print-root'), orientation);
@@ -36,4 +37,4 @@ const http = createHttpServer(async (req, res) => {
   res.end(await server.transformIndexHtml('/__account-a4-check', html))
 })
 http.listen(3099, '127.0.0.1')
-console.info('Fake-data print check: http://localhost:3099/__account-a4-check?rows=33&long=1&orient=portrait')
+console.info('Fake-data print check: http://localhost:3099/__account-a4-check?life=19&non=12&long=1&orient=portrait')
