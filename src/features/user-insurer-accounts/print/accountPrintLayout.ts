@@ -8,7 +8,7 @@ export type AccountPrintData = { life: AccountPrintRow[]; nonlife: AccountPrintR
 export const PRINT_WIDTH = { landscape: 283 * 96 / 25.4, portrait: 196 * 96 / 25.4 }
 export const PRINT_HEIGHT = { landscape: 196 * 96 / 25.4, portrait: 283 * 96 / 25.4 }
 export const PRINT_FIT_RESERVE = 4
-export const MAX_PRINT_FONT = 14
+export const MAX_PRINT_FONT = 20
 export const MIN_PRINT_FONT = 8
 export const PRINT_FONT_STEP = 0.5
 
@@ -16,8 +16,8 @@ export const PRINT_FONT_STEP = 0.5
 export function createPrintDensity(fontSize: number) {
   const ratio = Math.min(1, fontSize / MIN_PRINT_FONT)
   const base = Math.max(MIN_PRINT_FONT, fontSize)
-  const titleFontSize = Math.min(22, base + 7) * ratio
-  const sectionFontSize = Math.min(18, base + 4) * ratio
+  const titleFontSize = Math.min(28, base + 7) * ratio
+  const sectionFontSize = Math.min(24, base + 4) * ratio
   return {
     name: fontSize < MIN_PRINT_FONT ? 'FALLBACK' : 'AUTO',
     fontSize,
