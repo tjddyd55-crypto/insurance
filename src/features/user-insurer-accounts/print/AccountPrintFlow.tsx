@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { AccountPrintLayout, ACCOUNT_PRINT_CSS } from './AccountPrintLayout'
-import type { AccountPrintData } from './accountPrintLayout'
+import { AccountPrintLayout } from './AccountPrintLayout'
+import { getAccountPrintCss } from './accountPrintStyles'
+import type { AccountPrintData, PrintOrientation } from './accountPrintLayout'
 import { fitAccountPrintSheet } from './fitAccountPrintSheet'
 
-export function PrintPortal({ data, onDone }: { data: AccountPrintData; onDone: () => void }) {
+export function PrintPortal({ data, orientation = data.orientation ?? 'landscape', onDone }: { data: AccountPrintData; orientation?: PrintOrientation; onDone: () => void }) {
   const root = useRef<HTMLDivElement>(null)
   useEffect(() => {
     let cancelled = false
@@ -15,7 +16,7 @@ export function PrintPortal({ data, onDone }: { data: AccountPrintData; onDone: 
     void document.fonts.ready.then(() => {
       if (cancelled) return
       frame = requestAnimationFrame(() => {
-        if (root.current) fitAccountPrintSheet(root.current)
+        if (root.current) fitAccountPrintSheet(root.current, orientation)
         frame = requestAnimationFrame(() => {
           if (cancelled) return
           try { window.print() } catch { onDone() }
@@ -27,11 +28,11 @@ export function PrintPortal({ data, onDone }: { data: AccountPrintData; onDone: 
       cancelAnimationFrame(frame)
       window.removeEventListener('afterprint', finish)
     }
-  }, [onDone])
+  }, [onDone, orientation])
   return createPortal(
     <div id="account-a4-print-root" ref={root} aria-hidden="true">
-      <style>{ACCOUNT_PRINT_CSS}</style>
-      <AccountPrintLayout {...data} />
+      <style>{getAccountPrintCss(orientation)}</style>
+      <AccountPrintLayout {...data} orientation={orientation} />
     </div>,
     document.body,
   )
