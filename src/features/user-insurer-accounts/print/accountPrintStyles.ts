@@ -12,7 +12,7 @@ export const ACCOUNT_PRINT_CSS = `
 .account-a4-sheet table, .account-a4-sheet tr { break-inside: avoid; page-break-inside: avoid; page-break-before: avoid; page-break-after: avoid; }
 .account-a4-sheet th { height: 26px; font-size: 11px; font-weight: bold; }
 .account-a4-sheet td { height: var(--account-print-row); font-size: var(--account-print-font); line-height: 1.05; }
-.account-a4-sheet td, .account-a4-sheet th { border: 0.5px solid black; padding: 0 var(--account-print-padding); letter-spacing: -0.2px; word-break: break-all; overflow-wrap: anywhere; white-space: normal; vertical-align: middle; }
+.account-a4-sheet td, .account-a4-sheet th { border: 0.5px solid black; padding: 0 var(--account-print-pad-right) 0 var(--account-print-pad-left); letter-spacing: -0.2px; word-break: break-all; overflow-wrap: anywhere; white-space: normal; vertical-align: middle; }
 @media print {
   html:has(#account-a4-print-root), body:has(#account-a4-print-root) { margin: 0 !important; padding: 0 !important; background: white !important; overflow: visible !important; height: auto !important; min-height: 0 !important; }
   body:has(#account-a4-print-root) > :not(#account-a4-print-root) { display: none !important; }
