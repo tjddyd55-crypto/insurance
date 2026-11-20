@@ -354,11 +354,11 @@ export function TodoEditorDialog({
                 disabled={busy}
                 onClick={suggestFromDescription}
               >
-                본문에서 오늘/내일/모레 키워드로 마감일 제안
+                본문에서 오늘/내일/모레 키워드로 날짜 제안
               </button>
             </label>
             <label className="todo-editor-dialog__field">
-              <span className="todo-editor-dialog__label">마감일</span>
+              <span className="todo-editor-dialog__label">날짜</span>
               <AppDateInput
                 value={dueDate}
                 onChange={(value) => {
