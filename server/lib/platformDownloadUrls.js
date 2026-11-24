@@ -6,10 +6,15 @@ export const PLATFORM_DOWNLOAD_CDN_KEYS = Object.freeze({
   mobileLatest: 'insurance/public/downloads/mobile/latest/insurance-mobile-latest.apk',
 })
 
+/** 최신 공개 PC 설치 파일 — GitHub Release v1.0.309 (2026-10-25). frontend DESKTOP_DOWNLOAD_URL 과 동일. */
+export const OFFICIAL_DESKTOP_DOWNLOAD_URL =
+  'https://github.com/tjddyd55-crypto/insurance/releases/download/v1.0.309/ONE-FC-Setup-1.0.309.exe'
+
+/** @deprecated 구 릴리스. OFFICIAL_DESKTOP_DOWNLOAD_URL 사용 */
 const FALLBACK_DESKTOP_URL =
   'https://github.com/tjddyd55-crypto/insurance/releases/download/v1.0.234/InsuranceApp-Setup-1.0.234.exe'
 
-/** @deprecated legacy CDN — 파일 미존재 시 FALLBACK_DESKTOP_URL 사용 */
+/** @deprecated legacy CDN — 파일 미존재(404) */
 const LEGACY_DESKTOP_URL =
   'https://cdn.platform-assets.com/insurer/download/InsuranceApp%20Setup%201.0.7.exe'
 
@@ -41,10 +46,13 @@ function cdnUrlForKey(objectKey) {
 
 /** @returns {string} public redirect 대상 URL (없으면 빈 문자열) */
 export function resolveDesktopDownloadUrl() {
+  // CDN latest 객체는 2026-11-24 기준 1.0.297(2026-06-20)로 오래되어,
+  // env가 없을 때는 GitHub 최신 공개 설치 파일(v1.0.309)을 우선한다.
   return firstNonEmpty(
     process.env.DESKTOP_DOWNLOAD_URL,
-    cdnUrlForKey(PLATFORM_DOWNLOAD_CDN_KEYS.desktopLatest),
     process.env.DESKTOP_GITHUB_RELEASE_URL,
+    OFFICIAL_DESKTOP_DOWNLOAD_URL,
+    cdnUrlForKey(PLATFORM_DOWNLOAD_CDN_KEYS.desktopLatest),
     FALLBACK_DESKTOP_URL,
     LEGACY_DESKTOP_URL,
   )
