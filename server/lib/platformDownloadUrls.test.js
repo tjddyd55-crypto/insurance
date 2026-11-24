@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   ANDROID_APP_DOWNLOAD_URL,
-  PLATFORM_DOWNLOAD_CDN_KEYS,
+  OFFICIAL_DESKTOP_DOWNLOAD_URL,
   resolveDesktopDownloadUrl,
   resolveMobileDownloadUrl,
   getPlatformDownloadStatus,
@@ -10,6 +10,7 @@ import {
 
 const ENV_KEYS = [
   'DESKTOP_DOWNLOAD_URL',
+  'DESKTOP_GITHUB_RELEASE_URL',
   'ANDROID_APP_DOWNLOAD_URL',
   'MOBILE_DOWNLOAD_URL',
   'ANDROID_APK_DOWNLOAD_URL',
@@ -72,15 +73,26 @@ test('resolveMobileDownloadUrl falls back to Google Play SSOT', () => {
   }
 })
 
-test('resolveDesktopDownloadUrl falls back to CDN latest key', () => {
+test('resolveDesktopDownloadUrl prefers official GitHub release over stale CDN latest', () => {
   const prev = snapshotEnv()
   try {
     delete process.env.DESKTOP_DOWNLOAD_URL
+    delete process.env.DESKTOP_GITHUB_RELEASE_URL
     process.env.R2_PUBLIC_CDN_BASE = 'https://cdn.example.com'
-    assert.equal(
-      resolveDesktopDownloadUrl(),
-      `https://cdn.example.com/${PLATFORM_DOWNLOAD_CDN_KEYS.desktopLatest}`,
-    )
+    assert.equal(resolveDesktopDownloadUrl(), OFFICIAL_DESKTOP_DOWNLOAD_URL)
+    assert.match(OFFICIAL_DESKTOP_DOWNLOAD_URL, /ONE-FC-Setup-1\.0\.309\.exe/)
+  } finally {
+    restoreEnv(prev)
+  }
+})
+
+test('resolveDesktopDownloadUrl uses DESKTOP_GITHUB_RELEASE_URL before official default', () => {
+  const prev = snapshotEnv()
+  try {
+    delete process.env.DESKTOP_DOWNLOAD_URL
+    process.env.DESKTOP_GITHUB_RELEASE_URL = 'https://example.com/custom-desktop.exe'
+    process.env.R2_PUBLIC_CDN_BASE = 'https://cdn.example.com'
+    assert.equal(resolveDesktopDownloadUrl(), 'https://example.com/custom-desktop.exe')
   } finally {
     restoreEnv(prev)
   }
