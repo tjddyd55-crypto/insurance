@@ -29,7 +29,6 @@ import type {
 } from './detail/customerConsultationsViewProps'
 import { TodoEditorDialog, type TodoCreatePrefill } from '../../todos/components/TodoEditorDialog'
 import { firstLineTodoTitle } from '../../todos/utils/todoCopy'
-import { suggestDueDateFromText } from '../../todos/utils/suggestDueDateFromText'
 
 function emptyContactResultToNull(value: string): string | null {
   const trimmed = value.trim()
@@ -168,7 +167,6 @@ export default function CustomerConsultationsPage() {
         sourceId: String(consultId),
         title: firstLineTodoTitle(bodyText),
         description: bodyText,
-        dueDate: suggestDueDateFromText(bodyText),
         relatedEntityType: 'customer',
         relatedEntityId: String(resolvedCustomerId),
         lockRelated: true,

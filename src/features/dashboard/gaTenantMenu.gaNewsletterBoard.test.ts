@@ -69,12 +69,7 @@ describe('buildAppMenuForSession — GA전용 소식지 메뉴', () => {
         dynamicNewsletterBoards: [GA_BOARD],
       }),
     )
-    expect(labels).toEqual([
-      '원수사 연락처 관리',
-      '연락처 조회',
-      '공유 계정 관리',
-      '문의 / 기능 요청',
-    ])
+    expect(labels).toEqual(['공유 계정 관리', '문의 / 기능 요청'])
   })
 
   it('GA_ADMIN 메뉴는 관리 전용이며 동적 사용자 소식지 링크를 붙이지 않는다', () => {
@@ -92,7 +87,7 @@ describe('buildAppMenuForSession — GA전용 소식지 메뉴', () => {
   it('고정 메뉴(원수사소식지·연락처 등)는 그대로 유지한다', () => {
     const userLabels = linkLabels(buildAppMenuForSession('USER', 'TEST', 'Test GA', {}))
     expect(userLabels).toContain('원수사소식지')
-    expect(userLabels).toContain('원수사 연락처')
+    expect(userLabels).not.toContain('원수사 연락처')
     expect(userLabels).not.toContain('손해사정사 소식지')
 
     const insurerLabels = linkLabels(buildAppMenuForSession('INSURER_MANAGER', 'TEST', 'Test GA', {}))

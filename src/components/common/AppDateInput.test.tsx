@@ -73,6 +73,21 @@ describe('openNativeDatePicker', () => {
   })
 })
 
+describe('AppDateInput picker entry', () => {
+  it('blocks digit typing and marks the field as a calendar opener', () => {
+    const html = renderToStaticMarkup(
+      <AppDateInput entry="picker" value="2026-10-22" aria-label="날짜" onChange={() => undefined} />,
+    )
+    expect(html).toContain('app-date-input--picker')
+    expect(html).toContain('readonly')
+    expect(html).toContain('aria-label="날짜"')
+    expect(html).toContain('value="2026-10-22"')
+    expect(html).not.toContain('inputMode="numeric"')
+    expect(html).toContain('type="date"')
+    expect(html).toContain('aria-label="날짜 선택"')
+  })
+})
+
 describe('AppDateInput native selection', () => {
   it('passes YYYY-MM-DD from native date input value', () => {
     const nativeValue = '2026-07-08'

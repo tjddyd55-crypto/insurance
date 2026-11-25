@@ -74,18 +74,14 @@ describe('menuPermissionMatrix — semantic policy snapshots', () => {
     }
   })
 
-  it('GA_STAFF: 연락처·공유 계정·문의만, 보험청구 설정·고객리스트 없음', () => {
+  it('GA_STAFF: 연락처 메뉴는 숨기고 공유 계정·문의는 유지, 보험청구 설정·고객리스트 없음', () => {
     const matrix = buildMenuPermissionMatrix({ paidAccessMode: 'active' })
     const claimSettings = matrix.rows.find((r) => r.menuLabel === '보험청구 설정')
     if (claimSettings) {
       expect(claimSettings.cells.GA_STAFF.status).toBe('hidden')
     }
-    expect(
-      matrix.rows.find((r) => r.primaryPath === '/insurance/company-registry')?.cells.GA_STAFF.status,
-    ).not.toBe('hidden')
-    expect(
-      matrix.rows.find((r) => r.primaryPath === '/insurance/contacts')?.cells.GA_STAFF.status,
-    ).not.toBe('hidden')
+    expect(matrix.rows.find((r) => r.primaryPath === '/insurance/company-registry')).toBeUndefined()
+    expect(matrix.rows.find((r) => r.primaryPath === '/insurance/contacts')).toBeUndefined()
     expect(
       matrix.rows.find((r) => r.primaryPath === '/insurance/account-credentials/shared')?.cells.GA_STAFF.status,
     ).not.toBe('hidden')
