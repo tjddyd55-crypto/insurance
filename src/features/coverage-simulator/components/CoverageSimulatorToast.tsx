@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import { OverlayToast } from '../../../components/OverlayToast'
 
 type ToastContextValue = {
   showToast: (message: string) => void
@@ -18,16 +18,10 @@ export function CoverageSimulatorToastProvider({ children }: { children: ReactNo
   }, [])
 
   const value = useMemo(() => ({ showToast }), [showToast])
-  const toast = message ? (
-    <p className="coverage-simulator-toast" role="status" aria-live="polite">
-      {message}
-    </p>
-  ) : null
-
   return (
     <ToastContext.Provider value={value}>
       {children}
-      {toast && typeof document !== 'undefined' ? createPortal(toast, document.body) : toast}
+      {message ? <OverlayToast message={message} className="coverage-simulator-toast" /> : null}
     </ToastContext.Provider>
   )
 }

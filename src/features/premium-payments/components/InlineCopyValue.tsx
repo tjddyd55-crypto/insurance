@@ -6,6 +6,7 @@ type Props = {
   display?: string | null
   emptyLabel?: string
   mono?: boolean
+  copyLabel?: string
   onCopy: (trimmed: string) => void
 }
 
@@ -13,7 +14,7 @@ type Props = {
  * 값 + 복사 버튼 한 줄 셀.
  * 값이 없으면 복사 버튼 없이 emptyLabel만 표시.
  */
-export function InlineCopyValue({ value, display, emptyLabel = '-', mono = false, onCopy }: Props) {
+export function InlineCopyValue({ value, display, emptyLabel = '-', mono = false, copyLabel, onCopy }: Props) {
   const trimmed = value?.trim() ?? ''
   if (!trimmed) {
     return <span className="premium-payments-cell-text">{emptyLabel}</span>
@@ -34,6 +35,7 @@ export function InlineCopyValue({ value, display, emptyLabel = '-', mono = false
         variant="secondary"
         size="sm"
         className="premium-payments-inline-value__copy"
+        aria-label={copyLabel}
         onClick={() => onCopy(trimmed)}
       >
         복사

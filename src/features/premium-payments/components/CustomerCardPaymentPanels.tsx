@@ -33,7 +33,6 @@ export function CustomerCardPaymentPanels({
     error,
     busy,
     notFound,
-    copyHint,
     cardFormOpen,
     editingCard,
     cardForm,
@@ -50,9 +49,8 @@ export function CustomerCardPaymentPanels({
     openEditContract,
     closeContractForm,
     submitContractForm,
-    copyPolicyNumber,
+    copyText,
     copyCardNumber,
-    copyCardExpiry,
     cardOptions,
     insurerSites,
   } = state
@@ -78,7 +76,6 @@ export function CustomerCardPaymentPanels({
           {error}
         </p>
       ) : null}
-      {showMetaHints && copyHint ? <p className="premium-payments-page__hint">{copyHint}</p> : null}
 
       <PaymentCardsSection
         cards={cards}
@@ -88,7 +85,7 @@ export function CustomerCardPaymentPanels({
         onEdit={openEditCard}
         onDelete={(cardId) => void onConfirmDeleteCard(cardId)}
         onCopyCardNumber={(digits) => void copyCardNumber(digits)}
-        onCopyExpiry={(expiry) => void copyCardExpiry(expiry)}
+        onCopyExpiry={(expiry) => void copyText(expiry)}
       />
 
       <CollectionTargetsSection
@@ -98,7 +95,7 @@ export function CustomerCardPaymentPanels({
         onCreate={openCreateContract}
         onEdit={openEditContract}
         onDelete={(contractId) => void onConfirmDeleteContract(contractId)}
-        onCopyPolicyNumber={(value) => void copyPolicyNumber(value)}
+        onCopyPolicyNumber={(value) => void copyText(value)}
       />
 
       <CardPaymentFormDialog

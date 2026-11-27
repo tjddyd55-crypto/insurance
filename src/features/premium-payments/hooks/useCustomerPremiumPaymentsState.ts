@@ -88,7 +88,7 @@ export function useCustomerPremiumPaymentsState(
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [notFound, setNotFound] = useState(false)
-  const [copyHint, setCopyHint] = useState('')
+  const [copyFeedback, setCopyFeedback] = useState<{ message: string; id: number } | null>(null)
 
   const [cardFormOpen, setCardFormOpen] = useState(false)
   const [editingCard, setEditingCard] = useState<PaymentCardRow | null>(null)
@@ -153,7 +153,6 @@ export function useCustomerPremiumPaymentsState(
     setContracts([])
     setError('')
     setNotFound(false)
-    setCopyHint('')
     setCardFormOpen(false)
     setEditingCard(null)
     setContractFormOpen(false)
@@ -164,49 +163,21 @@ export function useCustomerPremiumPaymentsState(
     void loadAll()
   }, [loadAll])
 
-  const showCopyHint = useCallback((message: string) => {
-    setCopyHint(message)
-    window.setTimeout(() => setCopyHint(''), 1800)
+  useEffect(() => {
+    if (!copyFeedback) return
+    const timer = window.setTimeout(() => setCopyFeedback(null), 1500)
+    return () => window.clearTimeout(timer)
+  }, [copyFeedback])
+
+  const copyText = useCallback(async (value: string | null | undefined) => {
+    const ok = await copyTextToClipboard(value ?? '').catch(() => false)
+    const message = ok ? '복사되었습니다' : '복사에 실패했습니다'
+    setCopyFeedback((previous) => ({ message, id: (previous?.id ?? 0) + 1 }))
   }, [])
 
-  const copyPolicyNumber = useCallback(
-    async (value: string | null | undefined) => {
-      if (!value?.trim()) {
-        return
-      }
-      const ok = await copyTextToClipboard(value.trim())
-      if (ok) {
-        showCopyHint('증권번호를 복사했습니다.')
-      }
-    },
-    [showCopyHint],
-  )
-
   const copyCardNumber = useCallback(
-    async (digits: string | null | undefined) => {
-      const normalized = String(digits ?? '').replace(/\D/g, '')
-      if (!normalized) {
-        return
-      }
-      const ok = await copyTextToClipboard(normalized)
-      if (ok) {
-        showCopyHint('카드번호를 복사했습니다.')
-      }
-    },
-    [showCopyHint],
-  )
-
-  const copyCardExpiry = useCallback(
-    async (expiry: string | null | undefined) => {
-      if (!expiry?.trim()) {
-        return
-      }
-      const ok = await copyTextToClipboard(expiry.trim())
-      if (ok) {
-        showCopyHint('유효기간을 복사했습니다.')
-      }
-    },
-    [showCopyHint],
+    (value: string | null | undefined) => copyText((value ?? '').replace(/\D/g, '')),
+    [copyText],
   )
 
   const openCreateCard = useCallback(() => {
@@ -414,7 +385,7 @@ export function useCustomerPremiumPaymentsState(
     error,
     busy,
     notFound,
-    copyHint,
+    copyFeedback,
     cardFormOpen,
     editingCard,
     cardForm,
@@ -433,9 +404,8 @@ export function useCustomerPremiumPaymentsState(
     closeContractForm,
     submitContractForm,
     removeContract,
-    copyPolicyNumber,
+    copyText,
     copyCardNumber,
-    copyCardExpiry,
     cardOptions,
     insurerSites,
     reload: loadAll,

@@ -1,14 +1,15 @@
 import { FormButton } from '../../../../components/form'
+import { InlineCopyValue } from '../../components/InlineCopyValue'
 import { CollectionTargetsTable } from '../../components/CollectionTargetsTable'
 import { formatInsurerCustomerResidentBesideName } from '../../domain/formatInsurerCustomerResidentNumber'
-import { INSURER_GROUP_OTHER, type InsurerCustomerGroup } from '../../domain/insurerGrouping'
+import { INSURER_GROUP_OTHER } from '../../domain/insurerGrouping'
 import type { InsurerViewProps } from './PremiumPaymentsCustomerSidebar'
 
 export type InsurerCustomerHeader = 'phone' | 'residentNumber'
 
 type Props = {
   insurerView: InsurerViewProps
-  onCopyPolicyNumber: (value: string | null | undefined) => void
+  onCopy: (value: string | null | undefined) => void
   /** PC 보험사별만 residentNumber. 모바일은 phone. */
   customerHeader?: InsurerCustomerHeader
 }
@@ -20,15 +21,10 @@ function formatPhone(phone: string): string {
   return phone || '연락처 없음'
 }
 
-function besideCustomerName(group: InsurerCustomerGroup, header: InsurerCustomerHeader): string {
-  if (header === 'residentNumber') return formatInsurerCustomerResidentBesideName(group.customerSsn)
-  return formatPhone(group.customerPhone)
-}
-
 /** 보험사별 보기 오른쪽: 선택 보험회사 → 고객(가나다, 1회) → 기존 카드 수납 테이블 */
 export function PremiumPaymentsInsurerDetail({
   insurerView,
-  onCopyPolicyNumber,
+  onCopy,
   customerHeader = 'phone',
 }: Props) {
   const insurer = insurerView.selectedInsurer
@@ -72,7 +68,14 @@ export function PremiumPaymentsInsurerDetail({
                 data-testid={customerHeader === 'residentNumber' ? 'card-insurer-customer-rrn' : 'card-insurer-customer-phone'}
               >
                 {' '}
-                {besideCustomerName(group, customerHeader)}
+                {customerHeader === 'residentNumber' ? (
+                  <InlineCopyValue
+                    value={group.customerSsn ? formatInsurerCustomerResidentBesideName(group.customerSsn) : ''}
+                    emptyLabel="—"
+                    copyLabel="주민번호 복사"
+                    onCopy={onCopy}
+                  />
+                ) : formatPhone(group.customerPhone)}
               </span>
             </h3>
             <FormButton
@@ -84,7 +87,7 @@ export function PremiumPaymentsInsurerDetail({
               수정
             </FormButton>
           </div>
-          <CollectionTargetsTable contracts={group.contracts} onCopyPolicyNumber={onCopyPolicyNumber} />
+          <CollectionTargetsTable contracts={group.contracts} onCopyPolicyNumber={onCopy} />
         </section>
       ))}
     </div>

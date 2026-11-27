@@ -14,7 +14,7 @@ type Props = {
   listError: string
   selectedCustomerId: number | null
   selectedCustomer: CardPaymentCustomerListItem | null
-  detailState: CustomerCardPaymentState | null
+  detailState: CustomerCardPaymentState
   mobilePickerOpen: boolean
   onOpenMobilePicker: () => void
   onCloseMobilePicker: () => void
@@ -93,9 +93,9 @@ export function PremiumPaymentsOverviewBody({
           <PremiumPaymentsInsurerDetail
             insurerView={insurerView}
             customerHeader={insurerCustomerHeader}
-            onCopyPolicyNumber={(value) => void detailState?.copyPolicyNumber(value)}
+            onCopy={(value) => void detailState.copyText(value)}
           />
-        ) : !selectedCustomer || !detailState ? (
+        ) : !selectedCustomer ? (
           <div className="premium-payments-workspace__detail-empty">
             <p>
               {customers.length === 0
