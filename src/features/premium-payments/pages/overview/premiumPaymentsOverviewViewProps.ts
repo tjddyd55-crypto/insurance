@@ -11,7 +11,7 @@ export type PremiumPaymentsOverviewViewProps = {
   listError: string
   selectedCustomerId: number | null
   selectedCustomer: CardPaymentCustomerListItem | null
-  detailState: CustomerCardPaymentState | null
+  detailState: CustomerCardPaymentState
   mobilePickerOpen: boolean
   onOpenMobilePicker: () => void
   onCloseMobilePicker: () => void

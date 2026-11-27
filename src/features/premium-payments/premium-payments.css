@@ -761,3 +761,31 @@
 .premium-payments-insurer-customer > .premium-payments-section__header {
   margin-bottom: 8px;
 }
+
+.premium-payments-copy-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(32px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 10001;
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgb(30 41 59 / 0.92);
+  color: white;
+  font-size: 0.875rem;
+  box-shadow: 0 4px 14px rgb(15 23 42 / 0.15);
+  pointer-events: none;
+  animation: premium-payments-copy-toast 1500ms ease both;
+}
+
+@keyframes premium-payments-copy-toast {
+  0%, 100% { opacity: 0; }
+  10%, 80% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-payments-copy-toast {
+    animation: none;
+  }
+}

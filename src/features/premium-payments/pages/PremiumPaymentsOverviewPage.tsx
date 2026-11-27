@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { OverlayToast } from '../../../components/OverlayToast'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { useConfirmDialog } from '../../../components/dialog'
 import { useAuth } from '../../auth/AuthProvider'
@@ -64,7 +65,7 @@ export default function PremiumPaymentsOverviewPage() {
     listError: listState.error,
     selectedCustomerId,
     selectedCustomer,
-    detailState: selectedCustomerId ? detailState : null,
+    detailState,
     mobilePickerOpen,
     onOpenMobilePicker: () => setMobilePickerOpen(true),
     onCloseMobilePicker: () => setMobilePickerOpen(false),
@@ -134,6 +135,13 @@ export default function PremiumPaymentsOverviewPage() {
         Mobile={PremiumPaymentsOverviewMobileView}
         viewProps={viewProps}
       />
+      {detailState.copyFeedback ? (
+        <OverlayToast
+          key={detailState.copyFeedback.id}
+          message={detailState.copyFeedback.message}
+          className="premium-payments-copy-toast"
+        />
+      ) : null}
       {confirmDialog}
     </>
   )

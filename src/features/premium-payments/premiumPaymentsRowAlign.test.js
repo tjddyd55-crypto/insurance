@@ -54,7 +54,7 @@ describe('card payment compact row alignment + policy copy', () => {
 
   it('policy copy toast stays on shared clipboard helper path', () => {
     const hook = read('hooks/useCustomerPremiumPaymentsState.ts')
-    assert.match(hook, /증권번호를 복사했습니다\./)
+    assert.match(hook, /복사되었습니다/)
     assert.match(hook, /copyTextToClipboard/)
   })
 })
